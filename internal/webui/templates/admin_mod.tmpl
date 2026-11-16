@@ -1,0 +1,49 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- if not .Actions}}
+<p class="banner">{{t "admin.mod.read_only"}}</p>
+{{- end}}
+{{- with .Body}}
+<section class="sec" id="queue" aria-labelledby="h-queue">
+<h2 class="h2" id="h-queue"><span class="h" aria-hidden="true"># </span>{{t "admin.mod.queue_h2"}}</h2>
+{{- if .Queue}}
+<div class="adm-list">
+{{- range .Queue}}
+{{template "modcomment" .}}
+{{- end}}
+</div>
+{{- else}}
+<p class="note">{{t "admin.mod.queue_empty"}}</p>
+{{- end}}
+{{- if or .QueueNext .QueueFirst}}
+<p class="pager">{{with .QueueFirst}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .QueueNext}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
+{{- end}}
+</section>
+<section class="sec" id="recent" aria-labelledby="h-recent">
+<h2 class="h2" id="h-recent"><span class="h" aria-hidden="true"># </span>{{t "admin.mod.recent_h2"}}</h2>
+<nav class="seg" aria-label="{{ts "admin.mod.filter_label"}}">
+{{- range .Filters}}
+<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{if .Value}}{{t "admin.mod.status" "status" .Value}}{{else}}{{t "admin.mod.all"}}{{end}}</a>
+{{- end}}
+</nav>
+{{- if .Recent}}
+<div class="adm-list">
+{{- range .Recent}}
+{{template "modcomment" .}}
+{{- end}}
+</div>
+{{- else}}
+<p class="note">{{t "admin.mod.recent_empty"}}</p>
+{{- end}}
+{{- if or .RecentNext .RecentTop}}
+<p class="pager">{{with .RecentTop}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .RecentNext}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
+{{- end}}
+</section>
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}

@@ -1,0 +1,49 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main" id="main">
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "discussed.h1"}}</h1>
+<p class="lede">{{t "discussed.lede"}}</p>
+<p class="note">{{t "discussed.note"}}</p>
+</div>
+<details class="apid">
+<summary>{{t "hot.api.summary"}}</summary>
+{{template "cmd" .Curl}}
+</details>
+<div class="tbl">
+<div class="tbl-in" role="table">
+{{template "hothead"}}
+{{- range .Rows}}
+<div class="grp" role="rowgroup">
+{{template "hotrow" .}}
+</div>
+{{- else}}
+<div class="empty" role="row">
+<p role="cell">{{t "discussed.empty"}}</p>
+</div>
+{{- end}}
+</div>
+</div>
+{{- if or .NextHref .FirstHref}}
+<nav class="pager" aria-label="{{ts "pager.label"}}">
+{{- with .FirstHref}}
+<a href="{{.}}">{{t "pager.first"}}</a>
+{{- end}}
+{{- if .NextHref}}
+<a href="{{.NextHref}}" rel="next">{{t "pager.next"}}</a>
+{{- else}}
+<span>{{t "pager.end"}}</span>
+{{- end}}
+</nav>
+{{- end}}
+<div class="legend">
+{{template "legend"}}
+{{- if not $.L.IsPrimary}}
+{{template "upstreamnote"}}
+{{- end}}
+</div>
+</main>
+</div>
+</div>
+{{end}}{{end}}

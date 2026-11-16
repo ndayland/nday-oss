@@ -1,0 +1,21 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main errbox" id="main">
+<span class="code">HTTP {{.Code}}</span>
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{.Heading}}</h1>
+<p class="lede">{{.Message}}</p>
+{{- with .Detail}}
+<p class="note">{{.}}</p>
+{{- end}}
+{{- if .Search}}
+<form class="search" action="{{href "/vuln"}}" method="get" role="search">
+<span class="prompt" aria-hidden="true">&gt;</span>
+<input type="search" name="q" aria-label="{{ts "search.box.label"}}" placeholder="{{ts "search.box.placeholder"}}" autocomplete="off" spellcheck="false" maxlength="100"/>
+</form>
+{{- end}}
+<p><a href="{{href "/"}}">{{t "err.home_link" "path" "~/hot"}}</a></p>
+</main>
+</div>
+</div>
+{{end}}{{end}}

@@ -1,0 +1,118 @@
+{
+ "collector": "kev",
+ "cursor": {
+  "catalogVersion": "2026.11.12",
+  "count": 7.0,
+  "dateReleased": "2026-11-12T00:00:00.000Z"
+ },
+ "input": "internal/collector/kev/testdata/feed_edge.json",
+ "kind": "fetch",
+ "records": [
+  {
+   "content_hash": "56d7d3836516fb6181d8b40b2657b6ae9bec9d91295765b2484ce5d6848338e3",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2024-2001",
+      "product": "B",
+      "vendor": "A"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2024-2001",
+      "dedupe_key": "",
+      "detail": {
+       "cwes": [],
+       "date_added": "2024-03-01",
+       "due_date": null,
+       "forensic_triage": null,
+       "known_ransomware_campaign_use": null,
+       "notes": null,
+       "precision": "day",
+       "product": "B",
+       "required_action": null,
+       "vendor_project": "A",
+       "vulnerability_name": null
+      },
+      "occurred_at": "2024-03-01T00:00:00.000000Z",
+      "source": "kev",
+      "type": "kev_added",
+      "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": false,
+      "cve_id": "CVE-2024-2001",
+      "description": null,
+      "modified_at": null,
+      "published_at": null,
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2024-2001"
+  },
+  {
+   "content_hash": "a8fb0e12b28fbc74616f2c793db495ca51e58a0efc3da1774c15e6bb060071c5",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2024-2002",
+      "product": "B",
+      "vendor": "A"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2024-2002",
+      "dedupe_key": "",
+      "detail": {
+       "cwes": null,
+       "date_added": "2024-03-03",
+       "due_date": null,
+       "forensic_triage": null,
+       "known_ransomware_campaign_use": null,
+       "notes": null,
+       "precision": "day",
+       "product": "B",
+       "required_action": null,
+       "vendor_project": "A",
+       "vulnerability_name": null
+      },
+      "occurred_at": "2024-03-03T00:00:00.000000Z",
+      "source": "kev",
+      "type": "kev_added",
+      "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": false,
+      "cve_id": "CVE-2024-2002",
+      "description": null,
+      "modified_at": null,
+      "published_at": null,
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2024-2002"
+  },
+  {
+   "content_hash": "034a00a0dd177902f0de941744f0e591c9f40eaa775712163bb4a7730addc4d9",
+   "error": {
+    "fatal": false,
+    "message": "bad cveID: 'bad-id'",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "bad-id"
+  }
+ ]
+}

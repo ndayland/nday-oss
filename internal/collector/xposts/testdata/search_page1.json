@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "id": "2120833985541046272",
+      "author_id": "1001",
+      "created_at": "2026-11-12T11:00:00.000Z",
+      "lang": "en",
+      "text": "Patch now: cve-2026-1111 and CVE-2026-1111 again; a PoC exists for CVE-2026-22222.",
+      "edit_history_tweet_ids": ["2120833985541046272"]
+    },
+    {
+      "id": "2120818886046646272",
+      "author_id": "1002",
+      "created_at": "2026-11-12T10:00:00.000Z",
+      "lang": "en",
+      "text": "No id in this one, just CVE talk (CVE-20261111 is not an id).",
+      "edit_history_tweet_ids": ["2120818886046646272"]
+    }
+  ],
+  "includes": {
+    "users": [
+      {"id": "1001", "name": "Alice", "username": "alice_sec"},
+      {"id": "1002", "name": "Bob", "username": "bob_sec"}
+    ]
+  },
+  "meta": {
+    "newest_id": "2120833985541046272",
+    "oldest_id": "2120818886046646272",
+    "result_count": 2,
+    "next_token": "b26v89c19zqg8o3fpzbkk7bmjckcbfhy9cmhn8ofhdpml"
+  }
+}

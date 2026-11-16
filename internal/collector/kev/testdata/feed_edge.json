@@ -1,0 +1,11 @@
+{"title": "edge feed", "catalogVersion": "2026.11.12", "dateReleased": "2026-11-12T00:00:00.000Z", "count": 7.0,
+ "vulnerabilities": [
+  {"cveID": "CVE-2024-2001", "vendorProject": "A", "product": "B", "dateAdded": "2024-03-01", "cwes": []},
+  {"cveID": " CVE-2024-2001 ", "vendorProject": "dup after strip", "product": "B", "dateAdded": "2024-03-02"},
+  {"vendorProject": "no cve"},
+  "not an object",
+  {"cveID": "   "},
+  {"cveID": "CVE-2024-2002", "vendorProject": "A", "product": "B", "dateAdded": "2024-03-03", "score": 1e-5, "big": 1e400, "n": -0},
+  {"cveID": "bad-id", "vendorProject": "A"},
+  {"cveID": "CVE-2024-2002", "vendorProject": "dup exact"}
+ ]}

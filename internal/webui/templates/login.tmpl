@@ -1,0 +1,61 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main acctpage" id="main" data-page="login" data-welcome="{{.Welcome}}">
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "acct.login.h1"}}</h1>
+<p class="lede">{{t "acct.login.lede"}}</p>
+</div>
+<p class="acct-st" id="acct-status" role="status" aria-live="polite"></p>
+
+<section class="acct-sec" id="login-me" hidden="" aria-labelledby="login-me-t">
+<p class="acct-who" id="login-me-t"></p>
+<ul class="acct-btns">
+<li><a class="btn acct-btn" href="{{.AccountPath}}">{{t "acct.login.go_account"}}</a></li>
+<li><a class="btn acct-btn" href="{{.Return}}">{{t "acct.login.go_back" "path" .ReturnText}}</a></li>
+</ul>
+<p class="note">{{t "acct.login.switch_note"}}</p>
+</section>
+
+<div class="acct-choices" id="login-choices">
+{{- if .Providers}}
+<section class="acct-sec" aria-labelledby="login-prov">
+<h2 class="h2" id="login-prov"><span class="h" aria-hidden="true"># </span>{{t "acct.login.providers_h2"}}</h2>
+<ul class="acct-btns">
+{{- range .Providers}}
+<li><a class="btn acct-btn" href="{{.Href}}" data-provider="{{.ID}}">{{t "acct.login.provider" "provider" .Name}}</a></li>
+{{- end}}
+</ul>
+</section>
+{{- end}}
+{{- if .Passkeys}}
+<section class="acct-sec" aria-labelledby="login-pk">
+<h2 class="h2" id="login-pk"><span class="h" aria-hidden="true"># </span>{{t "acct.login.passkey_h2"}}</h2>
+<div class="acct-wa" hidden="">
+<ul class="acct-btns">
+<li><button type="button" class="btn acct-btn" id="pk-login" title="{{ts "acct.login.passkey_note"}}">{{t "acct.login.passkey"}}</button></li>
+</ul>
+</div>
+<p class="note acct-nowa" hidden="">{{t "acct.passkeys.unsupported"}}</p>
+<noscript><p class="note">{{t "acct.login.nojs"}}</p></noscript>
+</section>
+{{- if .Signup}}
+<section class="acct-sec acct-wa" hidden="" aria-labelledby="login-su">
+<h2 class="h2" id="login-su"><span class="h" aria-hidden="true"># </span>{{t "acct.login.signup_h2"}}</h2>
+<form class="acct-form" id="f-signup" novalidate="">
+<label for="in-signup-name">{{t "acct.login.signup_name"}}</label>
+<div class="acct-row">
+<input class="acct-in" id="in-signup-name" type="text" maxlength="64" autocomplete="nickname" spellcheck="false"/>
+<button type="submit" class="btn acct-btn">{{t "acct.login.signup_submit"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</section>
+{{- end}}
+{{- end}}
+<p class="note">{{t "acct.login.first_time"}}</p>
+</div>
+</main>
+</div>
+</div>
+{{end}}{{end}}

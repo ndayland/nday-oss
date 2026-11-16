@@ -1,0 +1,10 @@
+[Unit]
+Description=nday daily database backup at 04:30 local time
+
+[Timer]
+# After the 04:00 collector round, before the 05:00 one; the server's zone.
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

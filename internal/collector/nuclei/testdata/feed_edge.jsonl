@@ -1,0 +1,12 @@
+{"ID":"CVE-2020-0001","Info":{"Name":"A","Severity":"high","Description":"x","Classification":{"CVSSScore":"9.8"}},"file_path":"http/cves/2020/CVE-2020-0001.yaml"}
+   	  
+
+{"ID":"CVE-2020-0001","Info":{"Name":"dup"},"file_path":"dup.yaml"}
+[1, 2]
+"just a string"
+{"Info":{}}
+{"ID":" CVE-2020-0002 ","Info":{"Name":" B ","Severity":5,"Classification":{"CVSSScore":7.5}},"file_path":"b.yaml"}{"ID":"cve-2020-0003","Info":{"Name":"C","Classification":[]},"file_path":"c.yaml"}{"ID":"tech-detect","Info":{"Name":"T"},"file_path":"t.yaml"}
+{"ID":"CVE-2020-0004","Info":{"Name":"nul \u0000 here","Description":"\u2028 escaped sep"},"file_path":"d.yaml","x\u0000":1}
+{"ID":"CVE-2020-05","Info":{"Name":"bad id"},"file_path":"e.yaml"}
+{"ID":"CVE-2020-0006","Info":"not obj","file_path":"f.yaml"}
+{"ID":"CVE-2020-0007","Info":{"Classification":{"CVSSScore":10}},"file_path":" "}  {"ID":"CVE-2020-0008","Info":{"Classification":{"CVSSScore":null}},"file_path":"g.yaml"}  {"ID":"CVE-2020-0009","Info":{"Classification":{}},"file_path":"h.yaml","Extra":1.0e2}

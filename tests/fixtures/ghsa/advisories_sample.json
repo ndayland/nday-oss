@@ -1,0 +1,416 @@
+[
+  {
+    "ghsa_id": "GHSA-7ph3-grqh-pv9v",
+    "cve_id": "CVE-2025-53648",
+    "url": "https://api.github.com/advisories/GHSA-7ph3-grqh-pv9v",
+    "html_url": "https://github.com/advisories/GHSA-7ph3-grqh-pv9v",
+    "summary": "Apache Gravitino JDBC configuration validation bypass can allow file reads or truncation",
+    "description": "SQL misconfiguration in the Gravitino UI, in versions 0.5.0 until 1.0.0, can allow a malicious user to read or truncate files.\nUsers are recommended to upgrade to version 1.0.0, which fixes this issue.",
+    "type": "reviewed",
+    "severity": "medium",
+    "repository_advisory_url": null,
+    "source_code_location": "https://github.com/apache/gravitino",
+    "identifiers": [
+      {
+        "value": "GHSA-7ph3-grqh-pv9v",
+        "type": "GHSA"
+      },
+      {
+        "value": "CVE-2025-53648",
+        "type": "CVE"
+      }
+    ],
+    "references": [
+      "https://nvd.nist.gov/vuln/detail/CVE-2025-53648",
+      "https://lists.apache.org/thread/s0hytcv17z52dwp5dojjjwgrtqtyh2xk",
+      "http://www.openwall.com/lists/oss-security/2026/06/30/2",
+      "https://github.com/apache/gravitino/pull/8000",
+      "https://github.com/github/advisory-database/pull/10102",
+      "https://github.com/apache/gravitino/commit/5355bd075d54cad1323606723e72cc32ca564f24",
+      "https://github.com/apache/gravitino/releases/tag/v1.0.0",
+      "https://github.com/advisories/GHSA-7ph3-grqh-pv9v"
+    ],
+    "published_at": "2026-06-30T15:30:46Z",
+    "updated_at": "2026-11-05T18:05:13Z",
+    "github_reviewed_at": "2026-11-05T18:05:11Z",
+    "nvd_published_at": "2026-06-30T14:16:24Z",
+    "withdrawn_at": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "maven",
+          "name": "org.apache.gravitino:catalog-jdbc-common"
+        },
+        "vulnerable_version_range": ">= 0.5.0, < 1.0.0",
+        "first_patched_version": "1.0.0",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+        "score": 5.4
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": 0.0
+      }
+    },
+    "cwes": [
+      {
+        "cwe_id": "CWE-89",
+        "name": "Improper Neutralization of Special Elements used in an SQL Command"
+      }
+    ],
+    "credits": [
+      {
+        "user": {
+          "login": "oscerd",
+          "id": 5106647,
+          "node_id": "MDQ6VXNlcjUxMDY2NDc=",
+          "avatar_url": "https://avatars.githubusercontent.com/u/5106647?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/oscerd",
+          "html_url": "https://github.com/oscerd",
+          "followers_url": "https://api.github.com/users/oscerd/followers",
+          "following_url": "https://api.github.com/users/oscerd/following{/other_user}",
+          "gists_url": "https://api.github.com/users/oscerd/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/oscerd/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/oscerd/subscriptions",
+          "organizations_url": "https://api.github.com/users/oscerd/orgs",
+          "repos_url": "https://api.github.com/users/oscerd/repos",
+          "events_url": "https://api.github.com/users/oscerd/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/oscerd/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "analyst"
+      }
+    ],
+    "comments": 0,
+    "cvss": {
+      "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N",
+      "score": 5.4
+    },
+    "epss": {
+      "percentage": 0.00561,
+      "percentile": 0.46519
+    }
+  },
+  {
+    "ghsa_id": "GHSA-r4hm-p9f9-fj9v",
+    "cve_id": "CVE-2026-55649",
+    "url": "https://api.github.com/advisories/GHSA-r4hm-p9f9-fj9v",
+    "html_url": "https://github.com/advisories/GHSA-r4hm-p9f9-fj9v",
+    "summary": "GeoNode has Stored XSS in Documents metadata abstract field",
+    "description": "The abstract metadata of documents is not sanitised. It’s possible to store arbitrary HTML (and JS) that will be executed when visiting the page.",
+    "type": "reviewed",
+    "severity": "medium",
+    "repository_advisory_url": "https://api.github.com/repos/GeoNode/geonode/security-advisories/GHSA-r4hm-p9f9-fj9v",
+    "source_code_location": "https://github.com/GeoNode/geonode",
+    "identifiers": [
+      {
+        "value": "GHSA-r4hm-p9f9-fj9v",
+        "type": "GHSA"
+      },
+      {
+        "value": "CVE-2026-55649",
+        "type": "CVE"
+      }
+    ],
+    "references": [
+      "https://github.com/GeoNode/geonode/security/advisories/GHSA-r4hm-p9f9-fj9v",
+      "https://github.com/GeoNode/geonode/pull/14322",
+      "https://github.com/GeoNode/geonode/pull/14343",
+      "https://github.com/GeoNode/geonode/commit/0803857b22eba5b55729145ef401b1bc1c23e332",
+      "https://github.com/GeoNode/geonode/commit/730d8fae206ea5b051f630718aeecae1bf7b5760",
+      "https://github.com/GeoNode/geonode/releases/tag/5.0.3",
+      "https://github.com/advisories/GHSA-r4hm-p9f9-fj9v"
+    ],
+    "published_at": "2026-11-06T19:50:34Z",
+    "updated_at": "2026-11-06T19:50:35Z",
+    "github_reviewed_at": "2026-11-06T19:50:34Z",
+    "nvd_published_at": null,
+    "withdrawn_at": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "pip",
+          "name": "GeoNode"
+        },
+        "vulnerable_version_range": "< 5.0.3",
+        "first_patched_version": "5.0.3",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:U/C:H/I:L/A:N",
+        "score": 6.3
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": 0.0
+      }
+    },
+    "cwes": [
+      {
+        "cwe_id": "CWE-79",
+        "name": "Improper Neutralization of Input During Web Page Generation"
+      }
+    ],
+    "credits": [],
+    "comments": 5,
+    "cvss": {
+      "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:U/C:H/I:L/A:N",
+      "score": 6.3
+    },
+    "epss": {
+      "percentage": 0.00317,
+      "percentile": 0.24832
+    }
+  },
+  {
+    "ghsa_id": "GHSA-9754-6rhw-gj3h",
+    "cve_id": "CVE-2026-6658",
+    "url": "https://api.github.com/advisories/GHSA-9754-6rhw-gj3h",
+    "html_url": "https://github.com/advisories/GHSA-9754-6rhw-gj3h",
+    "summary": "jupyter/nbconvert allows Cross-site Scripting (XSS) via unsanitized `text/vnd.mermaid` output in HTML exports",
+    "description": "A vulnerability in jupyter/nbconvert versions <= 7.17.0 allows for Cross-site Scripting (XSS) via unsanitized `text/vnd.mermaid` output in HTML exports. The `data_mermaid` block in `share/templates/lab/base.html.j2` renders `text/vnd.mermaid` cell output directly into HTML without escaping, enabling attackers to inject arbitrary HTML/JavaScript by breaking out of the `<pre>` tag. This vulnerability impacts any server using nbconvert to render notebooks as HTML, allowing attackers to execute arbitrary JavaScript in the context of users viewing the HTML export.",
+    "type": "reviewed",
+    "severity": "medium",
+    "repository_advisory_url": null,
+    "source_code_location": "https://github.com/jupyter/nbconvert",
+    "identifiers": [
+      {
+        "value": "GHSA-9754-6rhw-gj3h",
+        "type": "GHSA"
+      },
+      {
+        "value": "CVE-2026-6658",
+        "type": "CVE"
+      }
+    ],
+    "references": [
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-6658",
+      "https://huntr.com/bounties/47570290-3b26-4477-8cfa-fdef7db5aefe",
+      "https://github.com/advisories/GHSA-9754-6rhw-gj3h"
+    ],
+    "published_at": "2026-06-26T12:30:29Z",
+    "updated_at": "2026-11-06T17:50:16Z",
+    "github_reviewed_at": "2026-11-06T17:50:14Z",
+    "nvd_published_at": "2026-06-26T10:16:22Z",
+    "withdrawn_at": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "pip",
+          "name": "nbconvert"
+        },
+        "vulnerable_version_range": "<= 7.17.0",
+        "first_patched_version": null,
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.0/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N",
+        "score": 5.4
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": 0.0
+      }
+    },
+    "cwes": [
+      {
+        "cwe_id": "CWE-79",
+        "name": "Improper Neutralization of Input During Web Page Generation"
+      }
+    ],
+    "credits": [],
+    "comments": 0,
+    "cvss": {
+      "vector_string": "CVSS:3.0/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N",
+      "score": 5.4
+    },
+    "epss": {
+      "percentage": 0.00161,
+      "percentile": 0.05222
+    }
+  },
+  {
+    "ghsa_id": "GHSA-2cm2-m3w5-gp2f",
+    "cve_id": null,
+    "url": "https://api.github.com/advisories/GHSA-2cm2-m3w5-gp2f",
+    "html_url": "https://github.com/advisories/GHSA-2cm2-m3w5-gp2f",
+    "summary": "vm2 has access to `VM2_INTERNAL_STATE_DO_NOT_USE_OR_PROGRAM_WILL_FAIL`",
+    "description": "### Summary\n\nhttps://github.com/patriksimek/vm2/security/advisories/GHSA-wp5r-2gw5-m7q7 is not fully patched.\n\n### Details\n\nIt is still possible to get access to `VM2_INTERNAL_STATE_DO_NOT_USE_OR_PROGRAM_WILL_FAIL`.\n\n### PoC\n\n```js\nconst {VM} = require(\"vm2\");\nconst vm = new VM();\nconsole.log(vm.run(`\n globalThis['VM2_INTERNAL_STATE_DO_NOT_USE_OR_PROGRAM_WILL_FAIL']\n`));\n```",
+    "type": "reviewed",
+    "severity": "medium",
+    "repository_advisory_url": "https://api.github.com/repos/patriksimek/vm2/security-advisories/GHSA-2cm2-m3w5-gp2f",
+    "source_code_location": "https://github.com/patriksimek/vm2",
+    "identifiers": [
+      {
+        "value": "GHSA-2cm2-m3w5-gp2f",
+        "type": "GHSA"
+      }
+    ],
+    "references": [
+      "https://github.com/patriksimek/vm2/security/advisories/GHSA-2cm2-m3w5-gp2f",
+      "https://github.com/patriksimek/vm2/releases/tag/v3.11.2",
+      "https://github.com/patriksimek/vm2/commit/99d410bb7e0d607c56e68b420720a586dc0dd300",
+      "https://github.com/advisories/GHSA-2cm2-m3w5-gp2f"
+    ],
+    "published_at": "2026-05-08T16:22:52Z",
+    "updated_at": "2026-11-05T21:42:53Z",
+    "github_reviewed_at": "2026-05-08T16:22:52Z",
+    "nvd_published_at": null,
+    "withdrawn_at": null,
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "npm",
+          "name": "vm2"
+        },
+        "vulnerable_version_range": "< 3.11.2",
+        "first_patched_version": "3.11.2",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+        "score": 5.3
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": 0.0
+      }
+    },
+    "cwes": [
+      {
+        "cwe_id": "CWE-693",
+        "name": "Protection Mechanism Failure"
+      }
+    ],
+    "credits": [
+      {
+        "user": {
+          "login": "XmiliaH",
+          "id": 45106915,
+          "node_id": "MDQ6VXNlcjQ1MTA2OTE1",
+          "avatar_url": "https://avatars.githubusercontent.com/u/45106915?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/XmiliaH",
+          "html_url": "https://github.com/XmiliaH",
+          "followers_url": "https://api.github.com/users/XmiliaH/followers",
+          "following_url": "https://api.github.com/users/XmiliaH/following{/other_user}",
+          "gists_url": "https://api.github.com/users/XmiliaH/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/XmiliaH/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/XmiliaH/subscriptions",
+          "organizations_url": "https://api.github.com/users/XmiliaH/orgs",
+          "repos_url": "https://api.github.com/users/XmiliaH/repos",
+          "events_url": "https://api.github.com/users/XmiliaH/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/XmiliaH/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter"
+      },
+      {
+        "user": {
+          "login": "zuhairhalawa",
+          "id": 71436209,
+          "node_id": "MDQ6VXNlcjcxNDM2MjA5",
+          "avatar_url": "https://avatars.githubusercontent.com/u/71436209?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/zuhairhalawa",
+          "html_url": "https://github.com/zuhairhalawa",
+          "followers_url": "https://api.github.com/users/zuhairhalawa/followers",
+          "following_url": "https://api.github.com/users/zuhairhalawa/following{/other_user}",
+          "gists_url": "https://api.github.com/users/zuhairhalawa/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/zuhairhalawa/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/zuhairhalawa/subscriptions",
+          "organizations_url": "https://api.github.com/users/zuhairhalawa/orgs",
+          "repos_url": "https://api.github.com/users/zuhairhalawa/repos",
+          "events_url": "https://api.github.com/users/zuhairhalawa/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/zuhairhalawa/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "analyst"
+      }
+    ],
+    "comments": 2,
+    "cvss": {
+      "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+      "score": 5.3
+    }
+  },
+  {
+    "ghsa_id": "GHSA-jmqv-2mx7-544h",
+    "cve_id": null,
+    "url": "https://api.github.com/advisories/GHSA-jmqv-2mx7-544h",
+    "html_url": "https://github.com/advisories/GHSA-jmqv-2mx7-544h",
+    "summary": "Duplicate Advisory: ImageMagick: Malicious PCD files trigger 1‑byte heap Out-of-bounds Read and DoS",
+    "description": "### Duplicate Advisory\nThis advisory has been withdrawn because it is a duplicate of GHSA-wgxp-q8xq-wpp9. This link is maintained to preserve external references.\n\n### Original Description\nImageMagick before 7.1.2-15 (and 6.x before 6.9.13-40) contains a heap out-of-bounds read in the PCD coder's DecodeImage loop. A crafted PCD file can trigger a one-byte heap out-of-bounds read during image decoding, resulting in denial of service and potential disclosure of an adjacent heap byte.",
+    "type": "reviewed",
+    "severity": "medium",
+    "repository_advisory_url": null,
+    "source_code_location": "",
+    "identifiers": [
+      {
+        "value": "GHSA-jmqv-2mx7-544h",
+        "type": "GHSA"
+      }
+    ],
+    "references": [
+      "https://github.com/ImageMagick/ImageMagick/security/advisories/GHSA-wgxp-q8xq-wpp9",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-56378",
+      "https://www.vulncheck.com/advisories/imagemagick-heap-out-of-bounds-read-in-pcd-decoder",
+      "https://github.com/advisories/GHSA-jmqv-2mx7-544h"
+    ],
+    "published_at": "2026-06-21T15:31:24Z",
+    "updated_at": "2026-11-06T18:06:08Z",
+    "github_reviewed_at": "2026-11-06T18:06:05Z",
+    "nvd_published_at": "2026-06-21T14:16:25Z",
+    "withdrawn_at": "2026-11-06T18:06:05Z",
+    "vulnerabilities": [
+      {
+        "package": {
+          "ecosystem": "nuget",
+          "name": "Magick.NET-Q16-AnyCPU"
+        },
+        "vulnerable_version_range": "< 14.10.3",
+        "first_patched_version": "14.10.3",
+        "vulnerable_functions": []
+      }
+    ],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
+        "score": 3.7
+      },
+      "cvss_v4": {
+        "vector_string": "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:N/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X/S:X/AU:X/R:X/V:X/RE:X/U:X",
+        "score": 6.3
+      }
+    },
+    "cwes": [
+      {
+        "cwe_id": "CWE-125",
+        "name": "Out-of-bounds Read"
+      }
+    ],
+    "credits": [],
+    "comments": 0,
+    "cvss": {
+      "vector_string": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N",
+      "score": 3.7
+    }
+  }
+]

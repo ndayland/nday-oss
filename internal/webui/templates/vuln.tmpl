@@ -1,0 +1,513 @@
+{{define "mark"}}
+{{- if eq .Kind "bar"}}{{if .Latest}}<rect class="barhalo" x="{{.X}}" y="12" width="{{.W}}" height="12"/>{{end}}<rect class="mk {{if .Hollow}}mk-hollow{{else}}mk-known{{end}}" x="{{.X}}" y="12.75" width="{{.W}}" height="10.5"/>
+{{- else if eq .Kind "pin"}}<svg x="{{.X}}" overflow="visible">{{if .Latest}}<rect class="halo" x="-7" y="9" width="14" height="18"/>{{end}}<rect class="mk {{if .Hollow}}mk-hollow{{else}}mk-known{{end}}" x="-3.25" y="12.75" width="6.5" height="10.5"/></svg>
+{{- else}}<svg x="{{.X}}" overflow="visible">{{if .Latest}}<rect class="halo" x="-9" y="9" width="18" height="18"/>{{end}}<rect class="mk {{if .Hollow}}mk-hollow{{else}}mk-known{{end}}" x="-5.25" y="12.75" width="10.5" height="10.5"/></svg>
+{{- end}}
+{{- end}}
+
+{{define "content"}}{{with .Data}}
+<main class="page detail" id="main">
+<div class="wrap">
+<div class="dhead">
+<div class="crumb">
+<span class="weak" aria-hidden="true">~/vuln/</span>
+<span class="id">{{.ID}}</span>
+<button type="button" class="btn sm" data-copy="{{.ID}}" hidden="">{{t "btn.copy_id" "key" "y"}}</button>
+{{- range .Aliases}}
+{{template "link" .}}
+{{- end}}
+</div>
+{{- with .Rejected}}
+<div class="banner" role="note">
+<div class="t"><span class="badge">REJECTED</span><span>{{if .Date}}{{t "vuln.rejected.banner_at" "date" .Date}}{{else}}{{t "vuln.rejected.banner"}}{{end}}</span></div>
+{{- range .Reasons}}
+<p class="note">{{t "vuln.rejected.reason" "reason" (upstream .)}}</p>
+{{- end}}
+{{- if .ReplacedBy}}
+<p class="note">{{t "vuln.rejected.replaced_by" "ids" (links "and" .ReplacedBy)}}</p>
+{{- end}}
+</div>
+{{- end}}
+<h1 class="vt{{if .TitleMissing}} missing{{end}}"{{with .TitleLang}} lang="{{.}}"{{end}}>{{.Title}}</h1>
+{{- with .Original}}
+<p class="orig" lang="en">{{.}}</p>
+{{- end}}
+{{- with .Products}}
+<p class="prods">{{.}}</p>
+{{- end}}
+{{- if and (or .TitleLang .SummaryLang) (not .SummarySrc)}}
+{{template "upstreamnote"}}
+{{- end}}
+<p class="sentence">{{.SentenceHTML}}</p>
+{{- with .Tags}}
+<div class="vtags">
+<div class="tgline" role="group" aria-labelledby="tgl">
+<span class="k" id="tgl">{{t "tag.vuln.label"}}</span>
+{{- range .Groups}}
+<span class="tgd"><span class="dim">{{t "tag.dim" "dim" .Dim}}</span>{{range .Tags}}{{template "tagchip" .}}{{end}}</span>
+{{- end}}
+</div>
+<details class="why">
+<summary>{{t "tag.vuln.why"}}</summary>
+<p class="note">{{t "tag.vuln.derived" "all" (a (href "/tags") "~/tags")}}</p>
+<dl class="whyl">
+{{- range .Why}}
+<div><dt>{{template "tagchip" .Chip}}</dt><dd>{{range .Basis}}<span>{{.}}</span>{{end}}</dd></div>
+{{- end}}
+</dl>
+{{- if .V2}}
+<p class="note">{{t "tag.vuln.v2_note"}}</p>
+{{- end}}
+</details>
+</div>
+{{- end}}
+<details class="apid">
+<summary>{{t "vuln.api.summary"}}</summary>
+{{template "cmd" .Curl}}
+</details>
+</div>
+
+<dl class="facts">
+{{- range .Facts}}
+<div><dt>{{.Label}}</dt><dd{{with .Class}} class="{{.}}"{{end}}>{{if .ValueHTML}}{{.ValueHTML}}{{else}}{{.Value}}{{end}}{{with .Note}} <span class="n">{{.}}</span>{{end}}</dd></div>
+{{- end}}
+</dl>
+
+<section class="sec" aria-labelledby="lc">
+<div class="sec-head">
+<h2 class="h2" id="lc"><span class="h" aria-hidden="true"># </span>{{t "vuln.lifecycle.h2"}}</h2>
+<span class="note">{{t "vuln.lifecycle.note"}}</span>
+</div>
+<div class="chart">
+<div class="chart-in">
+<div class="crow chead">
+<div></div>
+<svg class="axis" aria-hidden="true">
+{{- range .Chart.Ticks}}{{if .Label}}<text x="{{.X}}" dx="3" y="21">{{.Label}}</text>{{end}}{{end -}}
+<text class="now" x="{{.Chart.NowX}}" dx="-6" y="21" text-anchor="end">{{t "chart.now"}}</text>
+</svg>
+<div class="unk">{{t "chart.col.unknown"}}</div>
+</div>
+{{- $c := .Chart}}
+{{- range .Chart.Rows}}
+<div class="crow">
+<div class="lab"><b class="{{.Class}}">{{.Code}}</b><span>{{.Short}}</span></div>
+<svg class="plot" role="img" aria-label="{{.Aria}}">
+{{- range $c.Grid}}<line class="grid" x1="{{.}}" x2="{{.}}" y1="0" y2="36"/>{{end -}}
+<line class="nowl" x1="{{$c.NowX}}" x2="{{$c.NowX}}" y1="0" y2="36"/>
+{{- if .Empty}}<text class="nolbl" x="18" y="22">{{t "value.no_record"}}</text>{{end}}
+<g class="{{.Class}}">
+{{- range .Marks}}{{template "mark" .}}{{end -}}
+{{- with .Label}}<svg x="{{.X}}" overflow="visible"><text class="lbl" x="{{.DX}}" y="22" text-anchor="{{.Anchor}}">{{.Text}}</text></svg>{{end -}}
+</g>
+</svg>
+<div class="unk">{{if .UnknownHollow}}{{template "chip" (list3 .Class "mk mk-hollow" "")}}<span title="{{.UnknownText}}">{{.UnknownText}}</span>{{end}}</div>
+</div>
+{{- end}}
+</div>
+</div>
+</section>
+
+<div class="cols">
+<div class="main">
+<section class="sec" aria-labelledby="sum">
+<h2 class="h2" id="sum"><span class="h" aria-hidden="true"># </span>{{t "vuln.summary.h2"}}</h2>
+{{- if .Summary}}
+<div class="summary"{{with .SummaryLang}} lang="{{.}}"{{end}}>{{template "text" .SummaryText}}</div>
+{{- if .SummaryIsZh}}
+<p class="note">{{t "vuln.summary.generated"}}</p>
+{{- with .OrigText}}
+<details class="orig-d"><summary>{{t "vuln.summary.original_toggle"}}</summary><div class="orig-t" lang="en">{{template "text" .}}</div></details>
+{{- end}}
+{{- else}}
+<p class="note">{{.SummarySrc}}</p>
+{{- end}}
+{{- else if .HasRecord}}
+<p class="note">{{t "vuln.summary.none_in_record"}}</p>
+{{- else}}
+<p class="note">{{t "vuln.summary.none"}}</p>
+{{- end}}
+</section>
+{{- with .CVSS}}
+
+<section class="sec" aria-labelledby="cvh">
+<div class="sec-head">
+<h2 class="h2" id="cvh"><span class="h" aria-hidden="true"># </span>{{t "vuln.cvss.h2"}}</h2>
+<span class="note">{{t "vuln.cvss.note"}}</span>
+</div>
+{{- if .Items}}
+<dl class="cvx">
+{{- range .Items}}
+<div><dt>{{.Label}} <code>{{.Code}}</code></dt><dd{{if not .Text}} class="weak"{{end}}>{{if .Text}}{{.Text}}{{else}}{{t "vuln.cvss.unknown_value"}}{{end}}</dd></div>
+{{- end}}
+</dl>
+{{- else if not .Version}}
+<p class="note">{{t "vuln.cvss.unknown_version"}}</p>
+{{- end}}
+<p class="cvec"><code>{{.Vector}}</code></p>
+<p class="note">{{.Source}}</p>
+</section>
+{{- end}}
+
+<section class="evlog" aria-labelledby="evh">
+<h2 class="h2" id="evh"><span class="h" aria-hidden="true"># </span>{{t "vuln.events.h2"}}</h2>
+{{- range .Events}}
+<article class="ev" id="{{.Anchor}}" data-row="">
+<div class="when"><span>{{.Time.HTML}}</span>{{with .TimeNote}}<small>{{.}}</small>{{end}}</div>
+<div class="what">
+<div class="head"><b class="{{.Class}}">{{.Sign}}{{.Code}}</b><span>{{.Name}}</span></div>
+<p class="txt">{{.Text}}</p>
+{{- if .Implied}}
+<p class="src">{{.BasisHTML}}</p>
+{{- else}}
+<details class="raw">
+<summary class="src"><span class="sr">{{t "vuln.events.src"}} </span>{{if .Src.Href}}<a href="{{.Src.Href}}" rel="noopener noreferrer" data-src="">{{.Src.Text}}{{with .SrcKey}} {{.}}{{end}}</a>{{else}}<span>{{.Src.Text}}{{with .SrcKey}} {{.}}{{end}}</span>{{end}} · {{.Obs}} · <span class="rt">{{t "vuln.events.raw"}}</span></summary>
+<pre>{{range .Raw}}{{if .Key}}<span class="k">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}</pre>
+</details>
+{{- end}}
+</div>
+</article>
+{{- else}}
+<p class="note">{{t "vuln.none"}}</p>
+{{- end}}
+</section>
+</div>
+
+<aside class="side" aria-label="{{ts "vuln.side.label"}}">
+<section class="panel">
+<h2><span class="h" aria-hidden="true"># </span>{{t "vuln.fix.h2"}}</h2>
+{{- if .Packages}}
+<div class="tbl-x">
+<table class="aff">
+<thead><tr><th scope="col">{{t "vuln.fix.col.eco"}}</th><th scope="col">{{t "vuln.fix.col.package"}}</th><th scope="col">{{t "vuln.fix.col.affected"}}</th><th scope="col">{{t "vuln.fix.col.fixed"}}</th></tr></thead>
+<tbody>
+{{- range .Packages}}
+<tr><td>{{or .Ecosystem "—"}}</td><td>{{or .Name "—"}}</td><td>{{or .Affected "—"}}</td><td{{if .Fixed}} class="fix"{{end}}>{{if .Fixed}}{{.Fixed}}{{else}}{{t "vuln.fix.unfixed"}}{{end}}</td></tr>
+{{- end}}
+</tbody>
+</table>
+</div>
+{{- range .Packages}}{{with .Upgrade}}
+{{template "cmdsm" .}}
+{{- end}}{{end}}
+{{- else if .HasPatch}}
+<p class="note">{{t "vuln.fix.no_packages"}}</p>
+{{- else if .Rejected}}
+<p class="note">{{t "vuln.fix.rejected"}}</p>
+{{- else}}
+<p class="note">{{t "vuln.fix.none"}}</p>
+{{- end}}
+{{- if .FixCommits}}
+<div class="links">
+<span class="k">{{t "vuln.fix.commits"}}</span>
+{{- range .FixCommits}}
+{{template "link" .}}
+{{- end}}
+</div>
+{{- end}}
+{{- if .Advisories}}
+<div class="links">
+<span class="k">{{t "vuln.fix.advisories"}}</span>
+{{- range .Advisories}}
+{{template "link" .}}
+{{- end}}
+</div>
+{{- end}}
+</section>
+
+<section class="panel">
+<h2><span class="h" aria-hidden="true"># </span>{{t "vuln.poc.h2" "count" .PocCountHTML}}</h2>
+<div class="kv">
+{{- range .Poc}}
+<span>{{.Source}}</span><span{{if not .Present}} class="weak"{{end}}>{{if .Present}}{{t "vuln.poc.listed"}}{{else}}{{t "vuln.poc.not_listed"}}{{end}}</span>
+{{- if .Items}}
+<div class="items links">
+{{- range .Items}}
+{{template "link" .}}
+{{- end}}
+</div>
+{{- end}}
+{{- end}}
+</div>
+</section>
+
+<section class="panel">
+<h2><span class="h" aria-hidden="true"># </span>{{t "vuln.cwe.h2"}}</h2>
+{{- if .CWEs}}
+<div class="cwe">
+{{- range .CWEs}}
+{{template "link" .ID}}<span class="sans"{{with .Lang}} lang="{{.}}"{{end}}>{{if .Name}}{{.Name}}{{else}}{{t "vuln.cwe.no_name"}}{{end}}</span>
+{{- end}}
+</div>
+{{- else}}
+<p class="note">{{t "vuln.none"}}</p>
+{{- end}}
+</section>
+
+{{- with .Credits}}
+
+<section class="panel">
+<h2><span class="h" aria-hidden="true"># </span>{{t "credit.h2"}}</h2>
+<dl class="cred">
+{{- range .}}
+<div><dt>{{t "credit.role" "role" .Role}}</dt><dd><bdi dir="auto">{{.Name}}</bdi><span class="weak">{{.Source}}</span></dd></div>
+{{- end}}
+</dl>
+</section>
+{{- end}}
+
+<section class="panel">
+<h2><span class="h" aria-hidden="true"># </span>{{t "vuln.raw.h2"}}</h2>
+{{- if .RawRecords}}
+<div class="links">
+{{- range .RawRecords}}
+{{template "link" .}}
+{{- end}}
+</div>
+<p class="note">{{t "vuln.raw.note"}}</p>
+{{- else}}
+<p class="note">{{t "vuln.none"}}</p>
+{{- end}}
+</section>
+{{- with .Resources}}
+{{template "resources" .}}
+{{- end}}
+</aside>
+</div>
+{{- with .Corrections}}
+{{template "corrections" .}}
+{{- end}}
+{{- with .Research}}
+{{template "research" .}}
+{{- end}}
+{{- with .Discussion}}
+{{template "discussion" .}}
+{{- end}}
+</div>
+</main>
+{{end}}{{end}}
+
+{{define "research"}}
+<section class="sec disc rsch" id="research" aria-labelledby="rsch-h" data-cve="{{.CVE}}">
+<div class="sec-head">
+<h2 class="h2" id="rsch-h" tabindex="-1"><span class="h" aria-hidden="true"># </span>{{t "rsch.h2"}}</h2>
+<span class="note rsch-n">{{t "rsch.count" "n" .Researchers}}</span>
+</div>
+<p class="note">{{t "rsch.note"}}</p>
+{{- if .Failed}}
+<p class="note">{{t "rsch.failed"}}</p>
+{{- else if not .Entries}}
+<p class="note">{{t "rsch.empty"}}</p>
+{{- else}}
+<ol class="rp-list veil" id="rsch-list">
+{{- range .Entries}}
+<li class="rp"><p class="rp-h">{{if .AuthorURL}}<a class="rp-au" href="{{.AuthorURL}}" rel="noopener noreferrer nofollow">@{{.Author}}</a>{{else}}<span class="rp-au weak">{{t "rsch.unknown_author"}}</span>{{end}}<span class="rp-t">{{.Day}}</span></p>{{if $.Accounts}}<a class="spk-go" href="{{$.Login}}" tabindex="-1" aria-hidden="true">{{end}}<span class="spk" data-size="{{.Size}}" aria-hidden="true"></span>{{if $.Accounts}}</a>{{end}}<span class="sr">{{if .AuthorURL}}{{t "rsch.entry_hidden" "author" (print "@" .Author) "day" .Day}}{{else}}{{t "rsch.entry_hidden_anon" "day" .Day}}{{end}}</span></li>
+{{- end}}
+</ol>
+<div class="veil-cta" id="rsch-veil">
+<p class="note">{{t "rsch.locked" "n" (len .Entries)}}</p>
+{{- if .Accounts}}
+<a class="btn acct-btn" href="{{.Login}}">{{t "rsch.signin"}}</a>
+<noscript><p class="note">{{t "rsch.nojs"}}</p></noscript>
+{{- end}}
+</div>
+{{- end}}
+</section>
+{{end}}
+
+{{define "resources"}}
+<section class="panel rsrc" id="resources" aria-labelledby="rsrc-h">
+<h2 id="rsrc-h"><span class="h" aria-hidden="true"># </span>{{t "rsch.res.h2"}}</h2>
+{{- range .Groups}}
+<h3 class="rsrc-k">{{t .LabelKey}}</h3>
+<ul class="rsrc-list">
+{{- range .Links}}
+<li><a href="{{.URL}}" title="{{.URL}}" dir="auto" rel="noopener noreferrer nofollow ugc">{{if .Title}}{{.Title}}{{else}}{{.Text}}{{end}}</a>{{if .Title}} <span class="rsrc-host">{{.Host}}</span>{{end}}{{if gt .Researchers 1}} <span class="rsrc-n">{{t "rsch.res.researchers" "n" .Researchers}}</span>{{end}}</li>
+{{- end}}
+</ul>
+{{- end}}
+</section>
+{{end}}
+
+{{define "discussion"}}
+<section class="sec disc" id="discussion" aria-labelledby="disc-h" data-cve="{{.CVE}}" data-locale="{{.Locale}}" data-max="{{.MaxBody}}"{{if .Guest}} data-guest="1"{{end}}>
+<div class="sec-head">
+<h2 class="h2" id="disc-h" tabindex="-1"><span class="h" aria-hidden="true"># </span>{{t "disc.h2"}}</h2>
+{{- if not .Failed}}
+<span class="note" id="disc-n">{{t "disc.count" "n" .Count}}</span>
+{{- end}}
+</div>
+<div id="disc-list">
+{{- if .Failed}}
+<p class="note">{{t "disc.unavailable"}}</p>
+{{- else if .Threads}}
+<ol class="cm-list veil">
+{{- range .Threads}}
+<li class="cm-thread">
+{{- template "tadcomment" .}}
+{{- if .Replies}}
+<ol class="cm-replies">
+{{- range .Replies}}
+<li>{{template "tadcomment" .}}</li>
+{{- end}}
+</ol>
+{{- end}}
+{{- with .MoreReplies}}
+<p class="disc-page cm-more">{{t "veil.more_replies" "n" .}}</p>
+{{- end}}
+</li>
+{{- end}}
+</ol>
+{{- if .More}}
+<p class="note">{{t "veil.more_threads"}}</p>
+{{- end}}
+{{- else}}
+<p class="note">{{t "disc.empty"}}</p>
+{{- end}}
+</div>
+{{- if .Threads}}
+<div class="veil-cta" id="disc-veil">
+{{- if .Guest}}
+<p class="note" id="disc-veil-t">{{t "disc.guest.loading" "n" .Count}}</p>
+<noscript><p class="note">{{t "disc.guest.nojs"}}</p></noscript>
+{{- else}}
+<p class="note">{{t "veil.comments" "n" .Count}}</p>
+{{- if .Write}}
+<a class="btn acct-btn" href="{{.Login}}">{{t "disc.signin"}}</a>
+{{- end}}
+{{- end}}
+</div>
+{{- end}}
+{{- if .Write}}
+{{template "discwrite" .}}
+{{- end}}
+</section>
+{{end}}
+
+{{define "tadcomment"}}
+<article class="cm cm-tad{{if ne .Status "visible"}} cm-ph{{end}}">
+{{- if eq .Status "visible"}}
+<p class="cm-h"><span class="spk spk-au" aria-hidden="true"></span></p>
+{{if .Login}}<a class="spk-go" href="{{.Login}}" tabindex="-1" aria-hidden="true">{{end}}<span class="spk" data-size="{{.Size}}" aria-hidden="true"></span>{{if .Login}}</a><span class="sr">{{t "veil.comment"}}</span>{{end}}
+{{- else if eq .Status "hidden"}}
+<p class="cm-gone">{{t "disc.comment.hidden"}}</p>
+{{- else}}
+<p class="cm-gone">{{t "disc.comment.deleted"}}</p>
+{{- end}}
+</article>
+{{- end}}
+
+{{define "discterms"}}
+<div class="disc-terms" hidden="">
+<p class="note disc-terms-t"></p>
+<p class="note"><a href="{{.Rules}}">{{t "rules.title"}}</a></p>
+<label class="disc-check"><input type="checkbox" data-f="agree"/> <span>{{t "disc.terms.agree"}}</span></label>
+</div>
+{{- end}}
+
+{{define "discpurpose"}}
+<div class="disc-purpose">
+<label data-for="purpose">{{t "disc.purpose_label"}}</label>
+<select class="acct-in" data-f="purpose">
+<option value="">{{t "disc.purpose_none"}}</option>
+{{- range .Purposes}}
+<option value="{{.}}">{{t "disc.purpose" "purpose" .}}</option>
+{{- end}}
+</select>
+</div>
+{{- end}}
+
+{{define "disclimit"}}
+<p class="note disc-lim"><span data-f="lim">{{t "disc.limit" "max" .MaxBody}}</span> <span class="disc-cnt" aria-hidden="true"></span></p>
+{{- end}}
+
+{{define "discwrite"}}
+<div class="disc-write" id="disc-write">
+<noscript><p class="note">{{t "disc.nojs"}}</p></noscript>
+<p class="note" id="disc-unknown" hidden="">{{t "disc.state_unknown"}}</p>
+<div class="disc-state" id="disc-out" hidden="">
+{{- if .Guest}}
+<p class="note">{{t "disc.guest.signin_note"}}</p>
+{{- end}}
+<a class="btn acct-btn" href="{{.Login}}">{{t "disc.signin"}}</a>
+</div>
+<div class="disc-state" id="disc-nohandle" hidden="">
+<p class="note">{{t "disc.no_handle"}}</p>
+<a class="btn acct-btn" href="{{.Account}}">{{t "disc.no_handle_link"}}</a>
+</div>
+<p class="banner disc-susp" id="disc-susp" hidden="">{{t "disc.suspended"}}</p>
+<form class="acct-form disc-form" id="disc-new" hidden="" novalidate="">
+{{- template "discpurpose" .}}
+<label data-for="body">{{t "disc.compose.label"}}</label>
+<textarea class="disc-ta" data-f="body" rows="3" spellcheck="true"></textarea>
+{{- template "disclimit" .}}
+{{- template "discterms" .}}
+<div class="acct-row"><button type="submit" class="btn acct-btn">{{t "disc.compose.submit"}}</button><a class="disc-rules" href="{{.Rules}}">{{t "rules.title"}}</a></div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+<details class="disc-md" id="disc-md" hidden="">
+<summary>{{t "disc.md.summary"}}</summary>
+<dl class="keylist">
+{{- range .Markdown}}
+<dt><code>{{.Key}}</code></dt><dd>{{t .Text}}</dd>
+{{- end}}
+</dl>
+<p class="note">{{t "disc.md.unsupported"}}</p>
+<p class="note">{{t "disc.md.new_links"}}</p>
+</details>
+</div>
+<template id="disc-tpl-acts">
+<div class="cm-acts">
+<button type="button" class="btn sm" data-act="reply" hidden="">{{t "disc.act.reply"}}</button>
+<button type="button" class="btn sm" data-act="edit" hidden="">{{t "disc.act.edit"}}</button>
+<button type="button" class="btn sm" data-act="delete" hidden="">{{t "disc.act.delete"}}</button>
+<button type="button" class="btn sm" data-act="report" hidden="">{{t "disc.act.report"}}</button>
+<span class="cm-flag" data-act="reported" hidden="">{{t "disc.reported"}}</span>
+<button type="button" class="btn sm" data-act="hide" hidden="">{{t "disc.act.hide"}}</button>
+<button type="button" class="btn sm" data-act="unhide" hidden="">{{t "disc.act.unhide"}}</button>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</div>
+</template>
+<template id="disc-tpl-reply">
+<form class="acct-form disc-sub" novalidate="">
+<label data-for="body">{{t "disc.reply.label"}}</label>
+<textarea class="disc-ta" data-f="body" rows="4" spellcheck="true"></textarea>
+{{- template "disclimit" .}}
+{{- template "discterms" .}}
+<div class="acct-row"><button type="submit" class="btn">{{t "disc.reply.submit"}}</button><button type="button" class="btn" data-act="cancel">{{t "disc.cancel"}}</button></div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</template>
+<template id="disc-tpl-edit">
+<form class="acct-form disc-sub" novalidate="">
+{{- template "discpurpose" .}}
+<label data-for="body">{{t "disc.edit.label"}}</label>
+<textarea class="disc-ta" data-f="body" rows="6" spellcheck="true"></textarea>
+{{- template "disclimit" .}}
+<div class="acct-row"><button type="submit" class="btn">{{t "disc.edit.submit"}}</button><button type="button" class="btn" data-act="cancel">{{t "disc.cancel"}}</button></div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</template>
+<template id="disc-tpl-report">
+<form class="acct-form disc-sub" novalidate="">
+<label data-for="reason">{{t "disc.report.reason_label"}}</label>
+<select class="acct-in" data-f="reason">
+{{- range .Reasons}}
+<option value="{{.}}">{{t "disc.report.reason" "reason" .}}</option>
+{{- end}}
+</select>
+<label data-for="note">{{t "disc.report.note_label" "max" .MaxNote}}</label>
+<input class="acct-in" type="text" data-f="note" maxlength="{{.MaxNote}}" autocomplete="off"/>
+<div class="acct-row"><button type="submit" class="btn">{{t "disc.report.submit"}}</button><button type="button" class="btn" data-act="cancel">{{t "disc.cancel"}}</button></div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</template>
+<template id="disc-tpl-hide">
+<form class="acct-form disc-sub" novalidate="">
+<label data-for="reason">{{t "disc.hide.reason_label" "max" .MaxHide}}</label>
+<input class="acct-in" type="text" data-f="reason" maxlength="{{.MaxHide}}" autocomplete="off"/>
+<div class="acct-row"><button type="submit" class="btn">{{t "disc.hide.submit"}}</button><button type="button" class="btn" data-act="cancel">{{t "disc.cancel"}}</button></div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</template>
+{{- end}}

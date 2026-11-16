@@ -1,0 +1,25 @@
+[Unit]
+Description=nday collector: %i
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=nday
+Group=nday
+EnvironmentFile=/etc/nday/nday.env
+WorkingDirectory=/opt/nday
+ExecStart=/opt/nday/bin/nday collect %i
+TimeoutStartSec=20min
+MemoryMax=1G
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes

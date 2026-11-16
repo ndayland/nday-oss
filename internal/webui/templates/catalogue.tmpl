@@ -1,0 +1,107 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main cat" id="main">
+<div class="chero{{if or .Filtered .OnCursor}} compact{{end}}">
+{{- if not (or .Filtered .OnCursor)}}
+<div class="cbg" aria-hidden="true"></div>
+{{- end}}
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "cat.h1"}}</h1>
+<div class="stack">
+<form class="csearch" action="{{.SearchAction}}" method="get" role="search">
+<span class="prompt" aria-hidden="true">&gt;</span>
+<input id="cat-q" type="search" name="q" aria-label="{{ts "search.box.label"}}" placeholder="{{ts "search.box.placeholder"}}" autocomplete="off" spellcheck="false" maxlength="100"/>
+{{- range .SearchTags}}
+<input type="hidden" name="tag" value="{{.}}"/>
+{{- end}}
+</form>
+<p class="note cex">{{t "cat.search.examples" "links" .Examples}}</p>
+</div>
+<nav class="cstages" aria-label="{{ts "hot.side.stages"}}">
+<ul>
+{{- range .Stages}}
+<li>{{if .Href}}<a class="{{.Class}}" href="{{.Href}}"{{if .Active}} aria-current="true"{{end}}>{{else}}<span class="{{.Class}} zero"{{if .Active}} aria-current="true"{{end}}>{{end}}<span class="nm">{{.Label}}</span> <span class="n">{{.Count}}</span>{{if .Href}}</a>{{else}}</span>{{end}}</li>
+{{- end}}
+</ul>
+</nav>
+</div>
+<details class="flt" open=""{{if .Custom}} data-keep=""{{end}}>
+<summary><span class="k">{{t "hot.filter.summary"}}</span>
+{{- with .YearLabel}} <span class="sep" aria-hidden="true">·</span> {{.}}{{end}}
+{{- if .Rejected.Active}} <span class="sep" aria-hidden="true">·</span> {{.Rejected.Label}}{{end}}
+{{- range .Chips}} <span class="sep" aria-hidden="true">·</span> {{tagname .Slug}}{{end}}</summary>
+<div class="flags">
+<div class="flag cyear">
+<span class="k">{{t "cat.year"}}</span>
+<div class="seg">
+{{- range .Years}}
+<a href="{{.Href}}"{{if .Active}} aria-current="true"{{end}}>{{.Label}}</a>
+{{- end}}
+</div>
+<form class="cyf" action="{{.SearchAction}}" method="get">
+<label for="cat-y">{{t "cat.year.other"}}</label>
+<select id="cat-y" name="year">
+<option value="">—</option>
+{{- range .YearOpts}}
+<option value="{{.Value}}"{{if .Selected}} selected=""{{end}}>{{.Value}}</option>
+{{- end}}
+</select>
+{{- range .YearHidden}}
+<input type="hidden" name="{{.Name}}" value="{{.Value}}"/>
+{{- end}}
+<button type="submit" class="btn">{{t "cat.year.go"}}</button>
+</form>
+</div>
+{{- with .Rejected}}
+<a class="chk" href="{{.Href}}"{{if .Active}} aria-current="true"{{end}}><span class="box" aria-hidden="true">{{if .Active}}✓{{end}}</span>{{.Label}}</a>
+{{- end}}
+{{template "tagfilter" .}}
+</div>
+</details>
+<details class="apid">
+<summary>{{t "hot.api.summary"}}</summary>
+{{template "cmd" .Curl}}
+</details>
+<div class="tbl">
+<div class="tbl-in" role="table">
+{{template "hothead"}}
+{{- range .Rows}}
+<div class="grp" role="rowgroup">
+{{- if .Header}}
+{{- if .NoDate}}
+<div class="dgroup nodate" role="row"><span role="cell"><span class="dgh" role="heading" aria-level="2"><span aria-hidden="true">## </span>{{.Header}}</span></span></div>
+{{- else}}
+{{template "dgroup" .Header}}
+{{- end}}
+{{- end}}
+{{template "hotrow" .Row}}
+</div>
+{{- else}}
+<div class="empty" role="row">
+<p role="cell">{{t "cat.empty"}}{{if .Filtered}} <a href="{{.ClearHref}}">{{t "cat.clear"}}</a>{{end}}</p>
+</div>
+{{- end}}
+</div>
+</div>
+{{- if or .NextHref .OnCursor}}
+<nav class="pager" aria-label="{{ts "pager.label"}}">
+{{- if .OnCursor}}
+<a href="{{.FirstHref}}">{{t "pager.first"}}</a>
+{{- end}}
+{{- if .NextHref}}
+<a href="{{.NextHref}}" rel="next">{{t "pager.next"}}</a>
+{{- else}}
+<span>{{t "pager.end"}}</span>
+{{- end}}
+</nav>
+{{- end}}
+<div class="legend">
+{{template "legend"}}
+{{- if not $.L.IsPrimary}}
+{{template "upstreamnote"}}
+{{- end}}
+</div>
+</main>
+</div>
+</div>
+{{end}}{{end}}

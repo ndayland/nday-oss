@@ -1,0 +1,36 @@
+[Unit]
+Description=nday operations statistics: roll the access logs up into PostgreSQL
+After=network-online.target postgresql.service
+Wants=network-online.target
+# The access logs live on the /data volume (NDAY_LOG_DIR=/data/log/nday).
+RequiresMountsFor=/data
+
+[Service]
+Type=oneshot
+User=nday
+Group=nday
+EnvironmentFile=/etc/nday/nday.env
+# NDAY_LOG_DIR comes from web.env (shared with nday-web.service).
+EnvironmentFile=-/etc/nday/web.env
+WorkingDirectory=/opt/nday
+# Recomputes every access-YYYY-MM-DD.log whose size/mtime changed since its
+# last rollup (normally only today's). See docs/stats.md.
+ExecStart=/opt/nday/bin/nday stats-rollup
+TimeoutStartSec=20min
+MemoryMax=1G
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+ProtectSystem=strict
+# The log directory is only read; ProtectSystem=strict already makes it
+# read-only, this states it explicitly.
+ReadOnlyPaths=/data/log/nday
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes

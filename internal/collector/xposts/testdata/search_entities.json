@@ -1,0 +1,100 @@
+{
+  "data": [
+    {
+      "id": "2121000000000000003",
+      "author_id": "9999",
+      "created_at": "2026-11-12T19:00:00.000Z",
+      "lang": "en",
+      "text": "Not on the allowlist: CVE-2026-9999 https://t.co/Drop3",
+      "entities": {
+        "urls": [
+          {"start": 36, "end": 54, "url": "https://t.co/Drop3", "expanded_url": "https://example.com/drop", "display_url": "example.com/drop"}
+        ]
+      },
+      "edit_history_tweet_ids": ["2121000000000000003"]
+    },
+    {
+      "id": "2121000000000000002",
+      "author_id": "1002",
+      "created_at": "2026-11-12T18:00:00.000Z",
+      "lang": "en",
+      "text": "@bob_sec @x CVE soon for this one, see @odd https://t.co/Media2 https://t.co/Quote2",
+      "entities": {
+        "mentions": [
+          {"start": 0, "end": 8, "id": "1002", "username": "bob_sec"},
+          {"start": 9, "end": 11, "id": "not-a-number", "username": "x"},
+          {"start": 39, "end": 43, "id": "3003", "username": "odd-handle!"}
+        ],
+        "urls": [
+          {"start": 44, "end": 63, "url": "https://t.co/Media2", "expanded_url": "https://x.com/bob_sec/status/2121000000000000002/photo/1", "display_url": "pic.x.com/Media2"},
+          {"start": 64, "end": 83, "url": "https://t.co/Quote2", "expanded_url": "https://twitter.com/carol_re/status/2120999000000000001", "display_url": "x.com/carol_re/stat…"}
+        ]
+      },
+      "referenced_tweets": [
+        {"type": "quoted", "id": "2120999000000000001"},
+        {"type": "replied_to", "id": "2120999000000000002"}
+      ],
+      "edit_history_tweet_ids": ["2121000000000000002"]
+    },
+    {
+      "id": "2121000000000000001",
+      "author_id": "1001",
+      "created_at": "2026-11-12T17:00:00.000Z",
+      "lang": "en",
+      "text": "Pre-auth RCE in FooGateway, thread with the details and the patch … https://t.co/Note1",
+      "entities": {
+        "urls": [
+          {"start": 69, "end": 87, "url": "https://t.co/Note1", "expanded_url": "https://github.com/acme/foogw/commit/0123abcd", "display_url": "github.com/acme/foogw/com…"}
+        ]
+      },
+      "note_tweet": {
+        "text": "Pre-auth RCE in FooGateway, thread with the details and the patch. It is CVE-2026-7777 (thanks @dave_vr). Patch: https://t.co/Note1 advisory: https://t.co/Adv1",
+        "entities": {
+          "mentions": [
+            {"start": 95, "end": 103, "id": "3002", "username": "dave_vr"}
+          ],
+          "urls": [
+            {"start": 113, "end": 131, "url": "https://t.co/Note1", "expanded_url": "https://github.com/acme/foogw/commit/0123abcd", "display_url": "github.com/acme/foogw/com…"},
+            {"start": 142, "end": 159, "url": "https://t.co/Adv1", "expanded_url": "https://fortiguard.fortinet.com/psirt/FG-IR-26-001", "unwound_url": "https://www.fortiguard.fortinet.com/psirt/FG-IR-26-001", "display_url": "fortiguard.fortinet.com/psirt/FG-IR-26…", "title": "PSIRT advisory FG-IR-26-001", "status": 200}
+          ]
+        }
+      },
+      "referenced_tweets": [
+        {"type": "quoted", "id": "2120999000000000001"}
+      ],
+      "edit_history_tweet_ids": ["2121000000000000001"]
+    }
+  ],
+  "includes": {
+    "users": [
+      {"id": "1001", "name": "Alice", "username": "alice_sec"},
+      {"id": "1002", "name": "Bob", "username": "bob_sec"},
+      {"id": "3001", "name": "Carol", "username": "carol_re"},
+      {"id": "3002", "name": "Dave", "username": "dave_vr"},
+      {"id": "9999", "name": "Mallory", "username": "mallory"}
+    ],
+    "tweets": [
+      {
+        "id": "2120999000000000001",
+        "author_id": "3001",
+        "created_at": "2026-11-11T10:00:00.000Z",
+        "lang": "en",
+        "text": "Root cause of CVE-2026-8888 in BazServer, PoC soon",
+        "edit_history_tweet_ids": ["2120999000000000001"]
+      },
+      {
+        "id": "2120999000000000002",
+        "author_id": "1001",
+        "created_at": "2026-11-11T11:00:00.000Z",
+        "lang": "en",
+        "text": "Anyone looked at the FooGateway diff yet?",
+        "edit_history_tweet_ids": ["2120999000000000002"]
+      }
+    ]
+  },
+  "meta": {
+    "newest_id": "2121000000000000003",
+    "oldest_id": "2121000000000000001",
+    "result_count": 3
+  }
+}

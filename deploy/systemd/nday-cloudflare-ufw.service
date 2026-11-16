@@ -1,0 +1,20 @@
+[Unit]
+Description=nday: allow Cloudflare's published IP ranges to ports 80/443 in ufw
+Documentation=https://www.cloudflare.com/ips/
+After=network-online.target ufw.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Runs as root: it changes firewall rules. Exit status 3 means "ranges that
+# Cloudflare no longer publishes are still allowed; run it with --prune after
+# a look" and is deliberately a failure, so it shows in `systemctl --failed`.
+ExecStart=/opt/nday/bin/nday-cloudflare-ufw
+TimeoutStartSec=10min
+NoNewPrivileges=yes
+ProtectSystem=strict
+# ufw rewrites /etc/ufw/user*.rules and takes locks under /run; the script
+# records the list in /etc/nday/cloudflare-ips.txt.
+ReadWritePaths=/etc/ufw /etc/nday /run
+ProtectHome=yes
+PrivateTmp=yes

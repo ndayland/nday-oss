@@ -1,0 +1,2459 @@
+{
+ "collector": "cvelist",
+ "input": "internal/collector/cvelist/testdata/edge_records.json",
+ "kind": "records",
+ "records": [
+  {
+   "content_hash": "dcf539ea70fec4ddd8a51acae7fa6b329aa77f597378cb60c47f9776d26ff7d2",
+   "error": {
+    "fatal": false,
+    "message": "not a CVE JSON 5 record (dataType/cveMetadata)",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "42623733e3bdab94832942c9189b26afca2b893de35a95d3abab5f1a39705e8c",
+   "error": {
+    "fatal": false,
+    "message": "not a CVE JSON 5 record (dataType/cveMetadata)",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "546461b752a864dd0ebcfb7db2ec34b7e7463aa86527148fea9961e2ac78b90f",
+   "error": {
+    "fatal": false,
+    "message": "not a CVE JSON 5 record (dataType/cveMetadata)",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "62fba83e847859c0be14455bd59f855e214eb5f872dde9d367fb1db514f70943",
+   "error": {
+    "fatal": false,
+    "message": "bad cveId: 'CVE-26-1'",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "6d81f1365420bad0f302a9d8589cfd3afce249d6d83046aef24b48058d2fdeea",
+   "error": {
+    "fatal": false,
+    "message": "bad cveId: 26",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "6cec4a81472bb187c41e29577165cd36ba187e96ee50ef0f69641221a51be29d",
+   "error": {
+    "fatal": false,
+    "message": "bad cveId: 'it\\'s \"x\"'",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "a93d614f2b4f032c9a67ce92fd693034789438cb6d263a4bba2c3f8b5a8133b0",
+   "error": {
+    "fatal": false,
+    "message": "unknown state 'WEIRD'",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "d1cce66eaf146697c878a215502a92c54d627806294ca3a236d063cffa9ab297",
+   "error": {
+    "fatal": false,
+    "message": "unknown state 5",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "d4974a82ee495f713b9c4956673e863d50d6af627c009891cc24c86f6a2b0dc0",
+   "error": {
+    "fatal": false,
+    "message": "unknown state None",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "d87c48aad43a3db52603c132808d5de23d4d8d98766e74ded84d05561ab21597",
+   "error": {
+    "fatal": false,
+    "message": "missing containers.cna",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "5b94f40922d45adf8d1f6c1355904342cdf4272833ca290760ad0173e6258a29",
+   "error": {
+    "fatal": false,
+    "message": "missing containers.cna",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "84d20be6496e0bf809fca6c24f65e955d6ccabb0c23ba8adbe90c7cff145cb98",
+   "error": {
+    "fatal": false,
+    "message": "missing containers.cna",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "836bfa633dd8029017cf501438eb4cf352c2d37dfa81d4e440526a4b9a6ded67",
+   "error": {
+    "fatal": false,
+    "message": "cveId CVE-2026-108262 != source_key CVE-2026-117373",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-117373"
+  },
+  {
+   "content_hash": "49a64717d5d4cb19952e6eac2946415cf6879adacf9908e7d872332d32c6e684",
+   "error": {
+    "fatal": false,
+    "message": "payload is not a JSON object",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "6405bc843640616579652807e582de947992d3cc6b47a6fbebc4937de232e2e3",
+   "error": {
+    "fatal": false,
+    "message": "not a CVE JSON 5 record (dataType/cveMetadata)",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "855750ad72c7567b14f64b728df11e3a4722237c48f73b7a84683b0e1ea821a3",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-117373",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "mitre",
+       "date_published": "2026-11-11T00:00:00.000Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-11T00:00:00.000000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-117373"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-117373",
+      "description": "Janus WebRTC Server 1.2.3 through 1.4.0 is vulnerable to Directory Traversal. The application accepts a caller supplied media path when an ondemand stream is created. The path is validated only by checking whether it contains one of the audio extensions and is then passed to the file source which opens it. No canonicalization is performed and no directory allowlist is enforced, so an unauthenticated caller can make the server open an arbitrary local file and use it as a media source, with the content delivered to viewers as RTP audio.",
+      "modified_at": "2026-11-11T17:36:51.985000Z",
+      "published_at": "2026-11-11T00:00:00.000000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-117373"
+  },
+  {
+   "content_hash": "13c474238d804a523881160070a8e6a3f1ffd337a6358501f451ed749cb27ba6",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [],
+    "vulns": []
+   },
+   "source_key": "CVE-2026-117373"
+  },
+  {
+   "content_hash": "d62f007e1a2d94c378dc0f0799592e1826ed16b9c2646df163c2bd1cdf0c4a8f",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [],
+    "vulns": []
+   },
+   "source_key": "CVE-2026-117373"
+  },
+  {
+   "content_hash": "2885c4aaf093e2dfdb4c34ba56de0a54045f60b87174aabd26640fb9086ba4a4",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.000000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-07T00:00:00.000000Z",
+      "published_at": "2026-11-06T18:29:49.000000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "10abe212dcac73a2ee4f11dff8b2d831f20e3460dedf0e7f8fbe09443c495904",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.1234567+05:30",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T12:59:49.123456Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-07T09:02:03.000000Z",
+      "published_at": "2026-11-06T12:59:49.123456Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "38b34ed7da004a19e429a239969ec1414be43f6e6ceb174241450874a5741360",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "yesterday",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": null,
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": null,
+      "published_at": null,
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "c019b834db737f67c41cae24d1ae534bc1e0cf2d789a98c7d63de725a46bc9f9",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": 20261106,
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": null,
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": null,
+      "published_at": null,
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "187813f3b9dd9d121ace2d02faba53be8cdef6154ac20c536ff60e1bcb555913",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-W45-4T10:00Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-05T10:00:00.000000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-05T10:00:00.000000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "93eb5fa9b392be1b80e413007d2c425c237d9f51b6d0fd6d580378c6c4a4247e",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-107922",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitLab",
+       "date_published": null,
+       "date_rejected": "2026-11-11T22:18:59.410Z",
+       "rejected_reasons": [
+        "dup",
+        null
+       ],
+       "replaced_by": [
+        "CVE-2026-1000"
+       ],
+       "state": "REJECTED"
+      },
+      "occurred_at": null,
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-107922"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-107922",
+      "description": null,
+      "modified_at": "2026-11-11T22:18:59.410000Z",
+      "published_at": null,
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-107922"
+  },
+  {
+   "content_hash": "1ce44825c171168fd561f7fb5c34476277f9298d8799a2a1890656fc9f6ac261",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-107922",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitLab",
+       "date_published": null,
+       "date_rejected": "2026-11-11T22:18:59.410Z",
+       "rejected_reasons": [
+        "This CVE ID has been rejected or withdrawn by its CVE Numbering Authority."
+       ],
+       "state": "REJECTED"
+      },
+      "occurred_at": null,
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-107922"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-107922",
+      "description": null,
+      "modified_at": "2026-11-11T22:18:59.410000Z",
+      "published_at": null,
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-107922"
+  },
+  {
+   "content_hash": "2e36012200f187fc1b937205fead0bf0e3cd583095fbecae92da9a0640d5002b",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-107922",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitLab",
+       "date_published": null,
+       "date_rejected": "2026-11-11T22:18:59.410Z",
+       "rejected_reasons": [],
+       "state": "REJECTED"
+      },
+      "occurred_at": null,
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-107922"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-107922",
+      "description": null,
+      "modified_at": "2026-11-11T22:18:59.410000Z",
+      "published_at": null,
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-107922"
+  },
+  {
+   "content_hash": "7cdb12a968e193fc0e4b3c6cb1de500e64fd921372ba95a5ba5bc208bfec7d12",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-107922",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitLab",
+       "date_published": null,
+       "date_rejected": "2026-11-11T22:18:59.410Z",
+       "rejected_reasons": [],
+       "state": "REJECTED"
+      },
+      "occurred_at": null,
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-107922"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-107922",
+      "description": null,
+      "modified_at": "2026-11-11T22:18:59.410000Z",
+      "published_at": null,
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-107922"
+  },
+  {
+   "content_hash": "f11433f2e0d0d1229bc8c1e3a8ade59b81a934410aeb87c97f9199292feb20f1",
+   "error": {
+    "fatal": true,
+    "message": "'int' object is not iterable",
+    "type": "TypeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-107922"
+  },
+  {
+   "content_hash": "60083e8e87b741c0b8c72e7a19c166d5796dbd9d598ac975234eba7d7b63d4b7",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-107922",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitLab",
+       "date_published": null,
+       "date_rejected": "2026-11-11T22:18:59.410Z",
+       "rejected_reasons": [],
+       "state": "REJECTED"
+      },
+      "occurred_at": null,
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-107922"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-107922",
+      "description": null,
+      "modified_at": "2026-11-11T22:18:59.410000Z",
+      "published_at": null,
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-107922"
+  },
+  {
+   "content_hash": "c522867d9049a7aff98eba3640937aaf34fff34c80174eeabc47cc7c78b7f38d",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-107922",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitLab",
+       "date_published": "2026-01-01T00:00:00Z",
+       "date_rejected": "2026-11-11T22:18:59.410Z",
+       "rejected_reasons": [
+        "This CVE ID has been rejected or withdrawn by its CVE Numbering Authority."
+       ],
+       "state": "REJECTED"
+      },
+      "occurred_at": "2026-01-01T00:00:00.000000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-107922"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-107922",
+      "description": null,
+      "modified_at": "2026-11-11T22:18:59.410000Z",
+      "published_at": "2026-01-01T00:00:00.000000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-107922"
+  },
+  {
+   "content_hash": "fa371f5105a3d59093f8a21d0ab13d3f14f57b191cbf87453a5dcde01d341acc",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "english-us",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "e261be888c6a2fa2f3c09dbddf662a52c2bd879dff35fc8e2fd0e17a00708e2d",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "exact",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "9c101bb3cd0bc933b584f0aca2b636bd9e1d747d1b67ce206fbf179060f3a00f",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "eng",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "d533f6d01af8141717f652b31a97ee508aad2f6ce7d8d4a7575b6f524e9db772",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": null,
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "5ea44339d66c221b786184762e5fb140d1e0ad50742324de36918b98b164038d",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": null,
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "ce0536ae1e35d3af8773d618dd8886f86ca03e14c3b51acf1dc36370f7209ed6",
+   "error": {
+    "fatal": true,
+    "message": "'int' object is not iterable",
+    "type": "TypeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "a1b22fdc507fed7af5587e9292c05d7ca942d41dd172f7320779fe7f1d0b2a17",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "7d67117b9a328cea48c1e35d99cafdd42789b3af86021df6dcdf249462e47619",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "4cb1d08db89e311a5bef91fb57a25981933d1a2e5068c112b0f627e4a53a1403",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "Rocket",
+      "vendor": "Acme"
+     },
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "Rocket",
+      "vendor": "acme"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "ece3a6c64f59e8759e07509827335a37296cd215c25ddfd9a56582042be65dd8",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "546d864f43cffc07343b76d891ed52fb4291db0f0234a257b85e72cd08b15597",
+   "error": {
+    "fatal": true,
+    "message": "'float' object is not iterable",
+    "type": "TypeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "c6a19a76b1c9afc7a24d4f201582be576dc2a80af843812d230ac9f35d2a5045",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "9d284156f118c4ab74beace5a179876d13f229aa4c42b4142d9a7db9506c42e9",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-2345-6789-cfgh",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "2cddf5351fb6d2e1dc411ec40a2fc663dfff32863ccc8cfcc38b3f6a413a573b",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "ecf17218613f61d762dc5ffc4a9c6150cfbe373a67c3abb2d27f55f234830bc8",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "1d72d102389bc4fcae4327a492c7f0aae48a3317c11b53dea389d2e2f800bc4a",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "c4f32dbba3b75d7e7da1e81012a514d3d1ba75bd627f9c729c38790744d88699",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "600cf907583c55a4a2d37e2daddff283782857f92927fa1afa6aeb6a8785764e",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "cc2f438891340731c99b0934e7ddc290e51f326fa406f7126cea2b94e0eb053c",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-116081",
+      "product": "Sleipnir Mobile for iPhone / iPad",
+      "vendor": "Fenrir Inc."
+     },
+     {
+      "cve_id": "CVE-2026-116081",
+      "product": "Sleipnir Mobile for iPhone / iPad Black Edition",
+      "vendor": "Fenrir Inc."
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-116081",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "jpcert",
+       "cvss": {
+        "base_score": 2.3,
+        "base_severity": "LOW",
+        "source": "cna",
+        "vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:P/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
+        "version": "4.0"
+       },
+       "date_published": "2026-11-11T05:19:16.842Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-11T05:19:16.842000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-116081"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-116081",
+      "description": "Sleipnir Mobile for iPhone / iPad and Sleipnir Mobile for iPhone / iPad Black Edition provided by Fenrir Inc. are vulnerable to improper certificate verification. A man-in-the-middle attack may allow an attacker to eavesdrop on an encrypted communication.",
+      "modified_at": "2026-11-11T05:19:16.842000Z",
+      "published_at": "2026-11-11T05:19:16.842000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-116081"
+  },
+  {
+   "content_hash": "94ab9bfbec8846ab85ebcf557fe918205dbd98e6557da492aa5fffea3aec8994",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-116081",
+      "product": "Sleipnir Mobile for iPhone / iPad",
+      "vendor": "Fenrir Inc."
+     },
+     {
+      "cve_id": "CVE-2026-116081",
+      "product": "Sleipnir Mobile for iPhone / iPad Black Edition",
+      "vendor": "Fenrir Inc."
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-116081",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "jpcert",
+       "cvss": {
+        "base_score": 2.3,
+        "base_severity": "LOW",
+        "source": "cna",
+        "vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:P/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
+        "version": "4.0"
+       },
+       "date_published": "2026-11-11T05:19:16.842Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-11T05:19:16.842000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-116081"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-116081",
+      "description": "Sleipnir Mobile for iPhone / iPad and Sleipnir Mobile for iPhone / iPad Black Edition provided by Fenrir Inc. are vulnerable to improper certificate verification. A man-in-the-middle attack may allow an attacker to eavesdrop on an encrypted communication.",
+      "modified_at": "2026-11-11T05:19:16.842000Z",
+      "published_at": "2026-11-11T05:19:16.842000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-116081"
+  },
+  {
+   "content_hash": "e176beaa8062b515cbb8bd713552a9bb761928626be023b647b67fd895eb6d0f",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-116081",
+      "product": "Sleipnir Mobile for iPhone / iPad",
+      "vendor": "Fenrir Inc."
+     },
+     {
+      "cve_id": "CVE-2026-116081",
+      "product": "Sleipnir Mobile for iPhone / iPad Black Edition",
+      "vendor": "Fenrir Inc."
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-116081",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "jpcert",
+       "cvss": {
+        "base_score": 4.2,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-11T05:19:16.842Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-11T05:19:16.842000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-116081"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-116081",
+      "description": "Sleipnir Mobile for iPhone / iPad and Sleipnir Mobile for iPhone / iPad Black Edition provided by Fenrir Inc. are vulnerable to improper certificate verification. A man-in-the-middle attack may allow an attacker to eavesdrop on an encrypted communication.",
+      "modified_at": "2026-11-11T05:19:16.842000Z",
+      "published_at": "2026-11-11T05:19:16.842000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-116081"
+  },
+  {
+   "content_hash": "26225084228aad12cd770024abf36513d31e18ff561a51ad19fa5e52f768935c",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-117373",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "mitre",
+       "cvss": {
+        "base_score": 7,
+        "base_severity": null,
+        "source": "cna",
+        "vector": "AV:N",
+        "version": 2.0
+       },
+       "date_published": "2026-11-11T00:00:00.000Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-11T00:00:00.000000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-117373"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-117373",
+      "description": "Janus WebRTC Server 1.2.3 through 1.4.0 is vulnerable to Directory Traversal. The application accepts a caller supplied media path when an ondemand stream is created. The path is validated only by checking whether it contains one of the audio extensions and is then passed to the file source which opens it. No canonicalization is performed and no directory allowlist is enforced, so an unauthenticated caller can make the server open an arbitrary local file and use it as a media source, with the content delivered to viewers as RTP audio.",
+      "modified_at": "2026-11-11T17:36:51.985000Z",
+      "published_at": "2026-11-11T00:00:00.000000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-117373"
+  },
+  {
+   "content_hash": "2607c2f019c497796a4fde29351487072ebfa8e1b32faf156d3cd53b402f32aa",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-117373",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "mitre",
+       "date_published": "2026-11-11T00:00:00.000Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-11T00:00:00.000000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-117373"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-117373",
+      "description": "Janus WebRTC Server 1.2.3 through 1.4.0 is vulnerable to Directory Traversal. The application accepts a caller supplied media path when an ondemand stream is created. The path is validated only by checking whether it contains one of the audio extensions and is then passed to the file source which opens it. No canonicalization is performed and no directory allowlist is enforced, so an unauthenticated caller can make the server open an arbitrary local file and use it as a media source, with the content delivered to viewers as RTP audio.",
+      "modified_at": "2026-11-11T17:36:51.985000Z",
+      "published_at": "2026-11-11T00:00:00.000000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-117373"
+  },
+  {
+   "content_hash": "033b2c10665cebbbf2b2b1c4fc643a21b9b8e3ea4ea47f000d74898f3650407c",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-125344",
+      "product": "Chrome",
+      "vendor": "Google"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-125344",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "Chrome",
+       "cvss": {
+        "base_score": 8.8,
+        "base_severity": "HIGH",
+        "source": "adp:unknown",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-10T17:20:20.692Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-10T17:20:20.692000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-125344"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-125344",
+      "description": "Type confusion in V8 in Google Chrome prior to 157.0.8103.50 allowed a remote attacker to execute arbitrary code inside the sandbox via a crafted HTML page. (Chromium security severity: High)",
+      "modified_at": "2026-11-11T04:57:52.161000Z",
+      "published_at": "2026-11-10T17:20:20.692000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-125344"
+  },
+  {
+   "content_hash": "017e946a2bb7baa5d830c930f61a2e37a083aead12f229cfcf9ab72c004c61c3",
+   "error": {
+    "fatal": true,
+    "message": "'str' object has no attribute 'get'",
+    "type": "AttributeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-125344"
+  },
+  {
+   "content_hash": "b0aef3ddc6b9b86a05f01772e6b5ffc6b7184322172799976bfb431a5ae9bd0b",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-125344",
+      "product": "Chrome",
+      "vendor": "Google"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-125344",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "Chrome",
+       "cvss": {
+        "base_score": 8.8,
+        "base_severity": "HIGH",
+        "source": "adp:unknown",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-10T17:20:20.692Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-10T17:20:20.692000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-125344"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-125344",
+      "description": "Type confusion in V8 in Google Chrome prior to 157.0.8103.50 allowed a remote attacker to execute arbitrary code inside the sandbox via a crafted HTML page. (Chromium security severity: High)",
+      "modified_at": "2026-11-11T04:57:52.161000Z",
+      "published_at": "2026-11-10T17:20:20.692000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-125344"
+  },
+  {
+   "content_hash": "b07dfd0354587b685da7e6ec4f8450416104cea2ba5398b317ac0cd3474b97d0",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-125344",
+      "product": "Chrome",
+      "vendor": "Google"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-125344",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "Chrome",
+       "date_published": "2026-11-10T17:20:20.692Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-10T17:20:20.692000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-125344"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-125344",
+      "description": "Type confusion in V8 in Google Chrome prior to 157.0.8103.50 allowed a remote attacker to execute arbitrary code inside the sandbox via a crafted HTML page. (Chromium security severity: High)",
+      "modified_at": "2026-11-11T04:57:52.161000Z",
+      "published_at": "2026-11-10T17:20:20.692000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-125344"
+  },
+  {
+   "content_hash": "f70341cc90743ac5732d5079c29ebbfbfaff35e06e22729b77ef990f9e0e1a73",
+   "error": {
+    "fatal": true,
+    "message": "'int' object is not iterable",
+    "type": "TypeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-125344"
+  },
+  {
+   "content_hash": "2291ba31d6063bc9eb43b556cfc202d619ca0adcee2f81d04efddf19a99f4e71",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-125344",
+      "product": "Chrome",
+      "vendor": "Google"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-125344",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "Chrome",
+       "cvss": {
+        "base_score": 8.8,
+        "base_severity": "HIGH",
+        "source": "adp:CISA-ADP",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-10T17:20:20.692Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "total",
+        "timestamp": "2026-11-10T00:00:00+00:00"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-10T17:20:20.692000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-125344"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-125344",
+      "description": "Type confusion in V8 in Google Chrome prior to 157.0.8103.50 allowed a remote attacker to execute arbitrary code inside the sandbox via a crafted HTML page. (Chromium security severity: High)",
+      "modified_at": "2026-11-11T04:57:52.161000Z",
+      "published_at": "2026-11-10T17:20:20.692000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-125344"
+  },
+  {
+   "content_hash": "ac4eca63e8ec0ddd80de5b4ffff5b2493bb967c5ab718628daf8d35cf6167975",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "product": "Webtop Media Transcoder",
+      "vendor": "Openwave Messaging (Ireland) Limited"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "mitre",
+       "cvss": {
+        "base_score": 4.3,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L",
+        "version": "3.1"
+       },
+       "date_published": "2026-10-16T18:28:10.170Z",
+       "kev": {
+        "date_added": "2026-11-10",
+        "reference": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2026-111793"
+       },
+       "ssvc": {
+        "automatable": "yes",
+        "exploitation": "poc",
+        "technical_impact": null,
+        "timestamp": "2026-11-10T00:00:00+00:00"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-10-16T18:28:10.170000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-111793"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-111793",
+      "description": "Openwave Webtop Media Transcoder does not enforce administrator-defined file type restrictions to restrict the file-types to be converted. This may allow an authenticated user to process and convert unintended document types if bypassing the Webmail experience.",
+      "modified_at": "2026-11-11T04:55:54.627000Z",
+      "published_at": "2026-10-16T18:28:10.170000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-111793"
+  },
+  {
+   "content_hash": "07f41fed0c052f09817c7fda1ebfd0b848bc9bbf7ab8fbf2bae39d0fedddc4eb",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "product": "Webtop Media Transcoder",
+      "vendor": "Openwave Messaging (Ireland) Limited"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "mitre",
+       "cvss": {
+        "base_score": 4.3,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L",
+        "version": "3.1"
+       },
+       "date_published": "2026-10-16T18:28:10.170Z",
+       "kev": {
+        "date_added": "2026-11-10",
+        "reference": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2026-111793"
+       },
+       "ssvc": {
+        "automatable": null,
+        "exploitation": null,
+        "technical_impact": null,
+        "timestamp": null
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-10-16T18:28:10.170000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-111793"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-111793",
+      "description": "Openwave Webtop Media Transcoder does not enforce administrator-defined file type restrictions to restrict the file-types to be converted. This may allow an authenticated user to process and convert unintended document types if bypassing the Webmail experience.",
+      "modified_at": "2026-11-11T04:55:54.627000Z",
+      "published_at": "2026-10-16T18:28:10.170000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-111793"
+  },
+  {
+   "content_hash": "92e5efc7dc8c58dce32028fd88d94a796ee909637fbe59883a18d387f79b561b",
+   "error": {
+    "fatal": true,
+    "message": "'int' object is not iterable",
+    "type": "TypeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-111793"
+  },
+  {
+   "content_hash": "30191f33be59282b6e5632565082fa4c341cac2fa4bfdc79d881049760e485f0",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "product": "Webtop Media Transcoder",
+      "vendor": "Openwave Messaging (Ireland) Limited"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "mitre",
+       "cvss": {
+        "base_score": 4.3,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L",
+        "version": "3.1"
+       },
+       "date_published": "2026-10-16T18:28:10.170Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "active",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-10T00:00:00+00:00"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-10-16T18:28:10.170000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-111793"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-111793",
+      "description": "Openwave Webtop Media Transcoder does not enforce administrator-defined file type restrictions to restrict the file-types to be converted. This may allow an authenticated user to process and convert unintended document types if bypassing the Webmail experience.",
+      "modified_at": "2026-11-11T04:55:54.627000Z",
+      "published_at": "2026-10-16T18:28:10.170000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-111793"
+  },
+  {
+   "content_hash": "b32835e27ad4921a932932f62b96aab93219ca4fee15727a3f24ca072ca69de3",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "product": "Webtop Media Transcoder",
+      "vendor": "Openwave Messaging (Ireland) Limited"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "mitre",
+       "cvss": {
+        "base_score": 4.3,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L",
+        "version": "3.1"
+       },
+       "date_published": "2026-10-16T18:28:10.170Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-10-16T18:28:10.170000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-111793"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-111793",
+      "description": "Openwave Webtop Media Transcoder does not enforce administrator-defined file type restrictions to restrict the file-types to be converted. This may allow an authenticated user to process and convert unintended document types if bypassing the Webmail experience.",
+      "modified_at": "2026-11-11T04:55:54.627000Z",
+      "published_at": "2026-10-16T18:28:10.170000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-111793"
+  },
+  {
+   "content_hash": "d67687e2d5bf1f21125da53f1c7802b96c612b9b87f444ec23d6f523ce448c14",
+   "error": {
+    "fatal": true,
+    "message": "'int' object is not iterable",
+    "type": "TypeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2026-111793"
+  },
+  {
+   "content_hash": "94bff034f77bcd70820a23ef4a078f826d25813d9aec72e3c5eaa8feb69598eb",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "product": "Webtop Media Transcoder",
+      "vendor": "Openwave Messaging (Ireland) Limited"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "mitre",
+       "cvss": {
+        "base_score": 4.3,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L",
+        "version": "3.1"
+       },
+       "date_published": "2026-10-16T18:28:10.170Z",
+       "kev": {
+        "date_added": "2026-11-10",
+        "reference": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2026-111793"
+       },
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "active",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-10T00:00:00+00:00"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-10-16T18:28:10.170000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-111793"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-111793",
+      "description": "Openwave Webtop Media Transcoder does not enforce administrator-defined file type restrictions to restrict the file-types to be converted. This may allow an authenticated user to process and convert unintended document types if bypassing the Webmail experience.",
+      "modified_at": "2026-11-11T04:55:54.627000Z",
+      "published_at": "2026-10-16T18:28:10.170000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-111793"
+  },
+  {
+   "content_hash": "836bfa633dd8029017cf501438eb4cf352c2d37dfa81d4e440526a4b9a6ded67",
+   "is_backfill": true,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  }
+ ]
+}

@@ -1,0 +1,89 @@
+[
+ {
+  "source_key": "x",
+  "payload": "nope"
+ },
+ {
+  "source_key": "exploit/z",
+  "payload": {
+   "fullname": "exploit/y",
+   "type": "exploit",
+   "references": []
+  }
+ },
+ {
+  "source_key": "exploit/z",
+  "payload": {
+   "fullname": null,
+   "type": "exploit",
+   "references": []
+  }
+ },
+ {
+  "source_key": "exploit/z",
+  "payload": {
+   "fullname": "exploit/z",
+   "type": 5,
+   "references": []
+  }
+ },
+ {
+  "source_key": "exploit/z",
+  "payload": {
+   "fullname": "exploit/z",
+   "type": "exploit",
+   "references": {
+    "a": 1
+   }
+  }
+ },
+ {
+  "source_key": "exploit/z",
+  "payload": {
+   "fullname": "exploit/z",
+   "type": "exploit",
+   "references": [
+    "CVE-n/a",
+    "URL-x"
+   ]
+  }
+ },
+ {
+  "source_key": "exploit/z",
+  "payload": {
+   "fullname": "exploit/z",
+   "type": "exploit",
+   "references": []
+  }
+ },
+ {
+  "source_key": "exploit/z",
+  "payload": {
+   "fullname": "exploit/z",
+   "type": "exploit",
+   "references": [
+    "CVE-2020-1111"
+   ],
+   "rank": 0,
+   "path": "/",
+   "check": null,
+   "name": 5
+  }
+ },
+ {
+  "source_key": "exploit/z",
+  "payload": {
+   "fullname": "exploit/z",
+   "type": "auxiliary",
+   "references": [
+    "CVE-2020-1111",
+    " cve-2020-1111"
+   ],
+   "rank": 400,
+   "path": "//a/b.rb",
+   "check": "maybe",
+   "disclosure_date": null
+  },
+  "is_backfill": true
+ }
+]

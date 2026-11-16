@@ -1,0 +1,80 @@
+{{/* Catalog preview for writers (/__i18n/<tag>, NDAY_I18N_DEBUG=1 only).
+     Developer tool: its own labels are English on purpose and are exempt
+     from the hard-coded-string scan. */ -}}
+<!doctype html>
+<html lang="{{if .L}}{{.L.Tag}}{{else}}en{{end}}">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="robots" content="noindex"/>
+<title>i18n preview{{with .L}} · {{.Tag}}{{end}}</title>
+<link rel="stylesheet" href="{{.CSS}}"/>
+</head>
+<body class="dbg">
+<div class="wrap dbg-wrap">
+<p class="dbg-nav">i18n preview:{{range .All}} <a href="/__i18n/{{.Tag}}">{{.Tag}}</a>{{if not .Enabled}}<span class="weak">(off)</span>{{end}}{{end}}</p>
+{{- if not .L}}
+<h1 class="h1">Locales</h1>
+<table class="dbg-t">
+<tr><th>tag</th><th>prefix</th><th>name</th><th>state</th></tr>
+{{- range .All}}
+<tr><td><a href="/__i18n/{{.Tag}}">{{.Tag}}</a></td><td>/{{.Prefix}}</td><td lang="{{.Tag}}">{{.NativeName}}</td><td>{{if .Enabled}}enabled{{else}}disabled: {{len .Problems}} problem(s){{end}}</td></tr>
+{{- end}}
+</table>
+{{- else}}
+<h1 class="h1">{{.L.Tag}} · <span lang="{{.L.Tag}}">{{.L.NativeName}}</span> {{if .L.Enabled}}<span class="ok">enabled</span>{{else}}<span class="bad">disabled</span>{{end}}</h1>
+<p class="note">{{.Keys}} keys. Values from the key reference are <mark>highlighted</mark>. Add <code>?ref=en</code> to show another locale under each message (orientation only — do not translate it). Pages: <a href="{{.L.Home}}">{{.L.Home}}</a></p>
+{{- if .Problems}}
+<section class="dbg-probs">
+<h2 class="h2">{{len .Problems}} problem(s) — the locale stays disabled until there are none</h2>
+<ul>{{range .Problems}}<li>{{.}}</li>{{end}}</ul>
+</section>
+{{- end}}
+<section>
+<h2 class="h2">Numbers and plural categories</h2>
+<table class="dbg-t">{{range .Numbers}}<tr><td>{{index . 0}}</td><td>{{index . 1}}</td></tr>{{end}}</table>
+<table class="dbg-t">{{range .Plurals}}<tr><td>n = {{index . 0}}</td><td>{{index . 1}}</td></tr>{{end}}</table>
+</section>
+<section>
+<h2 class="h2">Status sentence scenarios (vulnerability page)</h2>
+{{- range .Status}}
+<div class="dbg-k">
+<div class="dbg-h"><b>{{.Name}}</b> <span class="weak">{{range $i, $k := .Keys}}{{if $i}} + {{end}}{{$k}}{{end}}</span></div>
+<p class="dbg-out" lang="{{$.L.Tag}}">{{.Out}}</p>
+{{- if .Ref}}<p class="dbg-ref" lang="{{$.Ref.Tag}}">{{.Ref}}</p>{{end}}
+</div>
+{{- end}}
+</section>
+<section>
+<h2 class="h2">Event text scenarios (event log)</h2>
+{{- range .Events}}
+<div class="dbg-k">
+<div class="dbg-h"><b>{{.Name}}</b> <span class="weak">{{range $i, $k := .Keys}}{{if $i}} + {{end}}{{$k}}{{end}}</span></div>
+<p class="dbg-out" lang="{{$.L.Tag}}">{{.Out}}</p>
+{{- if .Ref}}<p class="dbg-ref" lang="{{$.Ref.Tag}}">{{.Ref}}</p>{{end}}
+</div>
+{{- end}}
+</section>
+{{- range .Groups}}
+<section id="g-{{.G.ID}}">
+<h2 class="h2"># {{.G.Title}}</h2>
+<p class="note">{{.G.Where}}</p>
+{{- range .Keys}}
+<div class="dbg-k" id="k-{{.Def.Key}}">
+<div class="dbg-h"><b>{{.Def.Key}}</b> <span class="weak">{{.Def.Kind}}{{with .SelectOn}} · varies by {{.}}{{end}}{{with .Def.MaxCols}} · max {{.}} cols{{end}}</span></div>
+<p class="dbg-meta">where: {{.Def.Where}}</p>
+<p class="dbg-meta">intent: {{.Def.Intent}}</p>
+{{- with .Def.Neighbors}}<p class="dbg-meta">next to: {{.}}</p>{{end}}
+{{- range .Def.Constraints}}<p class="dbg-meta">· {{.}}</p>{{end}}
+{{- range .Placeholders}}<p class="dbg-meta"><code>{{"{"}}{{.Name}}{{"}"}}</code> {{.Kind}}{{if .Optional}}, optional{{end}}: {{.Meaning}} — e.g. <code>{{.Example}}</code></p>{{end}}
+{{- range .Variants}}
+<div class="dbg-v">{{with .Name}}<span class="weak">[{{.}}]</span> {{end}}<span class="dbg-out" lang="{{$.L.Tag}}">{{.Out}}</span>{{with .Ref}}<br/><span class="dbg-ref" lang="{{$.Ref.Tag}}">{{.}}</span>{{end}}</div>
+{{- end}}
+</div>
+{{- end}}
+</section>
+{{- end}}
+{{- end}}
+</div>
+</body>
+</html>

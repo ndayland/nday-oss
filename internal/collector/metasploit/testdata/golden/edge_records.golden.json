@@ -1,0 +1,151 @@
+{
+ "collector": "metasploit",
+ "input": "internal/collector/metasploit/testdata/edge_records.json",
+ "kind": "records",
+ "records": [
+  {
+   "content_hash": "9b4e7a802b0bd7e5e84bb9876a454cfcd4f697120e553fd7a30ecb8ade094852",
+   "error": {
+    "fatal": false,
+    "message": "payload is not an object",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "x"
+  },
+  {
+   "content_hash": "c5dff167764ef215892bcd8e5b80e5b888414b1a733845062adeaf225d35ba8a",
+   "error": {
+    "fatal": false,
+    "message": "fullname 'exploit/y' != source_key exploit/z",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "exploit/z"
+  },
+  {
+   "content_hash": "5b48283c82011a4b941dcdaf1ef6d3981d54a5932f84ff45621e06111705e724",
+   "error": {
+    "fatal": false,
+    "message": "fullname None != source_key exploit/z",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "exploit/z"
+  },
+  {
+   "content_hash": "bced31b136550cb20bd1b1a4446eff9fec3302f1b836ee1de78dee332bae82ca",
+   "error": {
+    "fatal": false,
+    "message": "exploit/z: out-of-scope type 5",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "exploit/z"
+  },
+  {
+   "content_hash": "4d70424dda8c94c915254bd48d4693ff389f7689d45fa02c0e17641d5cbef296",
+   "error": {
+    "fatal": false,
+    "message": "exploit/z: references is not a list",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "exploit/z"
+  },
+  {
+   "content_hash": "a39b2b3fe8ac6596e6f723e80e440359e56db74ec68ac644eeb2d4c56934e55c",
+   "error": {
+    "fatal": false,
+    "message": "exploit/z: no valid CVE id among ['CVE-n/a']",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "exploit/z"
+  },
+  {
+   "content_hash": "9881086450949dedcb6a375a911bf85c12572930589a51328f1a0dcc069835d6",
+   "error": {
+    "fatal": false,
+    "message": "exploit/z: no valid CVE id among []",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "exploit/z"
+  },
+  {
+   "content_hash": "9c1752831dfe58d98e29cc0b5e618335579c2f37025e5b6718de12c491023084",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-1111",
+      "dedupe_key": "exploit/z",
+      "detail": {
+       "check": null,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2020-1111"
+       ],
+       "fullname": "exploit/z",
+       "kind": "msf_module",
+       "module_last_modified": null,
+       "module_type": "exploit",
+       "path": "/",
+       "rank": 0,
+       "rank_name": "manual",
+       "title": null,
+       "url": "https://github.com/rapid7/metasploit-framework/blob/master/",
+       "vuln_disclosure_date": null
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": "https://github.com/rapid7/metasploit-framework/blob/master/"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/z"
+  },
+  {
+   "content_hash": "200cfe0863fa3b6eb1e36d941f1a98b20fb8a8bcf8a7ca7c9b56c36a2e8160cc",
+   "is_backfill": true,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-1111",
+      "dedupe_key": "exploit/z",
+      "detail": {
+       "check": "maybe",
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2020-1111"
+       ],
+       "fullname": "exploit/z",
+       "kind": "msf_module",
+       "module_last_modified": null,
+       "module_type": "auxiliary",
+       "path": "//a/b.rb",
+       "rank": 400,
+       "rank_name": "good",
+       "title": null,
+       "url": "https://github.com/rapid7/metasploit-framework/blob/master/a/b.rb",
+       "vuln_disclosure_date": null
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": "https://github.com/rapid7/metasploit-framework/blob/master/a/b.rb"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/z"
+  }
+ ]
+}

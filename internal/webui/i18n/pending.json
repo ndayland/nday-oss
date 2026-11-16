@@ -1,0 +1,101 @@
+{
+  "comment": "Key prefixes (\"prefix\", ending in \".\") or single keys (\"key\") that the listed locales may leave out of their catalog for now; those locales show the English (primary) text for them, marked lang=\"en\". Every other key stays mandatory. Remove an entry as soon as a locale's catalog has every key of its prefix (TestPendingNotStale fails otherwise). The pending keys are listed in docs/i18n/README.md.",
+  "pending": [
+    {
+      "prefix": "acct.",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "sign-in and account pages: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-13"
+    },
+    {
+      "prefix": "disc.",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "discussion section of vulnerability pages: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-13"
+    },
+    {
+      "prefix": "rules.",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "community rules page and its links: en and zh-Hans are written (the rules text is fixed by the owner); translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-13"
+    },
+    {
+      "prefix": "admin.",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "staff back office (/admin, moderators and administrators only): en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-13"
+    },
+    {
+      "key": "sbar.local_time",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "status-bar note shown when times are converted to the reader's time zone: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-13"
+    },
+    {
+      "key": "src.nvd.what",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "sources page row of the NVD source: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-14"
+    },
+    {
+      "key": "src.nvd.produces",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "sources page row of the NVD source: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-14"
+    },
+    {
+      "key": "about.nvd_notice",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "NVD attribution notice on the about page: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-14"
+    },
+    {
+      "prefix": "tag.",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "CVE tags (names, descriptions, the tags block of vulnerability pages, tag filters, /tags and tag pages): en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-14"
+    },
+    {
+      "prefix": "credit.",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "credits panel of vulnerability pages (who the CVE record and GitHub advisories credit, and in which role): en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-14"
+    },
+    {
+      "key": "hot.change",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "hot list rows: the change in words before the stage code; en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-15"
+    },
+    {
+      "key": "hot.rules_link",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "home page link to the ordering and pinning rules on the about page; en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-15"
+    },
+    {
+      "prefix": "about.hot.",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "about page section on how the home list is ordered and pinned; en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-15"
+    },
+    {
+      "key": "vuln.summary.upstream",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "vulnerability pages: which upstream record an untranslated summary is the text of; en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-15"
+    },
+    {
+      "prefix": "vuln.cvss.",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "exploit conditions block of vulnerability pages (the CVSS vector and its exploitability metrics explained); en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-15"
+    },
+    {
+      "prefix": "corr.",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "readers' corrections on vulnerability pages (the revision log and the error report form, docs/corrections.md): en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-15"
+    }
+  ]
+}

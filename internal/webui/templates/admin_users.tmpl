@@ -1,0 +1,43 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- with .Body}}
+<form class="acct-form" method="get" action="{{href "/admin/users"}}" role="search">
+<label for="in-uq">{{t "admin.users.search_label"}}</label>
+<div class="acct-row">
+<input class="acct-in" id="in-uq" type="search" name="q" value="{{.Query}}" maxlength="64" autocomplete="off" spellcheck="false" autocapitalize="none"/>
+<button type="submit" class="btn">{{t "admin.users.search"}}</button>
+</div>
+</form>
+{{- if .Rows}}
+<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+<thead><tr><th scope="col">{{t "admin.user.field" "field" "handle"}}</th><th scope="col">{{t "admin.user.field" "field" "display_name"}}</th><th scope="col">{{t "admin.user.field" "field" "role"}}</th><th scope="col">{{t "admin.user.field" "field" "status"}}</th><th scope="col">{{t "admin.user.field" "field" "joined"}}</th><th scope="col">{{t "admin.user.field" "field" "last_seen"}}</th><th scope="col" class="r">{{t "admin.user.field" "field" "comments"}}</th></tr></thead>
+<tbody>
+{{- range .Rows}}
+<tr>
+<td><a href="{{.Href}}">{{if .Handle}}<bdi>@{{.Handle}}</bdi>{{else}}{{t "admin.user.no_handle"}}{{end}}</a></td>
+<td><bdi>{{.DisplayName}}</bdi></td>
+<td>{{t "acct.role.name" "role" .Role}}</td>
+<td><span class="adm-st {{.Status}}">{{t "admin.user.status" "status" .Status}}</span></td>
+<td>{{.Joined.HTML}}</td>
+<td>{{.LastSeen.HTML}}</td>
+<td class="r">{{.Comments}}</td>
+</tr>
+{{- end}}
+</tbody>
+</table>
+</div>
+{{- else}}
+<p class="note">{{t "admin.users.empty"}}</p>
+{{- end}}
+{{- if or .Next .First}}
+<p class="pager">{{with .First}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .Next}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
+{{- end}}
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}

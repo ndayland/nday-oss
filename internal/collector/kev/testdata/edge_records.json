@@ -1,0 +1,24 @@
+[
+ {"source_key": "CVE-2024-1001", "payload": {"cveID": " CVE-2024-1001\u001f　", "vendorProject": " Acme ", "product": "Widget\n", "vulnerabilityName": " Acme Widget RCE ", "dateAdded": " 2024-01-31 ", "shortDescription": "café \u0001 \"quoted\" \\ back", "requiredAction": "", "dueDate": "2024-02-21", "knownRansomwareCampaignUse": "Unknown", "notes": "line1\nline2 <b>&amp;</b>  ", "cwes": ["CWE-79", 1.0, 0.0, -0.0, 1e-7, 0.0001, 1e16, 1.5e300, 12345678901234567890123, 6.30, 100, -0, {"z": 1, "a": [true, false, null]}], "forensicTriage": "No", "extra": {"b": 2, "a": 1}}},
+ {"source_key": "CVE-2024-1002", "payload": {"cveID": "CVE-2024-1002", "vendorProject": "Acme", "product": "  ", "dateAdded": "2024-W05-3"}},
+ {"source_key": "CVE-2024-1003", "payload": {"cveID": "CVE-2024-1003", "vendorProject": "Acme", "product": "X", "dateAdded": "20240131", "vulnerabilityName": "", "shortDescription": "   "}},
+ {"source_key": "CVE-2024-1004", "payload": {"cveID": "CVE-2024-1004", "dateAdded": "2024-02-30"}},
+ {"source_key": "CVE-2024-1005", "payload": {"cveID": "CVE-2024-1005", "dateAdded": 20240131}},
+ {"source_key": "CVE-2024-1006", "payload": {"cveID": "CVE-2024-1006", "dateAdded": "2020-W53-1"}},
+ {"source_key": "CVE-2024-1007", "payload": {"cveID": "CVE-2024-1007", "dateAdded": "2021-W53-1"}},
+ {"source_key": "CVE-2024-1008", "payload": {"cveID": "CVE-2024-1008", "dateAdded": "2024W053"}},
+ {"source_key": "CVE-2024-1009", "payload": {"cveID": "CVE-2024-1009", "dateAdded": "2024-01-31T00:00:00Z"}},
+ {"source_key": "CVE-2024-1010", "payload": {"cveID": "CVE-2024-1010", "dateAdded": "2024-W05"}},
+ {"source_key": "CVE-2024-1011", "payload": {"cveID": "CVE-2024-1011", "dateAdded": "0000-01-01"}},
+ {"source_key": "CVE-2024-1012", "payload": {"cveID": "CVE-2024-1012", "dateAdded": "٢٠٢٤-01-31"}},
+ {"source_key": "CVE-2024-123456789", "payload": {"cveID": "CVE-2024-123456789\r\n", "vendorProject": "V", "product": "P", "dateAdded": "2024-12-31"}},
+ {"source_key": "cve-2024-1013", "payload": {"cveID": "cve-2024-1013"}},
+ {"source_key": "missing", "payload": {"vendorProject": "Acme"}},
+ {"source_key": "int", "payload": {"cveID": 5}},
+ {"source_key": "quote", "payload": {"cveID": "CVE-'2024"}},
+ {"source_key": "both-quotes", "payload": {"cveID": "it's \"x\"\t\u0007­​é😀"}},
+ {"source_key": "nested", "payload": {"cveID": {"a": [1, null, true, 2.5, "s"], "b": {}}}},
+ {"source_key": "CVE-2024-123", "payload": {"cveID": "CVE-2024-123"}},
+ {"source_key": "fullwidth", "payload": {"cveID": "CVE-２０２４-1014", "vendorProject": "V", "product": "P"}},
+ {"source_key": "CVE-2024-1015", "payload": {"cveID": "CVE-2024-1015", "vendorProject": null, "product": "P", "cwes": null, "notes": 3}}
+]

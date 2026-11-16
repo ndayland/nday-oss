@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>{{.Title}}</title>
+<meta name="description" content="{{.Description}}"/>
+<meta name="color-scheme" content="dark"/>
+{{- if .NoIndex}}
+<meta name="robots" content="noindex"/>
+{{- end}}
+<meta name="theme-color" content="#0D1117"/>
+{{- with .Canonical}}
+<link rel="canonical" href="{{.}}"/>
+{{- end}}
+{{- range .Alternates}}
+<link rel="alternate" hreflang="{{.Tag}}" href="{{.Href}}"/>
+{{- end}}
+{{- with .XDefault}}
+<link rel="alternate" hreflang="x-default" href="{{.}}"/>
+{{- end}}
+<meta property="og:site_name" content="nday"/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="{{.Title}}"/>
+<meta property="og:description" content="{{.Description}}"/>
+{{- with .Canonical}}
+<meta property="og:url" content="{{.}}"/>
+{{- end}}
+<meta property="og:image" content="{{.OGImage}}"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<link rel="icon" href="{{asset "favicon.svg"}}" type="image/svg+xml"/>
+{{- if .Feed}}
+<link rel="alternate" type="application/atom+xml" title="{{.FeedTitle}}" href="{{.Feed}}"/>
+{{- else}}
+<link rel="alternate" type="application/atom+xml" title="{{ts "feed.title"}}" href="{{href "/feed.xml"}}"/>
+{{- end}}
+<link rel="preload" href="{{asset "fonts/JetBrainsMono-Regular.woff2"}}" as="font" type="font/woff2" crossorigin=""/>
+<link rel="preload" href="{{asset "fonts/JetBrainsMono-Bold.woff2"}}" as="font" type="font/woff2" crossorigin=""/>
+<script src="{{asset "theme.js"}}"></script>
+<link rel="stylesheet" href="{{asset "app.css"}}"/>
+<script src="{{asset "app.js"}}" defer=""></script>
+{{- with .Acct}}{{if .Script}}
+<script src="{{asset "account.js"}}" defer=""></script>
+{{- end}}{{end}}
+{{- with .Acct}}{{if .Disc}}
+<script src="{{asset "discuss.js"}}" defer=""></script>
+<script src="{{asset "corrections.js"}}" defer=""></script>
+{{- end}}{{end}}
+{{- with .Acct}}{{if .Admin}}
+<script src="{{asset "admin.js"}}" defer=""></script>
+{{- end}}{{end}}
+</head>
+<body{{if .AutoSelect}} data-autosel=""{{end}}{{if .PosID}} data-pos=""{{end}}{{with .CopyID}} data-id="{{.}}"{{end}}{{with .RawHref}} data-raw="{{.}}"{{end}} data-up="{{.Up}}" data-t-copied="{{ts "js.copied"}}" data-t-copy-failed="{{ts "js.copy_failed"}}" data-t-copied-id="{{ts "js.copied_id" "id" "{id}"}}" data-t-local-time="{{ts "sbar.local_time" "offset" "{offset}"}}"{{with fallbacklang "sbar.local_time"}} data-t-local-time-lang="{{.}}"{{end}}>
+<a class="skip" href="#main">{{t "skip.main"}}</a>
+<header class="top">
+<div class="wrap">
+<a class="brand" href="{{href "/"}}">nday<span class="cur" aria-hidden="true"></span></a>
+<nav class="nav" aria-label="{{ts "nav.label"}}">
+<a href="{{href "/"}}"{{if eq .Nav "hot"}} aria-current="page"{{end}}>{{t "nav.hot" "path" (path "~/hot")}}</a>
+<a href="{{href "/discussed"}}"{{if eq .Nav "discussed"}} aria-current="page"{{end}}>{{t "nav.discussed" "path" (path "~/discussed")}}</a>
+<a href="{{href "/vuln"}}"{{if eq .Nav "vuln"}} aria-current="page"{{end}}>{{t "nav.vuln" "path" (path "~/vuln")}}</a>
+</nav>
+<form class="search" action="{{href "/vuln"}}" method="get" role="search">
+<span class="prompt" aria-hidden="true">&gt;</span>
+<input id="q" type="search" name="q" value="{{.Query}}" aria-label="{{ts "search.box.label"}}" placeholder="{{ts "search.box.placeholder"}}" autocomplete="off" spellcheck="false" maxlength="100"/>
+<kbd aria-hidden="true">/</kbd>
+{{- range .SearchTags}}
+<input type="hidden" name="tag" value="{{.}}"/>
+{{- end}}
+</form>
+<div class="toplinks">
+<a class="tl-api" href="{{href "/about#api"}}">api</a>
+<a href="{{href "/src"}}"{{if eq .Nav "src"}} aria-current="page"{{end}}>{{t "nav.sources"}}</a>
+<a href="{{href "/about"}}"{{if eq .Nav "about"}} aria-current="page"{{end}}>{{t "nav.about"}}</a>
+{{- if gt (len .Switch) 1}}
+<details class="langs">
+<summary><span class="sr">{{t "lang.label"}} </span>{{range .Switch}}{{if .Current}}{{.Name}}{{end}}{{end}}</summary>
+<ul>
+{{- range .Switch}}
+<li><a href="{{.Href}}" hreflang="{{.Tag}}" lang="{{.Tag}}"{{if .Current}} aria-current="true"{{end}} data-match="{{.Match}}" data-hint="{{.Hint}}" data-dismiss="{{.Dismiss}}">{{.Name}}</a></li>
+{{- end}}
+</ul>
+</details>
+{{- end}}
+<details class="theme">
+<summary title="{{ts "theme.label"}}"><span class="sr">{{t "theme.label"}}</span><span aria-hidden="true">◐</span></summary>
+<ul>
+<li><button type="button" data-theme-set="dark" aria-pressed="true">{{t "theme.dark"}}</button></li>
+<li><button type="button" data-theme-set="light" aria-pressed="false">{{t "theme.light"}}</button></li>
+<li><button type="button" data-theme-set="system" aria-pressed="false">{{t "theme.system"}}</button></li>
+</ul>
+</details>
+{{- with .Acct}}
+<a class="acct" id="acct" href="{{.LoginHref}}" data-login="{{.LoginPath}}" data-account="{{.AccountPath}}"{{with .AdminPath}} data-admin="{{.}}"{{end}}>{{t "acct.slot.signin"}}</a>
+{{- end}}
+</div>
+</div>
+</header>
+{{- with .Status}}
+<div class="statusline{{if .AllOK}} st-ok{{end}}">
+<div class="wrap">
+{{- if .Full}}
+<span><span class="{{if .AllOK}}ok{{else}}bad{{end}}" aria-hidden="true">●</span> {{.Collector}}</span><span class="sep" aria-hidden="true">│</span>
+<span>{{.Vulns}}</span><span class="sep" aria-hidden="true">│</span>
+<span>{{.Events}}</span><span class="sep" aria-hidden="true">│</span>
+<span>{{.Backlog}}</span><span class="sep" aria-hidden="true">│</span>
+<span>{{.Updated}}</span>
+{{- else if .AllOK}}
+<span><span class="ok" aria-hidden="true">●</span> {{.Updated}}</span>
+{{- else}}
+<span><span class="bad" aria-hidden="true">●</span> <a class="bad" href="{{href "/src"}}">{{.Collector}}</a></span><span class="sep" aria-hidden="true">│</span>
+<span>{{.Updated}}</span>
+{{- end}}
+</div>
+</div>
+{{- end}}
+{{template "content" .}}
+<footer class="sbar">
+<div class="wrap">
+<span class="mode" id="mode" aria-hidden="true">NORMAL</span>
+<span>{{.Path}}</span>
+{{- with .Pos}}
+<span id="pos">{{.}}</span>
+{{- end}}
+<span class="utc" id="utc">{{t "sbar.utc"}}</span>
+<span class="msg" id="msg" role="status" aria-live="polite"></span>
+<span class="keys">
+{{- range .Hints}}
+<span><b>{{.Key}}</b> {{.Text}}</span>
+{{- end}}
+</span>
+</div>
+</footer>
+<div class="help" id="help" role="dialog" aria-modal="false" aria-labelledby="help-t" tabindex="-1" hidden="">
+<div class="h2s" id="help-t"><span class="h" aria-hidden="true"># </span>{{t "help.title"}}</div>
+<dl>
+<dt><b>j / k</b></dt><dd>{{t "help.jk"}}</dd>
+<dt><b>Enter</b></dt><dd>{{t "help.enter"}}</dd>
+<dt><b>/</b></dt><dd>{{t "help.slash"}}</dd>
+<dt><b>y</b></dt><dd>{{t "help.y"}}</dd>
+<dt><b>r</b></dt><dd>{{t "help.r"}}</dd>
+<dt><b>o</b></dt><dd>{{t "help.o"}}</dd>
+<dt><b>u</b></dt><dd>{{t "help.u"}}</dd>
+<dt><b>?</b></dt><dd>{{t "help.help"}}</dd>
+</dl>
+<label class="hk"><input type="checkbox" id="keys-on" checked=""/> {{t "help.keys_toggle"}}</label>
+</div>
+{{- with .Acct}}
+<template id="acct-msgs">
+{{- range .Msgs}}<span data-k="{{.Key}}"{{with .Lang}} lang="{{.}}"{{end}}>{{.Text}}</span>{{end -}}
+</template>
+{{- end}}
+</body>
+</html>

@@ -1,0 +1,65 @@
+[Unit]
+Description=nday website and JSON API (nday serve)
+After=network-online.target postgresql.service
+Wants=network-online.target
+# Log files live on the /data volume (NDAY_LOG_DIR=/data/log/nday).
+RequiresMountsFor=/data
+
+[Service]
+Type=simple
+User=nday
+Group=nday
+EnvironmentFile=/etc/nday/nday.env
+EnvironmentFile=-/etc/nday/web.env
+# Sign-in (optional; without it accounts are disabled). Template:
+# deploy/auth.env.example; see docs/auth.md. root:nday 0640.
+EnvironmentFile=-/etc/nday/auth.env
+# X user lookup for /admin/x (optional; without it adding an account needs its
+# numeric id): NDAY_X_BEARER_TOKEN, the collector's token file. The web process
+# uses it only to look up the id of a handle an administrator adds or imports;
+# it never shows, logs or returns it, and always sends it to https://api.x.com.
+# root:nday 0640; see docs/xposts.md.
+EnvironmentFile=-/etc/nday/xposts.env
+WorkingDirectory=/opt/nday
+# Listen address and TLS come from /etc/nday/web.env (optional; without it the
+# server listens on 127.0.0.1:8080 in plain HTTP):
+#   NDAY_LISTEN=0.0.0.0:443
+#   NDAY_TLS_CERT=/etc/nday/tls/origin.pem
+#   NDAY_TLS_KEY=/etc/nday/tls/origin.key
+#   NDAY_TLS_CLIENT_CA=/etc/nday/tls/aop_ca.pem
+# Public origins (also in /etc/nday/web.env):
+#   NDAY_PUBLIC_URL=https://www.nday.land
+#   NDAY_API_URL=https://api.nday.land
+# With NDAY_API_URL set, Host api.nday.land serves only the JSON API under
+# /v1/ (CORS, no cookies) and the old /api/* and /raw/* paths on the site
+# answer 308 there; unset = everything on the site host as before. The origin
+# certificate must cover api.nday.land and its Cloudflare record must be
+# proxied (see deploy/README.md).
+# Log files (optional; without it access lines and logs go to journald only):
+#   NDAY_LOG_DIR=/data/log/nday
+# -> access-YYYY-MM-DD.log / error-YYYY-MM-DD.log by local date, never
+# deleted by nday (see docs/logging.md). The directory must exist
+# (nday:nday 0750): ProtectSystem=strict makes everything else read-only.
+ExecStart=/opt/nday/bin/nday serve
+Restart=on-failure
+RestartSec=2s
+TimeoutStopSec=30s
+# Bind 443 without running as root.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+MemoryMax=512M
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/data/log/nday
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

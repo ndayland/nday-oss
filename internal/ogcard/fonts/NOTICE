@@ -1,0 +1,15 @@
+JetBrains Mono, version 2.304
+Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+License: SIL Open Font License, Version 1.1 (see OFL.txt in this directory)
+
+Source: https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip
+  zip sha256 6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf
+Files taken unmodified from fonts/ttf/ in that zip:
+  JetBrainsMono-Regular.ttf  sha256 a0bf60ef0f83c5ed4d7a75d45838548b1f6873372dfac88f71804491898d138f
+  JetBrainsMono-Bold.ttf     sha256 5590990c82e097397517f275f430af4546e1c45cff408bde4255dad142479dcb
+OFL.txt is the zip's OFL.txt (sha256 30f0c136e3c88e422d0791acd97238870f9054a9729bc34cf2ff0d4ed8cac4ad).
+
+These are the same release and faces as internal/webui/static/fonts/*.woff2
+(TrueType instead of WOFF2, which golang.org/x/image/font/opentype cannot
+read). They are embedded in the binary to draw the share cards
+(internal/ogcard); they are not served to browsers.

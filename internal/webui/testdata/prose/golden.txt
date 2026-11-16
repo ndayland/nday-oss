@@ -1,0 +1,1201 @@
+==================== CVE-2026-98260 — kernel: indented call-flow diagram with a header row and a blank line; [ tglx: ] trailer
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+exec: Cleanup POSIX timers right after ⟦de_thread()⟧
+¶
+A per-thread CPU timer holds a reference to the PID of the thread it is
+attached to and, while it is armed, its node is queued in that thread's
+⟦posix_cputimers⟧. The task is looked up by that PID.
+¶
+When a non-leader thread exec()s, ⟦de_thread()⟧ changes which task owns
+that PID. pid_task(timer->it.cpu.pid, ⟦PIDTYPE_PID⟧) then returns NULL,
+but the node is still queued on tsk, which is alive. ⟦timer_lock_sighand()⟧
+takes a failed lookup to mean that the node is already dequeued, so it
+has nothing to undo.
+¶
+⟦begin_new_exec()⟧ calls ⟦posix_cpu_timers_exit(me)⟧ right after
+⟦exec_task_namespaces()⟧ and that removes the leftover node, so the state
+normally stays invisible. But ⟦bprm->point_of_no_return⟧ is set before
+⟦de_thread()⟧, so if ⟦unshare_files()⟧, ⟦set_mm_exe_file()⟧, ⟦exec_mmap()⟧ or
+⟦exec_task_namespaces()⟧ fails, the task dies before it gets there.
+⟦exit_itimers()⟧ then frees the ⟦k_itimer⟧ while its node is still queued,
+and reaping tsk later erases that freed node from the rbtree.
+¶
+In short:
+¶
+┏━━ code
+    the non-leader thread B           the parent
+
+timer_create(CLOCK_THREAD_CPUTIME_ID)
+timer_settime()
+  arm_timer()            // the node is queued on B
+execve()
+  de_thread(B)
+    exchange_tids(B, leader)  // B's PID now belongs to the leader
+    release_task(leader)
+      __exit_signal(leader)
+        posix_cpu_timers_exit(leader)  // cleans leader's queue, not B's
+        __unhash_process(leader)  // that PID has no task anymore
+  exec_mmap()
+    mmap_read_lock_killable(old_mm)
+                              kill(B, SIGKILL)
+    // -EINTR
+get_signal()
+  do_exit()
+    exit_itimers()
+      posix_timer_delete()
+        posix_cpu_timer_del()
+      posix_timer_unhash_and_free()  // freed while still queued
+                              wait4()
+                                release_task(B)
+                                  posix_cpu_timers_exit(B)
+                                    cleanup_timerqueue()
+                                      timerqueue_del()  // use-after-free
+┗━━
+Move the POSIX timer cleanup right after ⟦de_thread()⟧ before any of the
+later failure conditions brings the task into ⟦do_exit()⟧.
+¶
+[ tglx: Move the cleanup right after ⟦de_thread()⟧ ]
+¶
+
+==================== CVE-2022-48983 — kernel: KASAN null-ptr-deref with Call Trace, '?' frames and register dump
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+⟦io_uring⟧: Fix a null-ptr-deref in ⟦io_tctx_exit_cb()⟧
+¶
+Syzkaller reports a NULL deref bug as follows:
+¶
+┏━━ code
+BUG: KASAN: null-ptr-deref in io_tctx_exit_cb+0x53/0xd3
+Read of size 4 at addr 0000000000000138 by task file1/1955
+
+CPU: 1 PID: 1955 Comm: file1 Not tainted 6.1.0-rc7-00103-gef4d3ea40565 #75
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.11.0-2.el7 04/01/2014
+Call Trace:
+ <TASK>
+ dump_stack_lvl+0xcd/0x134
+ ? io_tctx_exit_cb+0x53/0xd3
+ kasan_report+0xbb/0x1f0
+ ? io_tctx_exit_cb+0x53/0xd3
+ kasan_check_range+0x140/0x190
+ io_tctx_exit_cb+0x53/0xd3
+ task_work_run+0x164/0x250
+ ? task_work_cancel+0x30/0x30
+ get_signal+0x1c3/0x2440
+ ? lock_downgrade+0x6e0/0x6e0
+ ? lock_downgrade+0x6e0/0x6e0
+ ? exit_signals+0x8b0/0x8b0
+ ? do_raw_read_unlock+0x3b/0x70
+ ? do_raw_spin_unlock+0x50/0x230
+ arch_do_signal_or_restart+0x82/0x2470
+ ? kmem_cache_free+0x260/0x4b0
+ ? putname+0xfe/0x140
+ ? get_sigframe_size+0x10/0x10
+ ? do_execveat_common.isra.0+0x226/0x710
+ ? lockdep_hardirqs_on+0x79/0x100
+ ? putname+0xfe/0x140
+ ? do_execveat_common.isra.0+0x238/0x710
+ exit_to_user_mode_prepare+0x15f/0x250
+ syscall_exit_to_user_mode+0x19/0x50
+ do_syscall_64+0x42/0xb0
+ entry_SYSCALL_64_after_hwframe+0x63/0xcd
+RIP: 0023:0x0
+Code: Unable to access opcode bytes at 0xffffffffffffffd6.
+RSP: 002b:00000000fffb7790 EFLAGS: 00000200 ORIG_RAX: 000000000000000b
+RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000000
+RBP: 0000000000000000 R08: 0000000000000000 R09: 0000000000000000
+R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
+R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+ </TASK>
+Kernel panic - not syncing: panic_on_warn set ...
+┗━━
+This happens because the adding of ⟦task_work⟧ from ⟦io_ring_exit_work()⟧
+isn't synchronized with canceling all work items from eg exec. The
+execution of the two are ordered in that they are both run by the task
+itself, but if ⟦io_tctx_exit_cb()⟧ is queued while we're canceling all
+work items off exec AND gets executed when the task exits to userspace
+rather than in the main loop in ⟦io_uring_cancel_generic()⟧, then we can
+find ⟦current->io_uring⟧ == NULL and hit the above crash.
+¶
+It's safe to add this NULL check here, because the execution of the two
+paths are done by the task itself.
+¶
+[axboe: add code comment and also put an explanation in the commit msg]
+¶
+
+==================== CVE-2023-53035 — kernel: KMSAN report, frames with file:line
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+nilfs2: fix kernel-infoleak in ⟦nilfs_ioctl_wrap_copy()⟧
+¶
+The ioctl helper function ⟦nilfs_ioctl_wrap_copy()⟧, which exchanges a
+metadata array to/from user space, may copy uninitialized buffer regions
+to user space memory for read-only ioctl commands ⟦NILFS_IOCTL_GET_SUINFO⟧
+and ⟦NILFS_IOCTL_GET_CPINFO⟧.
+¶
+This can occur when the element size of the user space metadata given by
+the ⟦v_size⟧ member of the argument ⟦nilfs_argv⟧ structure is larger than the
+size of the metadata element (⟦nilfs_suinfo⟧ structure or ⟦nilfs_cpinfo⟧
+structure) on the file system side.
+¶
+KMSAN-enabled kernels detect this issue as follows:
+¶
+┏━━ code
+BUG: KMSAN: kernel-infoleak in instrument_copy_to_user
+include/linux/instrumented.h:121 [inline]
+BUG: KMSAN: kernel-infoleak in _copy_to_user+0xc0/0x100 lib/usercopy.c:33
+ instrument_copy_to_user include/linux/instrumented.h:121 [inline]
+ _copy_to_user+0xc0/0x100 lib/usercopy.c:33
+ copy_to_user include/linux/uaccess.h:169 [inline]
+ nilfs_ioctl_wrap_copy+0x6fa/0xc10 fs/nilfs2/ioctl.c:99
+ nilfs_ioctl_get_info fs/nilfs2/ioctl.c:1173 [inline]
+ nilfs_ioctl+0x2402/0x4450 fs/nilfs2/ioctl.c:1290
+ nilfs_compat_ioctl+0x1b8/0x200 fs/nilfs2/ioctl.c:1343
+ __do_compat_sys_ioctl fs/ioctl.c:968 [inline]
+ __se_compat_sys_ioctl+0x7dd/0x1000 fs/ioctl.c:910
+ __ia32_compat_sys_ioctl+0x93/0xd0 fs/ioctl.c:910
+ do_syscall_32_irqs_on arch/x86/entry/common.c:112 [inline]
+ __do_fast_syscall_32+0xa2/0x100 arch/x86/entry/common.c:178
+ do_fast_syscall_32+0x37/0x80 arch/x86/entry/common.c:203
+ do_SYSENTER_32+0x1f/0x30 arch/x86/entry/common.c:246
+ entry_SYSENTER_compat_after_hwframe+0x70/0x82
+
+Uninit was created at:
+ __alloc_pages+0x9f6/0xe90 mm/page_alloc.c:5572
+ alloc_pages+0xab0/0xd80 mm/mempolicy.c:2287
+ __get_free_pages+0x34/0xc0 mm/page_alloc.c:5599
+ nilfs_ioctl_wrap_copy+0x223/0xc10 fs/nilfs2/ioctl.c:74
+ nilfs_ioctl_get_info fs/nilfs2/ioctl.c:1173 [inline]
+ nilfs_ioctl+0x2402/0x4450 fs/nilfs2/ioctl.c:1290
+ nilfs_compat_ioctl+0x1b8/0x200 fs/nilfs2/ioctl.c:1343
+ __do_compat_sys_ioctl fs/ioctl.c:968 [inline]
+ __se_compat_sys_ioctl+0x7dd/0x1000 fs/ioctl.c:910
+ __ia32_compat_sys_ioctl+0x93/0xd0 fs/ioctl.c:910
+ do_syscall_32_irqs_on arch/x86/entry/common.c:112 [inline]
+ __do_fast_syscall_32+0xa2/0x100 arch/x86/entry/common.c:178
+ do_fast_syscall_32+0x37/0x80 arch/x86/entry/common.c:203
+ do_SYSENTER_32+0x1f/0x30 arch/x86/entry/common.c:246
+ entry_SYSENTER_compat_after_hwframe+0x70/0x82
+┗━━
+ Bytes 16-127 of 3968 are uninitialized
+ ...
+¶
+This eliminates the leak issue by initializing the page allocated as
+buffer using ⟦get_zeroed_page()⟧.
+¶
+
+==================== CVE-2024-53168 — kernel: unindented KASAN report plus a reproduction shell script
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+sunrpc: fix one UAF issue caused by sunrpc kernel tcp socket
+¶
+┏━━ code
+BUG: KASAN: slab-use-after-free in tcp_write_timer_handler+0x156/0x3e0
+Read of size 1 at addr ffff888111f322cd by task swapper/0/0
+
+CPU: 0 UID: 0 PID: 0 Comm: swapper/0 Not tainted 6.12.0-rc4-dirty #7
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.15.0-1
+Call Trace:
+ <IRQ>
+ dump_stack_lvl+0x68/0xa0
+ print_address_description.constprop.0+0x2c/0x3d0
+ print_report+0xb4/0x270
+ kasan_report+0xbd/0xf0
+ tcp_write_timer_handler+0x156/0x3e0
+ tcp_write_timer+0x66/0x170
+ call_timer_fn+0xfb/0x1d0
+ __run_timers+0x3f8/0x480
+ run_timer_softirq+0x9b/0x100
+ handle_softirqs+0x153/0x390
+ __irq_exit_rcu+0x103/0x120
+ irq_exit_rcu+0xe/0x20
+ sysvec_apic_timer_interrupt+0x76/0x90
+ </IRQ>
+ <TASK>
+ asm_sysvec_apic_timer_interrupt+0x1a/0x20
+RIP: 0010:default_idle+0xf/0x20
+Code: 4c 01 c7 4c 29 c2 e9 72 ff ff ff 90 90 90 90 90 90 90 90 90 90 90 90
+ 90 90 90 90 f3 0f 1e fa 66 90 0f 00 2d 33 f8 25 00 fb f4 <fa> c3 cc cc cc
+ cc 66 66 2e 0f 1f 84 00 00 00 00 00 90 90 90 90 90
+RSP: 0018:ffffffffa2007e28 EFLAGS: 00000242
+RAX: 00000000000f3b31 RBX: 1ffffffff4400fc7 RCX: ffffffffa09c3196
+RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffffffff9f00590f
+RBP: 0000000000000000 R08: 0000000000000001 R09: ffffed102360835d
+R10: ffff88811b041aeb R11: 0000000000000001 R12: 0000000000000000
+R13: ffffffffa202d7c0 R14: 0000000000000000 R15: 00000000000147d0
+ default_idle_call+0x6b/0xa0
+ cpuidle_idle_call+0x1af/0x1f0
+ do_idle+0xbc/0x130
+ cpu_startup_entry+0x33/0x40
+ rest_init+0x11f/0x210
+ start_kernel+0x39a/0x420
+ x86_64_start_reservations+0x18/0x30
+ x86_64_start_kernel+0x97/0xa0
+ common_startup_64+0x13e/0x141
+ </TASK>
+
+Allocated by task 595:
+ kasan_save_stack+0x24/0x50
+ kasan_save_track+0x14/0x30
+ __kasan_slab_alloc+0x87/0x90
+ kmem_cache_alloc_noprof+0x12b/0x3f0
+ copy_net_ns+0x94/0x380
+ create_new_namespaces+0x24c/0x500
+ unshare_nsproxy_namespaces+0x75/0xf0
+ ksys_unshare+0x24e/0x4f0
+ __x64_sys_unshare+0x1f/0x30
+ do_syscall_64+0x70/0x180
+ entry_SYSCALL_64_after_hwframe+0x76/0x7e
+
+Freed by task 100:
+ kasan_save_stack+0x24/0x50
+ kasan_save_track+0x14/0x30
+ kasan_save_free_info+0x3b/0x60
+ __kasan_slab_free+0x54/0x70
+ kmem_cache_free+0x156/0x5d0
+ cleanup_net+0x5d3/0x670
+ process_one_work+0x776/0xa90
+ worker_thread+0x2e2/0x560
+ kthread+0x1a8/0x1f0
+ ret_from_fork+0x34/0x60
+ ret_from_fork_asm+0x1a/0x30
+┗━━
+Reproduction script:
+¶
+┏━━ code
+mkdir -p /mnt/nfsshare
+mkdir -p /mnt/nfs/netns_1
+mkfs.ext4 /dev/sdb
+mount /dev/sdb /mnt/nfsshare
+systemctl restart nfs-server
+chmod 777 /mnt/nfsshare
+exportfs -i -o rw,no_root_squash *:/mnt/nfsshare
+
+ip netns add netns_1
+ip link add name veth_1_peer type veth peer veth_1
+ifconfig veth_1_peer 11.11.0.254 up
+ip link set veth_1 netns netns_1
+ip netns exec netns_1 ifconfig veth_1 11.11.0.1
+
+ip netns exec netns_1 /root/iptables -A OUTPUT -d 11.11.0.254 -p tcp \
+	--tcp-flags FIN FIN  -j DROP
+┗━━
+(note: In my environment, a ⟦DESTROY_CLIENTID⟧ operation is always sent
+ immediately, breaking the nfs tcp connection.)
+ip netns exec ⟦netns_1⟧ timeout -s 9 300 mount -t nfs -o proto=tcp,vers=4.1 \
+	11.11.0.254:/mnt/nfsshare /mnt/nfs/netns_1
+¶
+ip netns del ⟦netns_1⟧
+¶
+The reason here is that the tcp socket in ⟦netns_1⟧ (nfs side) has been
+shutdown and closed (done in ⟦xs_destroy⟧), but the FIN message (with ack)
+is discarded, and the nfsd side keeps sending retransmission messages.
+As a result, when the tcp sock in ⟦netns_1⟧ processes the received message,
+it sends the message (FIN message) in the sending queue, and the tcp timer
+is re-established. When the network namespace is deleted, the net structure
+accessed by tcp's timer handler function causes problems.
+¶
+To fix this problem, let's hold netns refcnt for the tcp kernel socket as
+done in other modules. This is an ugly hack which can easily be backported
+to earlier kernels. A proper fix which cleans up the interfaces will
+follow, but may not be so easy to backport.
+¶
+
+==================== CVE-2026-89833 — kernel: tab-aligned two-thread call tree drawn with '- ' items
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+f2fs: fix to avoid potential deadloop in ⟦f2fs_fsync_node_pages()⟧
+¶
+There is potential deadloop in race condition:
+¶
+┏━━ code
+Thread A				Thread B
+- fsync
+ - f2fs_do_sync_file
+  - f2fs_fsync_node_pages
+   - last_fsync_dnode
+    - folio_get(last_folio)
+					- f2fs_setattr
+					 - f2fs_truncate
+					  - f2fs_truncate_blocks
+					   - f2fs_do_truncate_blocks
+					    - f2fs_truncate_inode_blocks
+					     - truncate_dnode
+					      - truncate_node
+					       - invalidate_mapping_pages
+					        - folio->mapping = NULL
+   - is_node_folio alwasy return false
+┗━━
+   - atomic && !marked is always true,
+     then goto retry
+¶
+
+==================== CVE-2026-90393 — kernel: CPU0/CPU1 race diagram, unindented header
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+bpf: Fix potential UAF in ⟦bpf_netns_link_update_prog⟧
+¶
+In ⟦bpf_netns_link_update_prog⟧, the checks for ⟦old_prog⟧ and prog type
+are currently performed locklessly before acquiring ⟦netns_bpf_mutex⟧.
+This creates a race condition that can lead to a UAF issue.
+¶
+If two threads concurrently execute ⟦BPF_LINK_UPDATE⟧ on the same netns
+link, the following execution path can trigger a UAF:
+¶
+┏━━ code
+CPU0                                          CPU1
+bpf_netns_link_update_prog
+  if (old_prog && old_prog != link->prog)
+    return -EPERM;
+                                              bpf_netns_link_update_prog
+                                                if (old_prog && old_prog != link->prog)
+                                                ...
+                                                old_prog = xchg(&link->prog, new_prog);
+                                                bpf_prog_put(old_prog);
+  if (new_prog->type != link->prog->type) <-- trigger UAF
+┗━━
+Fix this by moving the ⟦old_prog⟧ and ⟦prog->type⟧ checks inside the
+⟦netns_bpf_mutex⟧ critical section. Meanwhile, use ⟦guard()⟧ to simplify
+lock management and avoid all the goto jumping.
+¶
+
+==================== CVE-2026-90096 — kernel: code excerpt and ASCII page diagram and CPU table
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+fuse: invalidate the correct range after ⟦O_APPEND⟧ direct write
+¶
+⟦fuse_direct_write_iter()⟧ captures pos before ⟦generic_write_checks()⟧,
+which moves ⟦ki_pos⟧ to EOF for ⟦O_APPEND⟧ writes:
+¶
+┏━━ code
+fuse_direct_write_iter()
+{
+    pos = iocb->ki_pos;           /* 0 (user-supplied)       */
+    generic_write_checks();       /* ki_pos -> EOF           */
+    fuse_direct_io();             /* writes at EOF, correct  */
+    invalidate(pos, pos + res);   /* [0, res) -- wrong       */
+}
+┗━━
+The post-write invalidation targets a stale range instead of the
+actual written range at EOF.
+¶
+This can cause data inconsistency when the file size is not
+page-aligned.  The tail page straddling EOF has a valid portion
+before EOF that concurrent readers can fault back in during the
+DIO write window:
+¶
+  Tail page (file size X not page-aligned):
+¶
+┏━━ code
+  page_start         X (EOF)   page_end
+  |--- valid data ----|-- stale --|
+
+CPU0 (O_APPEND DIO writer)    CPU1 (buffered reader)
+--------------------------    ----------------------
+invalidate [X, X+len)
+  tail page evicted
+FUSE_WRITE in flight ...
+                              read [page_start, X)
+                                tail page re-faulted
+                                [X, page_end) = stale
+FUSE_WRITE completes
+i_size = X + len
+invalidate [0, len)  <- WRONG
+  tail page still cached
+                              read [X, X+len)
+                                hits stale tail page
+                                returns old data
+┗━━
+Fix by reading pos back from ⟦iocb->ki_pos⟧ after ⟦generic_write_checks()⟧,
+as ⟦generic_file_direct_write()⟧ does.
+¶
+Also fix a typo in the comment ("may have" -> "may have competed").
+¶
+
+==================== CVE-2026-80896 — kernel: '- ' list with wrapped continuation lines (prose)
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+mshv: Fix race in ⟦mshv_irqfd_deassign⟧
+¶
+⟦mshv_irqfd_deactivate()⟧ and the hlist traversal of ⟦pt_irqfds_list⟧
+require ⟦pt->pt_irqfds_lock⟧ to be held, but ⟦mshv_irqfd_deassign()⟧
+omits it. This races with the EPOLLHUP path in ⟦mshv_irqfd_wakeup()⟧,
+which does take the lock before calling ⟦mshv_irqfd_deactivate()⟧.
+¶
+Additionally, ⟦mshv_irqfd_deactivate()⟧ uses ⟦hlist_del()⟧ which poisons
+the node pointers rather than resetting them. Since
+⟦mshv_irqfd_is_active()⟧ relies on ⟦hlist_unhashed()⟧ (checks pprev ==
+NULL), a poisoned node still appears active. If a concurrent path calls
+⟦mshv_irqfd_deactivate()⟧ again on the same irqfd, the guard fails to
+prevent a double ⟦hlist_del()⟧ on poisoned pointers.
+¶
+Fix both issues:
+- Add the missing spin_lock_irq/spin_unlock_irq around the list
+  traversal in ⟦mshv_irqfd_deassign()⟧, matching ⟦mshv_irqfd_release()⟧.
+- Use ⟦hlist_del_init()⟧ instead of ⟦hlist_del()⟧ so the node is properly
+  marked as unhashed after removal, making the ⟦is_active⟧ guard reliable.
+¶
+
+==================== CVE-2024-42305 — kernel: syzbot report between ==== rulers, pseudo-code, column table
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+ext4: check dot and dotdot of ⟦dx_root⟧ before making dir indexed
+¶
+Syzbot reports a issue as follows:
+¶
+┏━━ code
+============================================
+BUG: unable to handle page fault for address: ffffed11022e24fe
+PGD 23ffee067 P4D 23ffee067 PUD 0
+Oops: Oops: 0000 [#1] PREEMPT SMP KASAN PTI
+CPU: 0 PID: 5079 Comm: syz-executor306 Not tainted 6.10.0-rc5-g55027e689933 #0
+Call Trace:
+ <TASK>
+ make_indexed_dir+0xdaf/0x13c0 fs/ext4/namei.c:2341
+ ext4_add_entry+0x222a/0x25d0 fs/ext4/namei.c:2451
+ ext4_rename fs/ext4/namei.c:3936 [inline]
+ ext4_rename2+0x26e5/0x4370 fs/ext4/namei.c:4214
+[...]
+============================================
+┗━━
+The immediate cause of this problem is that there is only one valid dentry
+for the block to be split during ⟦do_split⟧, so split==0 results in out of
+bounds accesses to the map triggering the issue.
+¶
+┏━━ code
+do_split
+  unsigned split
+  dx_make_map
+   count = 1
+  split = count/2 = 0;
+  continued = hash2 == map[split - 1].hash;
+   ---> map[4294967295]
+┗━━
+The maximum length of a filename is 255 and the minimum block size is 1024,
+so it is always guaranteed that the number of entries is greater than or
+equal to 2 when ⟦do_split()⟧ is called.
+¶
+But syzbot's crafted image has no dot and dotdot in dir, and the dentry
+distribution in dirblock is as follows:
+¶
+┏━━ code
+  bus     dentry1          hole           dentry2           free
+|xx--|xx-------------|...............|xx-------------|...............|
+0   12 (8+248)=256  268     256     524 (8+256)=264 788     236     1024
+┗━━
+So when renaming dentry1 increases its ⟦name_len⟧ length by 1, neither hole
+nor free is sufficient to hold the new dentry, and ⟦make_indexed_dir()⟧ is
+called.
+¶
+In ⟦make_indexed_dir()⟧ it is assumed that the first two entries of the
+dirblock must be dot and dotdot, so bus and dentry1 are left in ⟦dx_root⟧
+because they are treated as dot and dotdot, and only dentry2 is moved
+to the new leaf block. That's why count is equal to 1.
+¶
+Therefore add the ⟦ext4_check_dx_root()⟧ helper function to add more sanity
+checks to dot and dotdot before starting the conversion to avoid the above
+issue.
+¶
+
+==================== CVE-2026-72013 — kernel: '->' call tree
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+riscv: Prevent NULL pointer dereference in ⟦machine_kexec_prepare()⟧
+¶
+A NULL pointer dereference issue is noticed in riscv's
+⟦machine_kexec_prepare()⟧, where ⟦image->segment[i].buf⟧ might be NULL and
+copied unchecked.
+¶
+The NULL buf comes from ⟦ima_add_kexec_buffer()⟧, where kbuf is added by
+⟦kexec_add_buffer()⟧, but kbuf.buffer is NULL, then it is copied without
+a check in ⟦machine_kexec_prepare()⟧:
+¶
+┏━━ code
+kexec_file_load
+  -> kimage_file_alloc_init()
+     -> kimage_file_prepare_segments()
+        -> ima_add_kexec_buffer()
+           -> kexec_add_buffer()
+  -> machine_kexec_prepare()
+     -> memcpy()
+┗━━
+Address this by adding a check before the data copy attempt.
+¶
+
+==================== CVE-2026-90166 — kernel: call tree with // comments
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+smb/server: fix null-ptr-deref in ⟦ksmbd_ipc_tree_connect_request()⟧
+¶
+See the procedure below:
+¶
+┏━━ code
+ksmbd_tree_conn_connect
+  ksmbd_share_config_get
+    share->name = kstrdup() // fail
+    if (!test_share_config_flag(share, KSMBD_SHARE_FLAG_PIPE)) // false
+    // do not check `share->name`
+  ksmbd_ipc_tree_connect_request
+    strlen(share->name) // null-ptr-deref
+┗━━
+
+==================== CVE-2026-64036 — kernel: short indented UBSAN report
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+cgroup/rstat: validate cpu before ⟦css_rstat_cpu()⟧ access
+¶
+⟦css_rstat_updated()⟧ is exposed as a BPF kfunc and accepts a
+caller-provided cpu argument. The function uses cpu for per-cpu rstat
+lookups without checking whether it refers to a valid possible CPU.
+¶
+A BPF iter/cgroup program with ⟦CAP_BPF⟧ and ⟦CAP_PERFMON⟧ can pass an
+invalid cpu value. On an unfixed ⟦UBSCAN_BOUNDS⟧ test kernel, cpu ==
+0x7fffffff triggers:
+¶
+┏━━ code
+UBSAN: array-index-out-of-bounds in kernel/cgroup/rstat.c:31:9
+index 2147483647 is out of range for type 'long unsigned int [64]'
+Call Trace:
+  css_rstat_updated
+  bpf_iter_run_prog
+  cgroup_iter_seq_show
+  bpf_seq_read
+┗━━
+Add cpu validation to the BPF-facing ⟦css_rstat_updated()⟧ kfunc and
+move the common implementation to ⟦__css_rstat_updated()⟧ for in-kernel
+callers.
+¶
+
+==================== CVE-2024-42096 — kernel: tab-indented quoted comment and indented commit references (prose)
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+x86: stop playing stack games in ⟦profile_pc()⟧
+¶
+The '⟦profile_pc()⟧' function is used for timer-based profiling, which
+isn't really all that relevant any more to begin with, but it also ends
+up making assumptions based on the stack layout that aren't necessarily
+valid.
+¶
+Basically, the code tries to account the time spent in spinlocks to the
+caller rather than the spinlock, and while I support that as a concept,
+it's not worth the code complexity or the KASAN warnings when no serious
+profiling is done using timers anyway these days.
+¶
+And the code really does depend on stack layout that is only true in the
+simplest of cases.  We've lost the comment at some point (I think when
+the 32-bit and 64-bit code was unified), but it used to say:
+¶
+	Assume the lock function has either no stack frame or a copy
+	of eflags from PUSHF.
+¶
+which explains why it just blindly loads a word or two straight off the
+stack pointer and then takes a minimal look at the values to just check
+if they might be eflags or the return pc:
+¶
+	Eflags always has bits 22 and up cleared unlike kernel addresses
+¶
+but that basic stack layout assumption assumes that there isn't any lock
+debugging etc going on that would complicate the code and cause a stack
+frame.
+¶
+It causes KASAN unhappiness reported for years by syzkaller [1] and
+others [2].
+¶
+With no real practical reason for this any more, just remove the code.
+¶
+Just for historical interest, here's some background commits relating to
+this code from 2006:
+¶
+  0cb91a229364 ("i386: Account spinlocks to the caller during profiling for !FP kernels")
+  31679f38d886 ("Simplify ⟦profile_pc⟧ on x86-64")
+¶
+and a code unification from 2009:
+¶
+  ef4512882dbe ("x86: ⟦time_32/64.c⟧ unify ⟦profile_pc⟧")
+¶
+but the basics of this thing actually goes back to before the git tree.
+¶
+
+==================== CVE-2025-68242 — kernel: '# ' root shell transcript
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+NFS: Fix LTP test failures when timestamps are delegated
+¶
+The utimes01 and utime06 tests fail when delegated timestamps are
+enabled, specifically in subtests that modify the atime and mtime
+fields using the 'nobody' user ID.
+¶
+The problem can be reproduced as follow:
+¶
+┏━━ code
+# echo "/media *(rw,no_root_squash,sync)" >> /etc/exports
+# export -ra
+# mount -o rw,nfsvers=4.2 127.0.0.1:/media /tmpdir
+# cd /opt/ltp
+# ./runltp -d /tmpdir -s utimes01
+# ./runltp -d /tmpdir -s utime06
+┗━━
+This issue occurs because ⟦nfs_setattr⟧ does not verify the inode's
+UID against the caller's fsuid when delegated timestamps are
+permitted for the inode.
+¶
+This patch adds the UID check and if it does not match then the
+request is sent to the server for permission checking.
+¶
+
+==================== CVE-2026-31407 — kernel: indented quoted e-mail paragraph (prose)
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+netfilter: conntrack: add missing netlink policy validations
+¶
+Hyunwoo Kim reports out-of-bounds access in sctp and ctnetlink.
+¶
+These attributes are used by the kernel without any validation.
+Extend the netlink policies accordingly.
+¶
+Quoting the reporter:
+  ⟦nlattr_to_sctp()⟧ assigns the user-supplied ⟦CTA_PROTOINFO_SCTP_STATE⟧
+  value directly to ⟦ct->proto.sctp.state⟧ without checking that it is
+  within the valid range. [..]
+¶
+  and: ... with ⟦exp->dir⟧ = 100, the access at
+  ⟦ct->master->tuplehash[100]⟧ reads 5600 bytes past the start of a
+  320-byte ⟦nf_conn⟧ object, causing a slab-out-of-bounds read confirmed by
+  UBSAN.
+¶
+
+==================== CVE-2026-23074 — kernel: box-drawing qdisc tree
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+net/sched: Enforce that teql can only be used as root qdisc
+¶
+Design intent of teql is that it is only supposed to be used as root qdisc.
+We need to check for that constraint.
+¶
+Although not important, I will describe the scenario that unearthed this
+issue for the curious.
+¶
+GangMin Kim <km.kim1503@gmail.com> managed to concot a scenario as follows:
+¶
+ROOT qdisc 1:0 (QFQ)
+¶
+┏━━ code
+├── class 1:1 (weight=15, lmax=16384) netem with delay 6.4s
+└── class 1:2 (weight=1, lmax=1514) teql
+┗━━
+GangMin sends a packet which is enqueued to 1:1 (netem).
+Any invocation of dequeue by QFQ from this class will not return a packet
+until after 6.4s. In the meantime, a second packet is sent and it lands on
+1:2. teql's enqueue will return success and this will activate class 1:2.
+Main issue is that teql only updates the parent visible qlen (⟦sch->q.qlen⟧)
+at dequeue. Since QFQ will only call dequeue if peek succeeds (and teql's
+peek always returns NULL), dequeue will never be called and thus the qlen
+will remain as 0. With that in mind, when GangMin updates 1:2's lmax value,
+the ⟦qfq_change_class⟧ calls ⟦qfq_deact_rm_from_agg⟧. Since the child qdisc's
+qlen was not incremented, qfq fails to deactivate the class, but still
+frees its pointers from the aggregate. So when the first packet is
+rescheduled after 6.4 seconds (netem's delay), a dangling pointer is
+accessed causing GangMin's causing a UAF.
+¶
+
+==================== CVE-2026-31647 — kernel: lockdep report with dmesg timestamps
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+idpf: fix ⟦PREEMPT_RT⟧ raw/bh spinlock nesting for async VC handling
+¶
+Switch from using the completion's raw spinlock to a local lock in the
+⟦idpf_vc_xn⟧ struct. The conversion is safe because complete/_all() are
+called outside the lock and there is no reason to share the completion
+lock in the current logic. This avoids invalid wait context reported by
+the kernel due to the async handler taking BH spinlock:
+¶
+┏━━ code
+[  805.726977] =============================
+[  805.726991] [ BUG: Invalid wait context ]
+[  805.727006] 7.0.0-rc2-net-devq-031026+ #28 Tainted: G S         OE
+[  805.727026] -----------------------------
+[  805.727038] kworker/u261:0/572 is trying to lock:
+[  805.727051] ff190da6a8dbb6a0 (&vport_config->mac_filter_list_lock){+...}-{3:3}, at: idpf_mac_filter_async_handler+0xe9/0x260 [idpf]
+[  805.727099] other info that might help us debug this:
+[  805.727111] context-{5:5}
+[  805.727119] 3 locks held by kworker/u261:0/572:
+[  805.727132]  #0: ff190da6db3e6148 ((wq_completion)idpf-0000:83:00.0-mbx){+.+.}-{0:0}, at: process_one_work+0x4b5/0x730
+[  805.727163]  #1: ff3c6f0a6131fe50 ((work_completion)(&(&adapter->mbx_task)->work)){+.+.}-{0:0}, at: process_one_work+0x1e5/0x730
+[  805.727191]  #2: ff190da765190020 (&x->wait#34){+.+.}-{2:2}, at: idpf_recv_mb_msg+0xc8/0x710 [idpf]
+[  805.727218] stack backtrace:
+...
+[  805.727238] Workqueue: idpf-0000:83:00.0-mbx idpf_mbx_task [idpf]
+[  805.727247] Call Trace:
+[  805.727249]  <TASK>
+[  805.727251]  dump_stack_lvl+0x77/0xb0
+[  805.727259]  __lock_acquire+0xb3b/0x2290
+[  805.727268]  ? __irq_work_queue_local+0x59/0x130
+[  805.727275]  lock_acquire+0xc6/0x2f0
+[  805.727277]  ? idpf_mac_filter_async_handler+0xe9/0x260 [idpf]
+[  805.727284]  ? _printk+0x5b/0x80
+[  805.727290]  _raw_spin_lock_bh+0x38/0x50
+[  805.727298]  ? idpf_mac_filter_async_handler+0xe9/0x260 [idpf]
+[  805.727303]  idpf_mac_filter_async_handler+0xe9/0x260 [idpf]
+[  805.727310]  idpf_recv_mb_msg+0x1c8/0x710 [idpf]
+[  805.727317]  process_one_work+0x226/0x730
+[  805.727322]  worker_thread+0x19e/0x340
+[  805.727325]  ? __pfx_worker_thread+0x10/0x10
+[  805.727328]  kthread+0xf4/0x130
+[  805.727333]  ? __pfx_kthread+0x10/0x10
+[  805.727336]  ret_from_fork+0x32c/0x410
+[  805.727345]  ? __pfx_kthread+0x10/0x10
+[  805.727347]  ret_from_fork_asm+0x1a/0x30
+[  805.727354]  </TASK>
+┗━━
+
+==================== CVE-2026-98629 — kernel: indented tc command lines with comments
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+net/sched: ⟦cls_u32⟧: fix manual hash table handle IDR aliasing
+¶
+A u32 hash table created with an explicit handle ('tc filter add ...
+handle 801: u32 divisor N') keys its IDR entry on the raw handle, while
+the destroy paths free it under handle2id(handle). The two key domains
+disagree for handles in the 0x800..0xFFF htid range:
+⟦handle2id()⟧ folds them back into the auto-allocated id space (1..0x7FF).
+¶
+A manual table therefore leaves its raw-keyed IDR entry unreachable on
+delete (a permanent leak), and its delete can drop the idr entry of an
+unrelated live auto table. A later auto allocation can then hand out a
+handle that aliases the live manual table; ⟦u32_lookup_ht()⟧ first-match
+routes lookups and ⟦TCA_U32_LINK⟧ for that htid to the wrong table.
+¶
+Key the divisor-path alloc on handle2id(handle) so allocation and
+removal share one key domain. A manual handle that maps onto an id
+already in use is rejected with -ENOSPC, and auto allocation skips ids
+held by live manual tables.
+¶
+Conditions to recreate:
+¶
+┏━━ code
+ip link add test0 type dummy
+tc qdisc add dev test0 clsact
+tc filter add dev test0 ingress protocol ip pref 1 \
+        handle 801: u32 divisor 16
+tc filter add dev test0 ingress protocol ip pref 2 u32 divisor 16
+tc -d filter show dev test0 ingress | grep 'fh 801:'
+# unpatched: two live tables with handle 0x80100000 (the pref 2 root
+# hnode is auto-allocated id 1); patched: the auto hnode takes id 2.
+┗━━
+Also tested with a poc with a live u32 table on the block, add/delete a manual
+table 'handle 901: u32 divisor 1' twice; unpatched, the re-add fails with
+-ENOSPC because the raw key leaked on the first delete.
+¶
+
+==================== CVE-2026-89657 — kernel: [ name: ] trailer wrapped over an indented line
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+libceph: validate OSD extent maps before cursor advance
+¶
+net/ceph/osd_client.c:osd_sparse_read() validates that the sparse-read
+data length matches the summed extent lengths, but it does not validate
+that each OSD-supplied extent is monotonic and lies inside the original
+request range. A malformed authenticated OSD reply can advertise a
+far-forward nonzero extent offset with a matching data length and make
+the client advance the message-data cursor beyond the request buffer.
+This reaches the BUG_ON(!*length) assertion in ⟦ceph_msg_data_next()⟧ from
+the client receive path.
+¶
+Impact: A malicious or compromised authenticated Ceph OSD peer can crash
+a kernel Ceph client via a malformed sparse-read reply.
+¶
+Reject sparse extent maps that overflow, move backwards, overlap, or
+extend outside the original sparse-read request before advancing the
+cursor.
+¶
+[ idryomov: perform ⟦sparse_extent_map_valid()⟧ check a bit earlier,
+  in ⟦CEPH_SPARSE_READ_DATA_LEN⟧ instead of ⟦CEPH_SPARSE_READ_DATA_PRE⟧
+  state ]
+¶
+
+==================== CVE-2023-52586 — kernel: v4:/v3: changelog with hanging indent (prose)
+In the Linux kernel, the following vulnerability has been resolved:
+¶
+drm/msm/dpu: Add mutex lock in control vblank irq
+¶
+Add a mutex lock to control vblank irq to synchronize vblank
+enable/disable operations happening from different threads to prevent
+race conditions while registering/unregistering the vblank irq callback.
+¶
+v4: -Removed ⟦vblank_ctl_lock⟧ from ⟦dpu_encoder_virt⟧, so it is only a
+    parameter of ⟦dpu_encoder_phys⟧.
+    -Switch from atomic refcnt to a simple int counter as mutex has
+    now been added
+v3: Mistakenly did not change wording in last version. It is done now.
+v2: Slightly changed wording of commit message
+¶
+Patchwork: https://patchwork.freedesktop.org/patch/571854/
+¶
+
+==================== CVE-2021-44228 — plain prose with versions, ${jndi:} and JNDI
+Apache Log4j2 2.0-beta9 through 2.15.0 (excluding security releases 2.12.2, 2.12.3, and 2.3.1) JNDI features used in configuration, log messages, and parameters do not protect against attacker controlled LDAP and other JNDI related endpoints. An attacker who can control log messages or log message parameters can execute arbitrary code loaded from LDAP servers when message lookup substitution is enabled. From log4j 2.15.0, this behavior has been disabled by default. From version 2.16.0 (along with 2.12.2, 2.12.3, and 2.3.1), this functionality has been completely removed. Note that this vulnerability is specific to log4j-core and does not affect log4net, log4cxx, or other Apache Logging Services projects.
+¶
+
+==================== CVE-1999-0001 — one-line description with a bare file name
+⟦ip_input.c⟧ in BSD-derived TCP/IP implementations allows remote attackers to cause a denial of service (crash or hang) via crafted packets.
+¶
+
+==================== CVE-2023-26031 — '$ ' shell transcript between prose paragraphs
+Relative library resolution in linux container-executor binary in Apache Hadoop 3.3.1-3.3.4 on Linux allows local user to gain root privileges. If the YARN cluster is accepting work from remote (authenticated) users, this MAY permit remote users to gain root privileges.
+¶
+Hadoop 3.3.0 updated the " YARN Secure Containers https://hadoop.apache.org/docs/stable/hadoop-yarn/hadoop-yarn-site/SecureContainer.html " to add a feature for executing user-submitted applications in isolated linux containers.
+¶
+The native binary HADOOP_HOME/bin/container-executor is used to launch these containers; it must be owned by root and have the suid bit set in order for the YARN processes to run the containers as the specific users submitting the jobs.
+¶
+The patch " YARN-10495 https://issues.apache.org/jira/browse/YARN-10495 . make the rpath of container-executor configurable" modified the library loading path for loading .so files from "$ORIGIN/" to ""$ORIGIN/:../lib/native/". This is the a path through which libcrypto.so is located. Thus it is is possible for a user with reduced privileges to install a malicious libcrypto library into a path to which they have write access, invoke the container-executor command, and have their modified library executed as root.
+If the YARN cluster is accepting work from remote (authenticated) users, and these users' submitted job are executed in the physical host, rather than a container, then the CVE permits remote users to gain root privileges.
+¶
+The fix for the vulnerability is to revert the change, which is done in  YARN-11441 https://issues.apache.org/jira/browse/YARN-11441 , "Revert YARN-10495". This patch is in hadoop-3.3.5.
+¶
+To determine whether a version of container-executor is vulnerable, use the readelf command. If the RUNPATH or RPATH value contains the relative path "./lib/native/" then it  is at risk
+¶
+┏━━ code
+$ readelf -d container-executor|grep 'RUNPATH\|RPATH'
+0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN/:../lib/native/]
+┗━━
+If it does not, then it is safe:
+¶
+┏━━ code
+$ readelf -d container-executor|grep 'RUNPATH\|RPATH'
+0x000000000000001d (RUNPATH)            Library runpath: [$ORIGIN/]
+┗━━
+For an at-risk version of container-executor to enable privilege escalation, the owner must be root and the suid bit must be set
+¶
+┏━━ code
+$ ls -laF /opt/hadoop/bin/container-executor
+---Sr-s---. 1 root hadoop 802968 May 9 20:21 /opt/hadoop/bin/container-executor
+┗━━
+A safe installation lacks the suid bit; ideally is also not owned by root.
+¶
+┏━━ code
+$ ls -laF /opt/hadoop/bin/container-executor
+-rwxr-xr-x. 1 yarn hadoop 802968 May 9 20:21 /opt/hadoop/bin/container-executor
+┗━━
+This configuration does not support Yarn Secure Containers, but all other hadoop services, including YARN job execution outside secure containers continue to work.
+¶
+
+==================== CVE-2025-54480 — C snippet
+A stack-based buffer overflow vulnerability exists in the MFER parsing functionality of The Biosig Project libbiosig 3.9.0 and Master Branch (35a819fa). A specially crafted MFER file can lead to arbitrary code execution. An attacker can provide a malicious file to trigger this vulnerability.This vulnerability manifests on line 8719 of biosig.c on the current master branch (35a819fa), when the Tag is 0:
+¶
+┏━━ code
+if (tag==0) {
+	if (len!=1) fprintf(stderr,"Warning MFER tag0 incorrect length %i!=1\n",len);
+	curPos += ifread(buf,1,len,hdr);
+}
+┗━━
+
+==================== CVE-2026-2332 — HTTP request smuggling messages
+In Eclipse Jetty, the HTTP/1.1 parser is vulnerable to request smuggling when chunk extensions are used, similar to the "funky chunks" techniques outlined here:
+  *  https://w4ke.info/2025/06/18/funky-chunks.html
+¶
+  *  https://w4ke.info/2025/10/29/funky-chunks-2.html
+¶
+Jetty terminates chunk extension parsing at \r\n inside quoted strings instead of treating this as an error.
+¶
+┏━━ code
+POST / HTTP/1.1
+Host: localhost
+Transfer-Encoding: chunked
+┗━━
+1;ext="val
+X
+0
+¶
+┏━━ code
+GET /smuggled HTTP/1.1
+...
+┗━━
+Note how the chunk extension does not close the double quotes, and it is able to inject a smuggled request.
+¶
+
+==================== CVE-2025-54920 — JSON fragment spanning lines
+This issue affects Apache Spark: before 3.5.7 and 4.0.1. Users are recommended to upgrade to version 3.5.7 or 4.0.1 and above, which fixes the issue.
+¶
+Summary
+¶
+Apache Spark 3.5.4 and earlier versions contain a code execution vulnerability in the Spark History Web UI due to overly permissive Jackson deserialization of event log data. This allows an attacker with access to the Spark event logs directory to inject malicious JSON payloads that trigger deserialization of arbitrary classes, enabling command execution on the host running the Spark History Server.
+¶
+Details
+¶
+The vulnerability arises because the Spark History Server uses Jackson polymorphic deserialization with @JsonTypeInfo.Id.CLASS on SparkListenerEvent objects, allowing an attacker to specify arbitrary class names in the event JSON. This behavior permits instantiating unintended classes, such as org.apache.hive.jdbc.HiveConnection, which can perform network calls or other malicious actions during deserialization.
+¶
+The attacker can exploit this by injecting crafted JSON content into the Spark event log files, which the History Server then deserializes on startup or when loading event logs. For example, the attacker can force the History Server to open a JDBC connection to a remote attacker-controlled server, demonstrating remote command injection capability.
+¶
+Proof of Concept:
+¶
+1. Run Spark with event logging enabled, writing to a writable directory (spark-logs).
+¶
+2. Inject the following JSON at the beginning of an event log file:
+¶
+┏━━ code
+{
+
+  "Event": "org.apache.hive.jdbc.HiveConnection",
+  "uri": "jdbc:hive2://<IP>:<PORT>/",
+  "info": {
+    "hive.metastore.uris": "thrift://<IP>:<PORT>"
+  }
+}
+┗━━
+3. Start the Spark History Server with logs pointing to the modified directory.
+¶
+4. The Spark History Server initiates a JDBC connection to the attacker’s server, confirming the injection.
+¶
+Impact
+¶
+An attacker with write access to Spark event logs can execute arbitrary code on the server running the History Server, potentially compromising the entire system.
+¶
+
+==================== CVE-2024-32114 — XML configuration fragment
+In Apache ActiveMQ 6.x, the default configuration doesn't secure the API web context (where the Jolokia JMX REST API and the Message REST API are located).
+It means that anyone can use these layers without any required authentication. Potentially, anyone can interact with the broker (using Jolokia JMX REST API) and/or produce/consume messages or purge/delete destinations (using the Message REST API).
+¶
+To mitigate, users can update the default ⟦conf/jetty.xml⟧ configuration file to add authentication requirement:
+¶
+┏━━ code
+<bean id="securityConstraintMapping" class="org.eclipse.jetty.security.ConstraintMapping">
+  <property name="constraint" ref="securityConstraint" />
+  <property name="pathSpec" value="/" />
+</bean>
+┗━━
+Or we encourage users to upgrade to Apache ActiveMQ 6.1.2 where the default configuration has been updated with authentication by default.
+¶
+
+==================== CVE-2025-15284 — JavaScript snippets and markdown-ish headings
+Improper Input Validation vulnerability in qs (parse modules) allows HTTP DoS.This issue affects qs: < 6.14.1.
+¶
+Summary
+¶
+The arrayLimit option in qs did not enforce limits for bracket notation (a[]=1&a[]=2), only for indexed notation (a[0]=1). This is a consistency bug; arrayLimit should apply uniformly across all array notations.
+¶
+Note: The default parameterLimit of 1000 effectively mitigates the DoS scenario originally described. With default options, bracket notation cannot produce arrays larger than parameterLimit regardless of arrayLimit, because each a[]=valueconsumes one parameter slot. The severity has been reduced accordingly.
+¶
+Details
+¶
+The arrayLimit option only checked limits for indexed notation (a[0]=1&a[1]=2) but did not enforce it for bracket notation (a[]=1&a[]=2).
+¶
+Vulnerable code (lib/parse.js:159-162):
+¶
+┏━━ code
+if (root === '[]' && options.parseArrays) {
+    obj = utils.combine([], leaf);  // No arrayLimit check
+}
+┗━━
+Working code (lib/parse.js:175):
+¶
+else if (index <= options.arrayLimit) {  // Limit checked here
+¶
+┏━━ code
+    obj = [];
+    obj[index] = leaf;
+}
+┗━━
+The bracket notation handler at line 159 uses utils.combine([], leaf) without validating against options.arrayLimit, while indexed notation at line 175 checks index <= options.arrayLimit before creating arrays.
+¶
+PoC
+¶
+┏━━ code
+const qs = require('qs');
+const result = qs.parse('a[]=1&a[]=2&a[]=3&a[]=4&a[]=5&a[]=6', { arrayLimit: 5 });
+console.log(result.a.length);  // Output: 6 (should be max 5)
+┗━━
+Note on parameterLimit interaction: The original advisory's "DoS demonstration" claimed a length of 10,000, but parameterLimit (default: 1000) caps parsing to 1,000 parameters. With default options, the actual output is 1,000, not 10,000.
+¶
+Impact
+¶
+Consistency bug in arrayLimit enforcement. With default parameterLimit, the practical DoS risk is negligible since parameterLimit already caps the total number of parsed parameters (and thus array elements from bracket notation). The risk increases only when parameterLimit is explicitly set to a very high value.
+¶
+
+==================== CVE-2024-0455 — markdown ``` fences
+The inclusion of the web scraper for AnythingLLM means that any user with the proper authorization level (manager, admin, and when in single user) could put in the URL
+¶
+┏━━ code
+http://169.254.169.254/latest/meta-data/identity-credentials/ec2/security-credentials/ec2-instance
+┗━━
+which is a special IP and URL that resolves only when the request comes from within an EC2 instance. This would allow the user to see the connection/secret credentials for their specific instance and be able to manage it regardless of who deployed it.
+¶
+The user would have to have pre-existing knowledge of the hosting infra which the target instance is deployed on, but if sent - would resolve if on EC2 and the proper ⟦iptable⟧ or firewall rule is not configured for their setup.
+¶
+
+==================== CVE-2025-21602 — Juniper '  *  ' version lists (prose)
+An Improper Handling of Exceptional Conditions vulnerability in the routing protocol daemon (rpd) of Juniper Networks Junos OS and Junos OS Evolved allows an unauthenticated adjacent attacker sending a specific BGP update packet to cause rpd to crash and restart, resulting in a Denial of Service (DoS). 
+¶
+Continuous receipt and processing of this packet will create a sustained Denial of Service (DoS) condition.
+¶
+This issue affects iBGP and eBGP, and both IPv4 and IPv6 are affected by this vulnerability.
+¶
+This issue affects Junos OS: 
+¶
+  *  from 21.4 before 21.4R3-S9, 
+  *  from 22.2 before 22.2R3-S5, 
+  *  from 22.3 before 22.3R3-S4,
+  *  from 22.4 before 22.4R3-S5, 
+  *  from 23.2 before 23.2R2-S3, 
+  *  from 23.4 before 23.4R2-S3, 
+  *  from 24.2 before 24.2R1-S2, 24.2R2; 
+¶
+This issue does not affect versions prior to 21.1R1.
+¶
+Junos OS Evolved: 
+¶
+  *  from 21.4 before 21.4R3-S9-EVO, 
+  *  from 22.2 before 22.2R3-S5-EVO, 
+  *  from 22.3 before 22.3R3-S4-EVO,
+  *  from 22.4 before 22.4R3-S5-EVO, 
+  *  from 23.2 before 23.2R2-S3-EVO, 
+  *  from 23.4 before 23.4R2-S3-EVO, 
+  *  from 24.2 before 24.2R1-S2-EVO, 24.2R2-EVO.
+¶
+This issue does not affect versions prior to 21.1R1-EVO
+¶
+
+==================== CVE-2024-30397 — Juniper CLI prompt user@host> and output
+An Improper Check for Unusual or Exceptional Conditions vulnerability in the the Public Key Infrastructure daemon (pkid) of Juniper Networks Junos OS allows an unauthenticated networked attacker to cause Denial of Service (DoS).
+¶
+The pkid is responsible for the certificate verification. Upon a failed verification, the pkid uses all CPU resources and becomes unresponsive to future verification attempts. This means that all subsequent VPN negotiations depending on certificate verification will fail.
+¶
+This CPU utilization of pkid can be checked using this command: 
+¶
+┏━━ code
+  root@srx> show system processes extensive | match pkid
+  xxxxx  root  103  0  846M  136M  CPU1  1 569:00 100.00% pkid
+┗━━
+This issue affects:
+Juniper Networks Junos OS
+  *  All versions prior to 20.4R3-S10;
+  *  21.2 versions prior to 21.2R3-S7;
+  *  21.4 versions prior to 21.4R3-S5;
+  *  22.1 versions prior to 22.1R3-S4;
+  *  22.2 versions prior to 22.2R3-S3;
+  *  22.3 versions prior to 22.3R3-S1;
+  *  22.4 versions prior to 22.4R3;
+  *  23.2 versions prior to 23.2R1-S2, 23.2R2.
+¶
+
+==================== CVE-2018-9397 — hanging-indent prose paragraph
+In ⟦WMT_unlocked_ioctl⟧ of MTK WMT device driver, there is a possible OOB
+    write due to a missing bounds check. This could lead to local escalation of
+    privilege with System execution privileges needed. User interaction is not
+    needed for exploitation.
+¶
+
+==================== CVE-2026-71462 — hanging-indent prose with code tokens
+⟦StringListPathField.to_internal_value()⟧ calls
+              ⟦os.path.exists()⟧ on unbounded user-supplied paths.
+              200 vs 400 response reveals existence of arbitrary
+              absolute paths on the controller-web pod. Tenant
+              superuser can confirm ⟦/etc/tower/SECRET_KEY⟧, k8s
+              service-account token, receptor sockets, ConfigMap
+              mount points. Mainly impactful on managed AAP
+              (ansiblecloud.com) where tenant admin != host admin.
+¶
+
+==================== CVE-2020-1012 — prose written as HTML <p>/<li> (prose)
+<p>An elevation of privilege vulnerability exists in the way that the Wininit.dll handles objects in memory. An attacker who successfully exploited the vulnerability could execute code with elevated permissions.</p>
+<p>There are multiple ways an attacker could exploit the vulnerability:</p>
+<ul>
+<li><p>In a web-based attack scenario, an attacker could host a specially crafted website that is designed to exploit this vulnerability and then convince a user to view the website. An attacker would have no way to force users to view the attacker-controlled content. Instead, an attacker would have to convince users to take action, typically by getting them to click a link in an email message or in an Instant Messenger message that takes users to the attacker's website, or by opening an attachment sent through email.</p>
+</li>
+<li><p>In a file sharing attack scenario, an attacker could provide a specially crafted document file that is designed to exploit this vulnerability, and then convince a user to open the document file.</p>
+</li>
+</ul>
+<p>The security update addresses the vulnerability by ensuring the Wininit.dll properly handles objects in memory.</p>
+¶
+
+==================== CVE-2023-20118 — prose with a stray triple space after a period
+A vulnerability in the web-based management interface of Cisco Small Business Routers RV016, RV042, RV042G, RV082, RV320, and RV325 Routers could allow an authenticated, remote attacker to execute arbitrary commands on an affected device.
+¶
+ This vulnerability is due to improper validation of user input within incoming HTTP packets. An attacker could exploit this vulnerability by sending a crafted HTTP request to the web-based management interface. A successful exploit could allow the attacker to gain root-level privileges and access unauthorized data. To exploit this vulnerability, an attacker would need to have valid administrative credentials on the affected device.
+¶
+ Cisco has not and will not release software updates that address this vulnerability.   However, administrators may disable the affected feature as described in the Workarounds ["#workarounds"] section.
+¶
+  {{value}} ["%7b%7bvalue%7d%7d"])}]]
+¶
+
+==================== CVE-2023-40049 — product name with an underscore (WS_FTP) is not code
+In WS_FTP Server version prior to 8.8.2,
+¶
+ an unauthenticated user could enumerate files under the 'WebServiceHost' directory listing.
+¶
+
+==================== CVE-2017-15841 — Snapdragon_High_Med_2016 product name is not code
+When HOST sends a Special command ID packet, Controller triggers a RAM Dump and FW reset in Snapdragon Mobile in version SD 410/12, SD 425, SD 427, SD 430, SD 435, SD 450, SD 615/16/SD 415, SD 625, SD 650/52, SD 820, SD 835, Snapdragon_High_Med_2016.
+¶
+
+==================== CVE-2025-3135 — vendor name fcba_zzm is not code
+A vulnerability classified as critical was found in fcba_zzm ics-park Smart Park Management System 2.1. This vulnerability affects unknown code of the file /api/system/dept/update. The manipulation leads to sql injection. The attack can be initiated remotely. The exploit has been disclosed to the public and may be used.
+¶
+
+==================== CVE-2022-25130 — firmware label V2_Firmware is not code
+A command injection vulnerability in the function updateWifiInfo of TOTOLINK Technology routers T6 V3_Firmware T6_V3_V4.1.5cu.748_B20211015 and T10 V2_Firmware V4.1.8cu.5207_B20210320 allows attackers to execute arbitrary commands via a crafted MQTT packet.
+¶
+
+==================== CVE-2023-26782 — UI menu path Configuration->Cache is not code
+An issue discovered in mccms 2.6.1 allows remote attackers to cause a denial of service via Backend management interface ->System Configuration->Cache Configuration->Cache security characters.
+¶
+
+==================== CVE-2024-55994 — Chinese product name inside English prose
+Missing Authorization vulnerability in sohu 畅言评论系统 changyan allows Exploiting Incorrectly Configured Access Control Security Levels.This issue affects 畅言评论系统: from n/a through <= 2.0.5.
+¶
+
+==================== CVE-2025-9557 — bidi control characters
+‭An out-of-bound write can lead to an arbitrary code execution. Even on devices with some form of memory protection, this can still lead to‬ ‭a crash and a resultant denial of service.‬
+¶
+
+==================== CVE-2023-22516 — URLs, versions, indented prose lines
+This High severity RCE (Remote Code Execution) vulnerability was introduced in versions 8.1.0, 8.2.0, 9.0.0, 9.1.0, 9.2.0, and 9.3.0 of Bamboo Data Center and Server.
+¶
+This RCE (Remote Code Execution) vulnerability, with a CVSS Score of 8.5, allows an authenticated attacker to execute arbitrary code which has high impact to confidentiality, high impact to integrity, high impact to availability, and requires no user interaction.
+¶
+Atlassian recommends that Bamboo Data Center and Server customers upgrade to latest version, if you are unable to do so, upgrade your instance to one of the specified supported fixed versions:
+ Bamboo Data Center and Server 9.2: Upgrade to a release greater than or equal to 9.2.7.
+  JDK 1.8u121+ should be used in case Java 8 used to run Bamboo Data Center and Server. See Bamboo 9.2 Upgrade notes (https://confluence.atlassian.com/bambooreleases/bamboo-9-2-upgrade-notes-1207179212.html)
+¶
+ Bamboo Data Center and Server 9.3: Upgrade to a release greater than or equal to 9.3.4
+¶
+See the release notes ([https://confluence.atlassian.com/bambooreleases/bamboo-release-notes-1189793869.html]). You can download the latest version of Bamboo Data Center and Server from the download center ([https://www.atlassian.com/software/bamboo/download-archives]).
+¶
+This vulnerability was discovered by a private user and reported via our Bug Bounty program
+¶
+
+==================== CVE-2024-22234 — bullets with method names
+In Spring Security, versions 6.1.x prior to 6.1.7 and versions 6.2.x prior to 6.2.2, an application is vulnerable to broken access control when it directly uses the AuthenticationTrustResolver.isFullyAuthenticated(Authentication) method.
+¶
+Specifically, an application is vulnerable if:
+¶
+  *  The application uses AuthenticationTrustResolver.isFullyAuthenticated(Authentication) directly and a null authentication parameter is passed to it resulting in an erroneous true return value.
+¶
+An application is not vulnerable if any of the following is true:
+¶
+  *  The application does not use AuthenticationTrustResolver.isFullyAuthenticated(Authentication) directly.
+  *  The application does not pass null to AuthenticationTrustResolver.isFullyAuthenticated
+  *  The application only uses isFullyAuthenticated via  Method Security https://docs.spring.io/spring-security/reference/servlet/authorization/method-security.html  or  HTTP Request Security https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html
+¶
+
+==================== CVE-2026-62858 — PHP function names and a SCREAMING_SNAKE constant
+YOURLS is a self-hosted, customizable URL shortener written in PHP. Prior to 1.10.5, ⟦yourls_get_request()⟧ extracted the request path without sanitization, after which ⟦yourls_sanitize_url()⟧ and ⟦yourls_esc_url()⟧ preserved dot and slash traversal sequences before an attacker-controlled keyword reached ⟦file_exists()⟧ and ⟦include()⟧ under ⟦YOURLS_PAGEDIR⟧. An unauthenticated remote attacker could traverse outside the intended pages directory and include a local PHP file that was already present on the server, such as an uploaded or injected file, causing the file to execute in the YOURLS web process. This issue is fixed in version 1.10.5.
+¶
+
+==================== zh-summary — Simplified Chinese summary with inline code and a diagram (summary_zh is empty in the data; written by hand)
+在 Linux 内核中，非主线程执行 ⟦execve()⟧ 时，⟦de_thread()⟧ 会改变 PID 的归属，pid_task(timer->it.cpu.pid, ⟦PIDTYPE_PID⟧) 随之返回 NULL。
+若 ⟦exec_mmap()⟧ 失败，⟦exit_itimers()⟧ 会在节点仍在队列中时释放 ⟦k_itimer⟧，导致释放后使用。
+¶
+简要过程：
+¶
+┏━━ code
+execve()
+  de_thread(B)
+    exchange_tids(B, leader)  // B 的 PID 归主线程
+get_signal()
+  do_exit()
+    exit_itimers()
+┗━━
+修复：把 POSIX 定时器的清理移到 ⟦de_thread()⟧ 之后。参见 ⟦fs/exec.c⟧ 与 ⟦CONFIG_POSIX_TIMERS⟧。
+¶
+

@@ -1,0 +1,300 @@
+{
+ "collector": "cvelist",
+ "input": "internal/collector/cvelist/testdata/fixture_records.json",
+ "kind": "records",
+ "records": [
+  {
+   "content_hash": "ac2f30f8ca0d79fd607c5ddf495bd12df7233bd9b98ddbc94c221eaed0680bcc",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-107922",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitLab",
+       "date_published": null,
+       "date_rejected": "2026-11-11T22:18:59.410Z",
+       "rejected_reasons": [
+        "This CVE ID has been rejected or withdrawn by its CVE Numbering Authority."
+       ],
+       "state": "REJECTED"
+      },
+      "occurred_at": null,
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-107922"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-107922",
+      "description": null,
+      "modified_at": "2026-11-11T22:18:59.410000Z",
+      "published_at": null,
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-107922"
+  },
+  {
+   "content_hash": "836bfa633dd8029017cf501438eb4cf352c2d37dfa81d4e440526a4b9a6ded67",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "product": "ddev",
+      "vendor": "ddev"
+     }
+    ],
+    "aliases": [
+     {
+      "alias": "GHSA-9hq4-hm3j-jmph",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-108262"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-108262",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "GitHub_M",
+       "cvss": {
+        "base_score": 6.5,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-06T18:29:49.225Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-11T03:16:29.590639Z"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-06T18:29:49.225000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-108262"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-108262",
+      "description": "DDEV is an open-source tool for running local web development environments for PHP and Node.js. From 1.25.2 until 1.25.4, Untar in pkg/archive/archive.go validates an absolute tar symlink target after rebasing it beneath dest, but creates the symlink with the raw absolute Linkname. A crafted archive can therefore plant a host-absolute symlink and use a following regular-file entry to write outside the extraction directory. The flaw is reachable through remote add-on retrieval and database or file imports, and overwriting shell startup files, Git hooks, or cron entries can lead to code execution in the DDEV user's context. Unzip is not affected. This issue is fixed in version 1.25.4.",
+      "modified_at": "2026-11-11T03:16:39.472000Z",
+      "published_at": "2026-11-06T18:29:49.225000Z",
+      "title": "DDEV incomplete tar symlink traversal fix allows host file overwrite - Incomplete fix of CVE-2026-32885"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-108262"
+  },
+  {
+   "content_hash": "a31f1796a1c39927ca7de73aca8b20cc852ff83e7b4b3f0df6cc16630018fcb0",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "product": "Webtop Media Transcoder",
+      "vendor": "Openwave Messaging (Ireland) Limited"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-111793",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "mitre",
+       "cvss": {
+        "base_score": 4.3,
+        "base_severity": "MEDIUM",
+        "source": "cna",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L",
+        "version": "3.1"
+       },
+       "date_published": "2026-10-16T18:28:10.170Z",
+       "kev": {
+        "date_added": "2026-11-10",
+        "reference": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2026-111793"
+       },
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "active",
+        "technical_impact": "partial",
+        "timestamp": "2026-11-10T00:00:00+00:00"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-10-16T18:28:10.170000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-111793"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-111793",
+      "description": "Openwave Webtop Media Transcoder does not enforce administrator-defined file type restrictions to restrict the file-types to be converted. This may allow an authenticated user to process and convert unintended document types if bypassing the Webmail experience.",
+      "modified_at": "2026-11-11T04:55:54.627000Z",
+      "published_at": "2026-10-16T18:28:10.170000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-111793"
+  },
+  {
+   "content_hash": "dadabb1a127ceb896b1ff2362cc77db943f5bb1dea9b30990de459316789b414",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-116081",
+      "product": "Sleipnir Mobile for iPhone / iPad",
+      "vendor": "Fenrir Inc."
+     },
+     {
+      "cve_id": "CVE-2026-116081",
+      "product": "Sleipnir Mobile for iPhone / iPad Black Edition",
+      "vendor": "Fenrir Inc."
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-116081",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "jpcert",
+       "cvss": {
+        "base_score": 2.3,
+        "base_severity": "LOW",
+        "source": "cna",
+        "vector": "CVSS:4.0/AV:N/AC:L/AT:P/PR:N/UI:P/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
+        "version": "4.0"
+       },
+       "date_published": "2026-11-11T05:19:16.842Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-11T05:19:16.842000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-116081"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-116081",
+      "description": "Sleipnir Mobile for iPhone / iPad and Sleipnir Mobile for iPhone / iPad Black Edition provided by Fenrir Inc. are vulnerable to improper certificate verification. A man-in-the-middle attack may allow an attacker to eavesdrop on an encrypted communication.",
+      "modified_at": "2026-11-11T05:19:16.842000Z",
+      "published_at": "2026-11-11T05:19:16.842000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-116081"
+  },
+  {
+   "content_hash": "edaa7db964bed98db377c0d524520ec46c7e9097de1c082a051de8191184af4f",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-117373",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "mitre",
+       "date_published": "2026-11-11T00:00:00.000Z",
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-11T00:00:00.000000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-117373"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-117373",
+      "description": "Janus WebRTC Server 1.2.3 through 1.4.0 is vulnerable to Directory Traversal. The application accepts a caller supplied media path when an ondemand stream is created. The path is validated only by checking whether it contains one of the audio extensions and is then passed to the file source which opens it. No canonicalization is performed and no directory allowlist is enforced, so an unauthenticated caller can make the server open an arbitrary local file and use it as a media source, with the content delivered to viewers as RTP audio.",
+      "modified_at": "2026-11-11T17:36:51.985000Z",
+      "published_at": "2026-11-11T00:00:00.000000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-117373"
+  },
+  {
+   "content_hash": "472807f56f2ec4031a1eeabb38bca1222acded7312d288eae216b781f6590451",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-125344",
+      "product": "Chrome",
+      "vendor": "Google"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-125344",
+      "dedupe_key": "",
+      "detail": {
+       "assigner_short_name": "Chrome",
+       "cvss": {
+        "base_score": 8.8,
+        "base_severity": "HIGH",
+        "source": "adp:CISA-ADP",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+        "version": "3.1"
+       },
+       "date_published": "2026-11-10T17:20:20.692Z",
+       "ssvc": {
+        "automatable": "no",
+        "exploitation": "none",
+        "technical_impact": "total",
+        "timestamp": "2026-11-10T00:00:00+00:00"
+       },
+       "state": "PUBLISHED"
+      },
+      "occurred_at": "2026-11-10T17:20:20.692000Z",
+      "source": "cvelist",
+      "type": "disclosed",
+      "url": "https://www.cve.org/CVERecord?id=CVE-2026-125344"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "CVE-2026-125344",
+      "description": "Type confusion in V8 in Google Chrome prior to 157.0.8103.50 allowed a remote attacker to execute arbitrary code inside the sandbox via a crafted HTML page. (Chromium security severity: High)",
+      "modified_at": "2026-11-11T04:57:52.161000Z",
+      "published_at": "2026-11-10T17:20:20.692000Z",
+      "title": null
+     }
+    ]
+   },
+   "source_key": "CVE-2026-125344"
+  }
+ ]
+}

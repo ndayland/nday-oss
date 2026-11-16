@@ -1,0 +1,260 @@
+{
+ "collector": "kev",
+ "cursor": {
+  "catalogVersion": "2026.11.10",
+  "count": 5,
+  "dateReleased": "2026-11-10T19:03:29.8375Z"
+ },
+ "input": "tests/fixtures/kev_sample.json",
+ "kind": "fetch",
+ "records": [
+  {
+   "content_hash": "0cb01882274d24e83164b6ef6cce7b699c8fb82cc8ba56482c6465bd506f2814",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2021-43890",
+      "product": "Windows",
+      "vendor": "Microsoft"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2021-43890",
+      "dedupe_key": "",
+      "detail": {
+       "cwes": [],
+       "date_added": "2021-12-15",
+       "due_date": "2021-12-29",
+       "forensic_triage": "No",
+       "known_ransomware_campaign_use": "Known",
+       "notes": "https://nvd.nist.gov/vuln/detail/CVE-2021-43890",
+       "precision": "day",
+       "product": "Windows",
+       "required_action": "Apply updates per vendor instructions.",
+       "vendor_project": "Microsoft",
+       "vulnerability_name": "Microsoft Windows AppX Installer Spoofing Vulnerability"
+      },
+      "occurred_at": "2021-12-15T00:00:00.000000Z",
+      "source": "kev",
+      "type": "kev_added",
+      "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": false,
+      "cve_id": "CVE-2021-43890",
+      "description": "Microsoft Windows AppX Installer contains a spoofing vulnerability which has a high impacts to confidentiality, integrity, and availability.",
+      "modified_at": null,
+      "published_at": null,
+      "title": "Microsoft Windows AppX Installer Spoofing Vulnerability"
+     }
+    ]
+   },
+   "source_key": "CVE-2021-43890"
+  },
+  {
+   "content_hash": "0bc407ce3f55c70af9b5fe03b0e4fa57abe379527e0b2048031b6ef2182bf36f",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-59310",
+      "product": "VMware vCenter",
+      "vendor": "Broadcom"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-59310",
+      "dedupe_key": "",
+      "detail": {
+       "cwes": [
+        "CWE-22"
+       ],
+       "date_added": "2026-08-18",
+       "due_date": "2026-08-21",
+       "forensic_triage": "Yes",
+       "known_ransomware_campaign_use": "Known",
+       "notes": "https://support.broadcom.com/web/ecx/support-content-notification/-/external/content/SecurityAdvisories/0/38017 ; BOD 26-04: https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk ; Forensics Triage Requirements: https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk ; https://nvd.nist.gov/vuln/detail/CVE-2026-59310",
+       "precision": "day",
+       "product": "VMware vCenter",
+       "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+       "vendor_project": "Broadcom",
+       "vulnerability_name": "Broadcom VMware vCenter Path Traversal Vulnerability"
+      },
+      "occurred_at": "2026-08-18T00:00:00.000000Z",
+      "source": "kev",
+      "type": "kev_added",
+      "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": false,
+      "cve_id": "CVE-2026-59310",
+      "description": "Broadcom VMware vCenter contains a path traversal vulnerability which could allow a threat actor with network access to vCenter to execute arbitrary code.",
+      "modified_at": null,
+      "published_at": null,
+      "title": "Broadcom VMware vCenter Path Traversal Vulnerability"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-59310"
+  },
+  {
+   "content_hash": "fa3a5497699ed7c40108e4f360b6992d49fd9b76ce845d13a9e4e3ee95638e95",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-53362",
+      "product": "Kernel",
+      "vendor": "Linux"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-53362",
+      "dedupe_key": "",
+      "detail": {
+       "cwes": [],
+       "date_added": "2026-08-27",
+       "due_date": "2026-08-30",
+       "forensic_triage": "Yes",
+       "known_ransomware_campaign_use": "Unknown",
+       "notes": "This vulnerability affects an open-source component, third-party library, protocol, or proprietary implementation that could be used by different products. For more information, please see: ; https://git.kernel.org/stable/c/14200d435af9a9eeb444f529fc2f689a236b7962; https://git.kernel.org/stable/c/65fb14cbebb0cd0eff903a22d33537ddc8b95769; https://git.kernel.org/stable/c/46f201f8b4c39633a1fa3dc12459f506d470993d; https://git.kernel.org/stable/c/6374fb9edf72c67a118a2c214a0dddd04c921e0a; https://git.kernel.org/stable/c/e9eacf19281ea2498b36291b56c9606118c2d74e; https://git.kernel.org/stable/c/736b380e28d0480c7bc3e022f1950f31fe53a7c5 ; BOD 26-04: https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk ; Forensics Triage Requirements: https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk ; https://nvd.nist.gov/vuln/detail/CVE-2026-53362",
+       "precision": "day",
+       "product": "Kernel",
+       "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+       "vendor_project": "Linux",
+       "vulnerability_name": "Linux Kernel Unspecified Vulnerability"
+      },
+      "occurred_at": "2026-08-27T00:00:00.000000Z",
+      "source": "kev",
+      "type": "kev_added",
+      "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": false,
+      "cve_id": "CVE-2026-53362",
+      "description": "Linux Kernel contains an unspecified vulnerability that can allow for privilege escalation via IPv6 networking subsystem. This vulnerability can impact multiple products, including but not limited to Suse, Red Hat, and other products using Linux.",
+      "modified_at": null,
+      "published_at": null,
+      "title": "Linux Kernel Unspecified Vulnerability"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-53362"
+  },
+  {
+   "content_hash": "b20b481d9cab1df5aeb2a3ec26385a599c04ea5ee9cfbb24527015cbb312d9d9",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-102895",
+      "product": "GPUStack",
+      "vendor": "GPUStack"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-102895",
+      "dedupe_key": "",
+      "detail": {
+       "cwes": [
+        "CWE-287",
+        "CWE-290",
+        "CWE-346"
+       ],
+       "date_added": "2026-11-09",
+       "due_date": "2026-11-12",
+       "forensic_triage": "Yes",
+       "known_ransomware_campaign_use": "Unknown",
+       "notes": "This vulnerability affects an open-source component, third-party library, protocol, or proprietary implementation that could be used by different products. For more information, please see: ; https://github.com/gpustack/gpustack/security/advisories/GHSA-gj9m-f8ph-pmhr ; BOD 26-04: https://www.cisa.gov/news-events/directives/bod-26-04-prioritizing-security-updates-based-risk ; Forensics Triage Requirements: https://www.cisa.gov/news-events/directives/bod-26-04-implementation-guidance-prioritizing-security-updates-based-risk ; https://nvd.nist.gov/vuln/detail/CVE-2026-102895",
+       "precision": "day",
+       "product": "GPUStack",
+       "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+       "vendor_project": "GPUStack",
+       "vulnerability_name": "GPUStack Improper Authentication Vulnerability"
+      },
+      "occurred_at": "2026-11-09T00:00:00.000000Z",
+      "source": "kev",
+      "type": "kev_added",
+      "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": false,
+      "cve_id": "CVE-2026-102895",
+      "description": "GPUStack contains an improper authentication vulnerability which could allow unauthenticated administrative access, including user and model changes, persistent administrator API-key creation, disclosure of worker and cloud-provider secrets, and code execution through POST /v2/inference-backends/from-yaml.",
+      "modified_at": null,
+      "published_at": null,
+      "title": "GPUStack Improper Authentication Vulnerability"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-102895"
+  },
+  {
+   "content_hash": "7eac921e3afaa9005b871dc8fd3bf8a7e3227948817f46af81823b3f56d46d12",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [
+     {
+      "cve_id": "CVE-2026-124194",
+      "product": "Office",
+      "vendor": "Microsoft"
+     }
+    ],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-124194",
+      "dedupe_key": "",
+      "detail": {
+       "cwes": [
+        "CWE-356"
+       ],
+       "date_added": "2026-11-10",
+       "due_date": "2026-11-24",
+       "forensic_triage": "No",
+       "known_ransomware_campaign_use": "Unknown",
+       "notes": "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2026-124194 ; https://nvd.nist.gov/vuln/detail/CVE-2026-124194",
+       "precision": "day",
+       "product": "Office",
+       "required_action": "Apply mitigations in accordance with vendor instructions, ensuring compliance with CISA’s BOD 26-04 Prioritizing Security Updates Based on Risk (see URL in Notes) guidance and CISA’s “Forensics Triage Requirements” (see URL in Notes). Follow applicable BOD 26-04 guidance for cloud services or discontinue use of the product if mitigations are unavailable. Stakeholders are responsible for evaluating each asset's internet exposure and ensuring adherence to BOD 26-04 patching guidelines.",
+       "vendor_project": "Microsoft",
+       "vulnerability_name": "Microsoft Office Outlook Missing User Interaction for Potentially Unsafe Action Vulnerability"
+      },
+      "occurred_at": "2026-11-10T00:00:00.000000Z",
+      "source": "kev",
+      "type": "kev_added",
+      "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": false,
+      "cve_id": "CVE-2026-124194",
+      "description": "Microsoft Office Outlook contains a missing user interaction for potentially unsafe action vulnerability that allows an unauthorized attacker to perform spoofing over a network.",
+      "modified_at": null,
+      "published_at": null,
+      "title": "Microsoft Office Outlook Missing User Interaction for Potentially Unsafe Action Vulnerability"
+     }
+    ]
+   },
+   "source_key": "CVE-2026-124194"
+  }
+ ]
+}

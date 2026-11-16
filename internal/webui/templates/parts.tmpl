@@ -1,0 +1,211 @@
+{{define "link"}}{{if .Href}}<a href="{{.Href}}"{{if .External}} rel="noopener noreferrer"{{end}}{{with .Lang}} lang="{{.}}"{{end}}>{{.Text}}</a>{{else}}<span{{with .Lang}} lang="{{.}}"{{end}}>{{.Text}}</span>{{end}}{{end}}
+
+{{define "cmd"}}<div class="cmd">
+<span class="prompt" aria-hidden="true">$</span>
+<code>{{.Cmd}}{{with .Pipe}} <span class="pipe">{{.}}</span>{{end}}</code>
+<button type="button" class="btn" data-copy="{{.Copy}}" hidden="">{{t "btn.copy"}}</button>
+</div>{{end}}
+
+{{define "cmdsm"}}<div class="cmd sm">
+<span class="prompt" aria-hidden="true">$</span>
+<code>{{.Cmd}}{{with .Pipe}} <span class="pipe">{{.}}</span>{{end}}</code>
+<button type="button" class="btn sm" data-copy="{{.Copy}}" hidden="">{{t "btn.copy"}}</button>
+</div>{{end}}
+
+{{/* the lifecycle strip of a list row (216x22, 36px per slot, centres at 18+36i): every shape is a <use> of
+     the shared geometry in stripdefs (emitted once per page, by hothead). The reference names the shape:
+     sl the baseline, h0-h5 the halo of slot i, k0-k5 / o0-o5 / n0-n5 the known / hollow / none marker of slot i.
+     The stylesheet (.strip [href…]) gives each its stage colour (by slot) and its marker style (by letter). */}}
+{{define "strip"}}<svg class="strip" role="img" aria-label="{{.Label}}"><use href="#sl"/>
+{{- range .Slots}}{{with .Halo}}<use href="#{{.}}"/>{{end}}<use href="#{{.Ref}}"/>{{end -}}
+</svg>{{end}}
+
+{{define "stripdefs"}}<svg class="sdefs" width="0" height="0" aria-hidden="true"><defs><line id="sl" x1="18" y1="11.5" x2="198" y2="11.5"/>
+<rect id="h0" x="9" y="2" width="18" height="18"/><rect id="h1" x="45" y="2" width="18" height="18"/><rect id="h2" x="81" y="2" width="18" height="18"/><rect id="h3" x="117" y="2" width="18" height="18"/><rect id="h4" x="153" y="2" width="18" height="18"/><rect id="h5" x="189" y="2" width="18" height="18"/>
+<rect id="k0" x="12.75" y="5.75" width="10.5" height="10.5"/><rect id="k1" x="48.75" y="5.75" width="10.5" height="10.5"/><rect id="k2" x="84.75" y="5.75" width="10.5" height="10.5"/><rect id="k3" x="120.75" y="5.75" width="10.5" height="10.5"/><rect id="k4" x="156.75" y="5.75" width="10.5" height="10.5"/><rect id="k5" x="192.75" y="5.75" width="10.5" height="10.5"/>
+<rect id="o0" x="12.75" y="5.75" width="10.5" height="10.5"/><rect id="o1" x="48.75" y="5.75" width="10.5" height="10.5"/><rect id="o2" x="84.75" y="5.75" width="10.5" height="10.5"/><rect id="o3" x="120.75" y="5.75" width="10.5" height="10.5"/><rect id="o4" x="156.75" y="5.75" width="10.5" height="10.5"/><rect id="o5" x="192.75" y="5.75" width="10.5" height="10.5"/>
+<rect id="n0" x="12.75" y="5.75" width="10.5" height="10.5"/><rect id="n1" x="48.75" y="5.75" width="10.5" height="10.5"/><rect id="n2" x="84.75" y="5.75" width="10.5" height="10.5"/><rect id="n3" x="120.75" y="5.75" width="10.5" height="10.5"/><rect id="n4" x="156.75" y="5.75" width="10.5" height="10.5"/><rect id="n5" x="192.75" y="5.75" width="10.5" height="10.5"/>
+</defs></svg>{{end}}
+
+{{define "chip"}}<svg class="chip" viewBox="0 0 18 18" aria-hidden="true"><g class="{{index . 0}}">{{if eq (index . 2) "latest"}}<rect class="halo" x="0" y="0" width="18" height="18"/>{{end}}<rect class="{{index . 1}}" x="3.75" y="3.75" width="10.5" height="10.5"/></g></svg>{{end}}
+
+{{define "bars"}}{{range .}}<span class="{{.Class}}" title="{{.Name}}">{{.Code}}</span><svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="track" width="100" height="10"/><g class="{{.Class}}"><rect class="fill" width="{{.W}}" height="10"/></g></svg><span class="r">{{.Count}}</span>
+{{end}}{{end}}
+
+{{define "stagelegend"}}<div class="ln">
+<span>{{t "legend.stage.dis" "code" (stage "DIS")}}</span>
+<span>{{t "legend.stage.pat" "code" (stage "PAT")}}</span>
+<span>{{t "legend.stage.ana" "code" (stage "ANA")}}</span>
+<span>{{t "legend.stage.poc" "code" (stage "POC")}}</span>
+<span>{{t "legend.stage.itw" "code" (stage "ITW")}}</span>
+<span>{{t "legend.stage.kev" "code" (stage "KEV")}}</span>
+<span>{{t "legend.tplus" "token" (code "T+")}}</span>
+<span>{{t "legend.poc_count" "token" (code "POC n/3")}}</span>
+</div>{{end}}
+
+{{/* the stage and marker legend of list pages, closed by default */}}
+{{define "legend"}}<details>
+<summary>{{t "legend.summary"}}</summary>
+{{template "stagelegend"}}
+{{template "markerlegend"}}
+</details>{{end}}
+
+{{define "markerlegend"}}<div class="ln">
+<span class="mk-l">{{template "chip" (list3 "st-dis" "mk mk-known" "")}}{{t "marker.known"}}</span>
+<span class="mk-l">{{template "chip" (list3 "st-dis" "mk mk-hollow" "")}}{{t "marker.hollow"}}</span>
+<span class="mk-l">{{template "chip" (list3 "st-dis" "mk mk-known" "latest")}}{{t "marker.latest"}}</span>
+<span class="mk-l">{{template "chip" (list3 "st-dis" "mk mk-none" "")}}{{t "marker.none"}}</span>
+</div>{{end}}
+
+{{/* a plain-text description split by FormatText (prose.go): paragraphs keep their line breaks, code is <pre>.
+     Every code line is its own element (the line break stays inside it, so copied text is unchanged); blocks of two
+     lines or more are numbered by the stylesheet (tx-num), so the numbers are never part of the copied text. Inside a
+     line, the tokens of Hilite (hilite.go) with a class get a span (hc, hs, hn, …); plain text gets none. */}}
+{{define "text"}}{{range .}}{{if .Code}}<pre class="tx-code{{if .Numbered}} tx-num {{.Gutter}}{{end}}" dir="ltr"><code>{{range .Lines}}<span class="l">{{range .Toks}}{{if .Class}}<span class="{{.Class}}">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}
+</span>{{end}}</code></pre>{{else}}<p>{{range .Segs}}{{if .Code}}<code dir="ltr">{{if .Arrow}}{{range $i, $p := .Arrow}}{{if $i}}<span class="nw">-&gt;</span>{{end}}{{$p}}{{end}}{{else}}{{.Text}}{{end}}</code>{{else}}{{.Text}}{{end}}{{end}}</p>{{end}}{{end}}{{end}}
+
+{{define "upstreamnote"}}<p class="note">{{t "note.upstream_original"}}</p>{{end}}
+
+{{/* tagchip carries the tag's description as a tooltip (the vulnerability page and the filter bar, where it is
+     shown nowhere else); tagchipn is the bare chip of list rows and of /tags, which prints the description beside it */}}
+{{define "tagchip"}}<a class="{{.Class}}" href="{{.Href}}" title="{{tagdescs .Slug}}">{{tagname .Slug}}</a>{{end}}
+{{define "tagchipn"}}<a class="{{.Class}}" href="{{.Href}}">{{tagname .Slug}}</a>{{end}}
+
+{{define "tagrow"}}{{if .}}<span class="rtags">{{range .}}{{template "tagchipn" .}}{{end}}</span>{{end}}{{end}}
+
+{{define "tagfilter"}}<div class="flag tagf">
+<span class="k">{{t "hot.filter.tag"}}</span>
+{{- range .Chips}}
+<span class="tfc">{{template "tagchip" .}}<a class="tx" href="{{.Remove}}" aria-label="{{ts "tag.filter.remove" "tag" (tagnames .Slug)}}" title="{{ts "tag.filter.remove" "tag" (tagnames .Slug)}}">×</a></span>
+{{- end}}
+<a class="tall" href="{{.TagsHref}}">{{if .Chips}}{{t "tag.filter.more"}}{{else}}{{t "tag.filter.browse"}}{{end}}</a>
+</div>{{end}}
+
+{{define "adminhead"}}<div class="stack adm-head">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span><bdi>{{.Title}}</bdi></h1>
+<p class="note">{{if .Handle}}{{t "admin.signed_in_as" "handle" .Handle "role" (ts "acct.role.name" "role" .Role)}}{{else}}{{t "acct.role.name" "role" .Role}}{{end}}</p>
+</div>
+<nav class="adm-nav" aria-label="{{ts "admin.nav_label"}}">
+{{- range .Tabs}}
+<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{t "admin.nav" "tab" .Key}}</a>
+{{- end}}
+</nav>{{end}}
+
+{{define "modcomment"}}<article class="cm adm-cm" id="m-{{.ID}}">
+<p class="cm-h">
+{{- if .Gone}}<span class="cm-gone">{{t "admin.mod.gone"}}</span>
+{{- else}}<a class="cm-au" href="{{.AuthorHref}}">{{if .Handle}}<bdi>@{{.Handle}}</bdi>{{else}}{{t "admin.user.no_handle"}}{{end}}</a>{{with .Role}}<span class="rb">{{t "acct.role.badge" "role" .}}</span>{{end}}{{end}}
+<span class="cm-time">{{.At.HTML}}</span>
+<a href="{{.VulnHref}}">{{.CVE}}</a>
+<span class="adm-st {{.Status}}">{{t "admin.mod.status" "status" .Status}}</span>
+{{- if .Edited}}
+<span class="cm-ed">{{t "admin.mod.edited" "n" .Revisions}}</span>
+{{- end}}
+{{- if .OpenRep}}
+<span class="adm-flag">{{t "admin.mod.open_reports" "n" .OpenRep}}</span>
+{{- end}}
+</p>
+<div class="cm-body" dir="auto">{{.Body}}</div>
+{{- if .Hidden}}
+<p class="cm-note">{{t "admin.mod.hidden" "reason" .Hidden}}{{with .HiddenBy}} {{t "admin.mod.hidden_by" "handle" .}}{{end}}</p>
+{{- end}}
+{{- if .History}}
+<details class="adm-hist"><summary>{{t "admin.mod.history" "n" (len .History)}}</summary>
+{{- range .History}}
+<p class="note">{{t "admin.mod.replaced" "time" .At.HTML}}</p>
+<pre class="cm-src" dir="auto">{{.Body}}</pre>
+{{- end}}
+</details>
+{{- end}}
+{{- if .Reports}}
+<ul class="adm-reps">
+{{- range .Reports}}
+<li><span class="adm-reason">{{t "disc.report.reason" "reason" .Reason}}</span> <span class="dim">{{.At.HTML}}</span>{{with .Note}} <bdi class="cm-note">{{.}}</bdi>{{end}}</li>
+{{- end}}
+</ul>
+<p class="note">{{t "admin.mod.reports" "n" .Total}} {{t "admin.mod.reporters" "n" .Reporters}}</p>
+{{- end}}
+<div class="cm-acts adm-acts">
+<a class="btn sm adm-lnk" href="{{.Permalink}}">{{t "admin.mod.open"}}</a>
+{{- if .Act}}
+{{- if eq .Status "hidden"}}
+<button type="button" class="btn sm" data-act="unhide" data-id="{{.ID}}">{{t "admin.act.unhide"}}</button>
+{{- end}}
+{{- with .ReportIDs}}
+<button type="button" class="btn sm" data-act="dismiss" data-reports="{{.}}">{{t "admin.act.dismiss"}}</button>
+{{- end}}
+{{- end}}
+</div>
+{{- if and .Act (eq .Status "visible")}}
+<form class="acct-form adm-hide" data-act="hide" data-id="{{.ID}}" novalidate="">
+<div class="acct-row">
+<input class="acct-in" type="text" maxlength="200" autocomplete="off" aria-label="{{ts "admin.mod.hide_reason"}}" placeholder="{{ts "admin.mod.hide_reason"}}"/>
+<button type="submit" class="btn">{{t "admin.act.hide"}}</button>
+</div>
+</form>
+{{- end}}
+<p class="acct-st" role="status" aria-live="polite"></p>
+</article>{{end}}
+
+{{define "auditrows"}}<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+<thead><tr><th scope="col">{{t "admin.audit.col" "col" "when"}}</th><th scope="col">{{t "admin.audit.col" "col" "actor"}}</th><th scope="col">{{t "admin.audit.col" "col" "action"}}</th><th scope="col">{{t "admin.audit.col" "col" "target"}}</th><th scope="col">{{t "admin.audit.col" "col" "reason"}}</th><th scope="col">{{t "admin.audit.col" "col" "source"}}</th></tr></thead>
+<tbody>
+{{- range .}}
+<tr>
+<td>{{.At.HTML}}</td>
+<td>{{if .ActorHref}}<a href="{{.ActorHref}}"><bdi>@{{.Actor}}</bdi></a>{{else if .Actor}}<bdi>@{{.Actor}}</bdi>{{else}}{{t "admin.audit.cli"}}{{end}} <span class="dim">{{t "admin.audit.role" "role" .ActorRole}}</span></td>
+<td>{{t "admin.audit.action" "action" .Action}}</td>
+<td><span class="dim">{{t "admin.audit.target" "target" .TargetType}}</span> {{if .TargetHref}}<a href="{{.TargetHref}}">{{if .Label}}<bdi>{{.Label}}</bdi>{{else}}{{.TargetID}}{{end}}</a>{{else if .Label}}<bdi>{{.Label}}</bdi>{{else}}{{.TargetID}}{{end}}<br/><code class="dim" dir="ltr">{{.TargetID}}</code>{{with .Details}}<br/><code class="adm-det" dir="ltr">{{.}}</code>{{end}}</td>
+<td><bdi>{{.Reason}}</bdi></td>
+<td>{{.Source}}{{with .Client}}<br/><code dir="ltr">{{.}}</code>{{end}}{{with .Ray}}<br/><code class="dim" dir="ltr">{{.}}</code>{{end}}</td>
+</tr>
+{{- end}}
+</tbody>
+</table>
+</div>{{end}}
+
+{{define "reauthpanel"}}<section class="acct-panel" id="reauth" hidden="" aria-labelledby="reauth-h">
+<h2 class="h2" id="reauth-h" tabindex="-1"><span class="h" aria-hidden="true"># </span>{{t "acct.reauth.h2"}}</h2>
+<p class="prose">{{t "acct.reauth.lede"}}</p>
+<ul class="acct-btns">
+{{- range .Providers}}
+<li hidden=""><button type="button" class="btn acct-btn" data-reauth="{{.ID}}">{{t "acct.reauth.provider" "provider" .Name}}</button></li>
+{{- end}}
+{{- if .Passkeys2}}
+<li hidden=""><button type="button" class="btn acct-btn" data-reauth="passkey">{{t "acct.reauth.passkey"}}</button></li>
+{{- end}}
+</ul>
+<p class="note" id="reauth-none" hidden="">{{t "acct.reauth.none"}}</p>
+<p class="acct-st" role="status" aria-live="polite"></p>
+<div><button type="button" class="btn sm" id="reauth-close">{{t "acct.cancel"}}</button></div>
+</section>{{end}}
+
+{{/* the hot list (home, tag pages, /discussed) is a table to assistive technology: hothead is its header row,
+     dgroup a date header (a row holding a level-2 heading), hotrow a row. A row's vulnerability cell is the
+     title on a line of its own (a second link, hidden from assistive technology: the ID link carries the
+     title in its name), then the ID, its badges, the tags and the products */}}
+{{define "hothead"}}<div class="tr th" role="row">
+<div aria-hidden="true">{{template "stripdefs"}}</div>
+<div role="columnheader">{{t "hot.col.change"}}</div>
+<div role="columnheader">{{t "hot.col.vuln"}}</div>
+<div class="six" role="columnheader"><span>DIS</span><span>PAT</span><span>ANA</span><span>POC</span><span>ITW</span><span>KEV</span></div>
+<div class="r" role="columnheader">T+</div>
+<div class="r" role="columnheader">POC</div>
+</div>{{end}}
+
+{{define "dgroup"}}<div class="dgroup" role="row"><span role="cell"><span class="dgh" role="heading" aria-level="2"><span aria-hidden="true">## </span>{{.}}</span></span></div>{{end}}
+
+{{define "hotrow"}}
+<div class="tr" role="row" data-row="" data-id="{{.CVE}}" data-href="{{.Href}}">
+<div class="cur" aria-hidden="true"></div>
+<div class="chg" role="cell"><span class="c {{.ChangeClass}}">{{with .ChangeText}}<span class="w">{{.}}</span> <span class="cd" aria-hidden="true">{{end}}{{.Change}}{{if .ChangeText}}</span>{{end}}</span><span class="t">{{.Time.HTML}} <span>{{.Prec}}</span></span></div>
+<div class="vul" role="cell">
+<a class="ttl{{if .TitleMissing}} missing{{end}}" href="{{.Href}}" tabindex="-1" aria-hidden="true"{{with .TitleLang}} lang="{{.}}"{{end}}>{{.Title}}</a>
+<div class="l1"><a class="id" href="{{.Href}}" aria-label="{{.CVE}} {{.Title}}">{{.CVE}}</a>{{if .Pinned}} <span class="tag pin-b">{{t "hot.pinned"}}</span>{{end}}{{if .Rejected}} <span class="tag">REJECTED</span>{{end}}{{with .Rsch}} <span class="tag rsch-b" title="{{.Title}}"><span aria-hidden="true">@{{.N}}</span><span class="sr">{{.Title}}</span></span>{{end}}<span class="vend">{{template "tagrow" .Tags}}<span class="vn">{{or .Vendor "—"}}</span></span></div>
+</div>
+<div class="stc" role="cell">{{template "strip" .Strip}}</div>
+<div class="r" role="cell" title="{{.TPlusTitle}}"><span aria-hidden="true">{{.TPlus}}</span><span class="sr">{{.TPlusTitle}}</span></div>
+<div class="r{{if .PocZero}} weak{{end}}" role="cell"><span aria-hidden="true">{{.Poc}}</span><span class="sr">{{t "legend.poc_count" "token" .Poc}}</span></div>
+</div>
+{{- end}}

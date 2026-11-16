@@ -1,0 +1,40 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- with .Body}}
+<form class="acct-form adm-filter" method="get" action="{{href "/admin/audit"}}">
+<div class="acct-row">
+<label for="in-aact">{{t "admin.audit.filter" "f" "action"}}</label>
+<select class="acct-in" id="in-aact" name="action">
+<option value="">{{t "admin.audit.any"}}</option>
+{{- $cur := .Action}}
+{{- range .Actions}}
+<option value="{{.}}"{{if eq . $cur}} selected=""{{end}}>{{t "admin.audit.action" "action" .}}</option>
+{{- end}}
+</select>
+</div>
+<div class="acct-row">
+<label for="in-aactor">{{t "admin.audit.filter" "f" "actor"}}</label>
+<input class="acct-in" id="in-aactor" type="text" name="actor" value="{{.Actor}}" maxlength="64" autocomplete="off" spellcheck="false" autocapitalize="none"/>
+</div>
+<div class="acct-row">
+<label for="in-atarget">{{t "admin.audit.filter" "f" "target"}}</label>
+<input class="acct-in" id="in-atarget" type="text" name="target" value="{{.Target}}" maxlength="64" autocomplete="off" spellcheck="false" autocapitalize="none"/>
+<button type="submit" class="btn">{{t "admin.audit.apply"}}</button>
+</div>
+</form>
+{{- if .Rows}}
+{{template "auditrows" .Rows}}
+{{- else}}
+<p class="note">{{t "admin.audit.empty"}}</p>
+{{- end}}
+{{- if or .Next .First}}
+<p class="pager">{{with .First}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .Next}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
+{{- end}}
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}

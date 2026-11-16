@@ -1,0 +1,1 @@
+<https://api.github.com/advisories?type=reviewed&sort=updated&direction=asc&per_page=100&updated=%3E%3D2026-11-05T14%3A58%3A47Z&after=Y3Vyc29yOnYyOpK0MjAyNi0xMS0wOVQyMToxODozMFrOAAgSnA%3D%3D>; rel="next"

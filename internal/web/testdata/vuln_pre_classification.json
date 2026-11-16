@@ -1,0 +1,1062 @@
+{
+  "CVE-2026-1001": {
+    "aliases": [],
+    "assigner": null,
+    "cve_id": "CVE-2026-1001",
+    "cvss": null,
+    "cwes": [],
+    "days_since_disclosure": null,
+    "description": null,
+    "disclosed_at": null,
+    "events": [
+      {
+        "code": "KEV",
+        "dedupe_key": "",
+        "detail": {
+          "precision": "day"
+        },
+        "effective_at": "2026-11-11T00:00:00Z",
+        "id": 7,
+        "is_backfill": false,
+        "observed_at": "2026-11-12T01:00:00Z",
+        "occurred_at": "2026-11-11T00:00:00Z",
+        "precision": "day",
+        "source": "kev",
+        "type": "kev_added",
+        "url": null
+      }
+    ],
+    "first_seen_at": "2026-11-12T01:00:00Z",
+    "is_rejected": false,
+    "kev": {
+      "added_at": "2026-11-11T00:00:00Z",
+      "date_added": null,
+      "due_date": null,
+      "event_id": 7,
+      "forensic_triage": null,
+      "known_ransomware_campaign_use": null,
+      "notes": null,
+      "precision": "day",
+      "product": null,
+      "required_action": null,
+      "url": null,
+      "vendor_project": null,
+      "vulnerability_name": null
+    },
+    "modified_at": null,
+    "patches": [],
+    "poc": [
+      {
+        "items": [],
+        "present": false,
+        "source": "exploitdb"
+      },
+      {
+        "items": [],
+        "present": false,
+        "source": "metasploit"
+      },
+      {
+        "items": [],
+        "present": false,
+        "source": "nuclei"
+      }
+    ],
+    "poc_sources": 0,
+    "products": [
+      {
+        "product": "Email Security Gateway (ESG)",
+        "vendor": "Barracuda Networks"
+      },
+      {
+        "product": "Load Balancer ADC",
+        "vendor": "Barracuda Networks"
+      },
+      {
+        "product": "Web Application Firewall",
+        "vendor": "Barracuda Networks"
+      }
+    ],
+    "published_at": null,
+    "raw_records": [],
+    "rejection": null,
+    "slots": [
+      {
+        "at": null,
+        "code": "DIS",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "disclosed"
+      },
+      {
+        "at": null,
+        "code": "PAT",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "patch_released"
+      },
+      {
+        "at": null,
+        "code": "ANA",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "analysis_published"
+      },
+      {
+        "at": null,
+        "code": "POC",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "poc_published"
+      },
+      {
+        "at": null,
+        "code": "ITW",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": "kev_added",
+        "latest": false,
+        "not_after": "2026-11-11T00:00:00Z",
+        "precision": null,
+        "sources": [],
+        "state": "implied",
+        "type": "exploited_in_wild"
+      },
+      {
+        "at": "2026-11-11T00:00:00Z",
+        "code": "KEV",
+        "days_since_disclosure": null,
+        "event_ids": [
+          7
+        ],
+        "implied_by": null,
+        "latest": true,
+        "not_after": null,
+        "precision": "day",
+        "sources": [
+          "kev"
+        ],
+        "state": "known",
+        "type": "kev_added"
+      }
+    ],
+    "ssvc": null,
+    "stage": "kev_added",
+    "stage_code": "KEV",
+    "state": {
+      "analysis_at": null,
+      "disclosed_at": null,
+      "event_count": 1,
+      "exploited": true,
+      "exploited_at": "2026-11-11T00:00:00Z",
+      "has_analysis": false,
+      "has_patch": false,
+      "has_poc": false,
+      "in_kev": true,
+      "is_rejected": false,
+      "kev_at": "2026-11-11T00:00:00Z",
+      "last_transition_at": "2026-11-11T00:00:00Z",
+      "last_transition_type": "kev_added",
+      "patch_at": null,
+      "poc_at": null,
+      "poc_sources": 0,
+      "stage": "kev_added",
+      "stage_code": "KEV",
+      "stage_rank": 6
+    },
+    "summary_zh": null,
+    "title": null,
+    "title_zh": null,
+    "transition": {
+      "at": "2026-11-11T00:00:00Z",
+      "code": "KEV",
+      "event_id": 7,
+      "precision": "day",
+      "source": "kev",
+      "type": "kev_added"
+    }
+  },
+  "CVE-2026-1002": {
+    "aliases": [],
+    "assigner": null,
+    "cve_id": "CVE-2026-1002",
+    "cvss": null,
+    "cwes": [],
+    "days_since_disclosure": 7,
+    "description": null,
+    "disclosed_at": "2026-11-03T01:00:00Z",
+    "events": [
+      {
+        "code": "DIS",
+        "dedupe_key": "",
+        "detail": {
+          "state": "PUBLISHED"
+        },
+        "effective_at": "2026-11-03T01:00:00Z",
+        "id": 8,
+        "is_backfill": false,
+        "observed_at": "2026-11-12T01:00:00Z",
+        "occurred_at": "2026-11-03T01:00:00Z",
+        "precision": "exact",
+        "source": "cvelist",
+        "type": "disclosed",
+        "url": null
+      },
+      {
+        "code": "POC",
+        "dedupe_key": "m1",
+        "detail": {},
+        "effective_at": "2026-11-10T01:00:00Z",
+        "id": 9,
+        "is_backfill": false,
+        "observed_at": "2026-11-10T01:00:00Z",
+        "occurred_at": null,
+        "precision": "observed",
+        "source": "metasploit",
+        "type": "poc_published",
+        "url": null
+      }
+    ],
+    "first_seen_at": "2026-11-12T01:00:00Z",
+    "is_rejected": false,
+    "kev": null,
+    "modified_at": null,
+    "patches": [],
+    "poc": [
+      {
+        "items": [],
+        "present": false,
+        "source": "exploitdb"
+      },
+      {
+        "items": [
+          {
+            "event_id": 9,
+            "key": "m1",
+            "kind": null,
+            "occurred_at": null,
+            "precision": "observed",
+            "title": null,
+            "url": null
+          }
+        ],
+        "present": true,
+        "source": "metasploit"
+      },
+      {
+        "items": [],
+        "present": false,
+        "source": "nuclei"
+      }
+    ],
+    "poc_sources": 1,
+    "products": [],
+    "published_at": null,
+    "raw_records": [],
+    "rejection": null,
+    "slots": [
+      {
+        "at": "2026-11-03T01:00:00Z",
+        "code": "DIS",
+        "days_since_disclosure": 0,
+        "event_ids": [
+          8
+        ],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": "exact",
+        "sources": [
+          "cvelist"
+        ],
+        "state": "known",
+        "type": "disclosed"
+      },
+      {
+        "at": null,
+        "code": "PAT",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "patch_released"
+      },
+      {
+        "at": null,
+        "code": "ANA",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "analysis_published"
+      },
+      {
+        "at": "2026-11-10T01:00:00Z",
+        "code": "POC",
+        "days_since_disclosure": 7,
+        "event_ids": [
+          9
+        ],
+        "implied_by": null,
+        "latest": true,
+        "not_after": null,
+        "precision": "observed",
+        "sources": [
+          "metasploit"
+        ],
+        "state": "known",
+        "type": "poc_published"
+      },
+      {
+        "at": null,
+        "code": "ITW",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "exploited_in_wild"
+      },
+      {
+        "at": null,
+        "code": "KEV",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "kev_added"
+      }
+    ],
+    "ssvc": null,
+    "stage": "poc_published",
+    "stage_code": "POC",
+    "state": {
+      "analysis_at": null,
+      "disclosed_at": "2026-11-03T01:00:00Z",
+      "event_count": 2,
+      "exploited": false,
+      "exploited_at": null,
+      "has_analysis": false,
+      "has_patch": false,
+      "has_poc": true,
+      "in_kev": false,
+      "is_rejected": false,
+      "kev_at": null,
+      "last_transition_at": "2026-11-10T01:00:00Z",
+      "last_transition_type": "poc_published",
+      "patch_at": null,
+      "poc_at": "2026-11-10T01:00:00Z",
+      "poc_sources": 1,
+      "stage": "poc_published",
+      "stage_code": "POC",
+      "stage_rank": 4
+    },
+    "summary_zh": null,
+    "title": "Ruflo MCP bridge RCE",
+    "title_zh": null,
+    "transition": {
+      "at": "2026-11-10T01:00:00Z",
+      "code": "POC",
+      "event_id": 9,
+      "precision": "observed",
+      "source": "metasploit",
+      "type": "poc_published"
+    }
+  },
+  "CVE-2026-1010": {
+    "aliases": [],
+    "assigner": null,
+    "cve_id": "CVE-2026-1010",
+    "cvss": null,
+    "cwes": [],
+    "days_since_disclosure": null,
+    "description": null,
+    "disclosed_at": null,
+    "events": [],
+    "first_seen_at": "2026-11-12T01:00:00Z",
+    "is_rejected": false,
+    "kev": null,
+    "modified_at": null,
+    "patches": [],
+    "poc": [
+      {
+        "items": [],
+        "present": false,
+        "source": "exploitdb"
+      },
+      {
+        "items": [],
+        "present": false,
+        "source": "metasploit"
+      },
+      {
+        "items": [],
+        "present": false,
+        "source": "nuclei"
+      }
+    ],
+    "poc_sources": 0,
+    "products": [],
+    "published_at": null,
+    "raw_records": [],
+    "rejection": null,
+    "slots": [
+      {
+        "at": null,
+        "code": "DIS",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "disclosed"
+      },
+      {
+        "at": null,
+        "code": "PAT",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "patch_released"
+      },
+      {
+        "at": null,
+        "code": "ANA",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "analysis_published"
+      },
+      {
+        "at": null,
+        "code": "POC",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "poc_published"
+      },
+      {
+        "at": null,
+        "code": "ITW",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "exploited_in_wild"
+      },
+      {
+        "at": null,
+        "code": "KEV",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "kev_added"
+      }
+    ],
+    "ssvc": null,
+    "stage": null,
+    "stage_code": null,
+    "state": null,
+    "summary_zh": null,
+    "title": "no events",
+    "title_zh": null,
+    "transition": null
+  },
+  "CVE-2026-102895": {
+    "aliases": [
+      {
+        "alias": "GHSA-gj9m-f8ph-pmhr",
+        "type": "ghsa"
+      }
+    ],
+    "assigner": "GitHub_M",
+    "cve_id": "CVE-2026-102895",
+    "cvss": {
+      "score": 9.8,
+      "severity": "CRITICAL",
+      "source": "cvelist:cna",
+      "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      "version": "3.1"
+    },
+    "cwes": [
+      {
+        "id": "CWE-20",
+        "name": "Improper Input Validation",
+        "sources": [
+          "ghsa"
+        ]
+      },
+      {
+        "id": "CWE-287",
+        "name": "Improper Authentication",
+        "sources": [
+          "kev",
+          "ghsa"
+        ]
+      },
+      {
+        "id": "CWE-290",
+        "name": "Authentication Bypass by Spoofing",
+        "sources": [
+          "kev",
+          "ghsa"
+        ]
+      },
+      {
+        "id": "CWE-346",
+        "name": "Origin Validation Error",
+        "sources": [
+          "kev",
+          "ghsa"
+        ]
+      }
+    ],
+    "days_since_disclosure": 5,
+    "description": null,
+    "disclosed_at": "2026-11-04T21:16:59.842Z",
+    "events": [
+      {
+        "code": "DIS",
+        "dedupe_key": "",
+        "detail": {
+          "assigner_short_name": "GitHub_M",
+          "cvss": {
+            "base_score": 9.8,
+            "base_severity": "CRITICAL",
+            "source": "cna",
+            "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+            "version": "3.1"
+          },
+          "date_published": "2026-11-04T21:16:59.842Z",
+          "kev": {
+            "date_added": "2026-11-09",
+            "reference": "https://www.cisa.gov/x"
+          },
+          "ssvc": {
+            "automatable": "yes",
+            "exploitation": "active",
+            "technical_impact": "total",
+            "timestamp": "2026-11-05T00:00:00+00:00"
+          },
+          "state": "PUBLISHED"
+        },
+        "effective_at": "2026-11-04T21:16:59.842Z",
+        "id": 1,
+        "is_backfill": true,
+        "observed_at": "2026-11-12T01:00:00Z",
+        "occurred_at": "2026-11-04T21:16:59.842Z",
+        "precision": "exact",
+        "source": "cvelist",
+        "type": "disclosed",
+        "url": "https://www.cve.org/CVERecord?id=CVE-2026-102895"
+      },
+      {
+        "code": "POC",
+        "dedupe_key": "52001",
+        "detail": {
+          "confidence": "curated",
+          "edb_id": 52001,
+          "kind": "exploit",
+          "precision": "day",
+          "title": "GPUStack 2.1 - Auth Bypass",
+          "url": "https://www.exploit-db.com/exploits/52001"
+        },
+        "effective_at": "2026-11-08T00:00:00Z",
+        "id": 4,
+        "is_backfill": true,
+        "observed_at": "2026-11-12T01:00:00Z",
+        "occurred_at": "2026-11-08T00:00:00Z",
+        "precision": "day",
+        "source": "exploitdb",
+        "type": "poc_published",
+        "url": "https://www.exploit-db.com/exploits/52001"
+      },
+      {
+        "code": "KEV",
+        "dedupe_key": "",
+        "detail": {
+          "cwes": [
+            "CWE-287",
+            "CWE-290",
+            "CWE-346"
+          ],
+          "date_added": "2026-11-09",
+          "due_date": "2026-11-12",
+          "forensic_triage": "Yes",
+          "known_ransomware_campaign_use": "Unknown",
+          "notes": "n",
+          "precision": "day",
+          "product": "GPUStack",
+          "required_action": "Apply mitigations",
+          "vendor_project": "GPUStack",
+          "vulnerability_name": "GPUStack Improper Authentication Vulnerability"
+        },
+        "effective_at": "2026-11-09T00:00:00Z",
+        "id": 2,
+        "is_backfill": true,
+        "observed_at": "2026-11-12T01:00:00Z",
+        "occurred_at": "2026-11-09T00:00:00Z",
+        "precision": "day",
+        "source": "kev",
+        "type": "kev_added",
+        "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog"
+      },
+      {
+        "code": "PAT",
+        "dedupe_key": "GHSA-gj9m-f8ph-pmhr",
+        "detail": {
+          "advisory_published_at": "2026-11-09T22:15:27Z",
+          "advisory_updated_at": "2026-11-09T22:15:29Z",
+          "cvss": {
+            "cvss_v3": {
+              "score": 9.8,
+              "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+            },
+            "cvss_v4": {
+              "score": 0,
+              "vector_string": null
+            }
+          },
+          "cwes": [
+            {
+              "cwe_id": "CWE-287",
+              "name": "Improper Authentication"
+            },
+            {
+              "cwe_id": "CWE-290",
+              "name": "Authentication Bypass by Spoofing"
+            },
+            {
+              "cwe_id": "CWE-346",
+              "name": "Origin Validation Error"
+            },
+            {
+              "cwe_id": "CWE-20",
+              "name": "Improper Input Validation"
+            }
+          ],
+          "fix_commit_urls": [
+            "https://github.com/gpustack/gpustack/pull/5346",
+            "https://github.com/gpustack/gpustack/commit/53f42a6"
+          ],
+          "ghsa_id": "GHSA-gj9m-f8ph-pmhr",
+          "github_reviewed_at": "2026-11-09T22:15:27Z",
+          "packages": [
+            {
+              "ecosystem": "pip",
+              "first_patched_version": "2.2.0",
+              "name": "gpustack",
+              "vulnerable_version_range": "\u003c 2.2.0"
+            },
+            {
+              "ecosystem": "npm",
+              "first_patched_version": null,
+              "name": "gpustack-ui",
+              "vulnerable_version_range": "\u003c= 1.0"
+            }
+          ],
+          "references": [],
+          "severity": "critical",
+          "source_code_location": "https://github.com/gpustack/gpustack"
+        },
+        "effective_at": null,
+        "id": 3,
+        "is_backfill": true,
+        "observed_at": "2026-11-12T01:00:00Z",
+        "occurred_at": null,
+        "precision": "unknown",
+        "source": "ghsa",
+        "type": "patch_released",
+        "url": "https://github.com/advisories/GHSA-gj9m-f8ph-pmhr"
+      },
+      {
+        "code": "POC",
+        "dedupe_key": "exploit/linux/http/gpustack_rce",
+        "detail": {
+          "confidence": "curated",
+          "fullname": "exploit/linux/http/gpustack_rce",
+          "kind": "msf_module",
+          "title": "GPUStack RCE",
+          "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/linux/http/gpustack_rce.rb"
+        },
+        "effective_at": null,
+        "id": 5,
+        "is_backfill": true,
+        "observed_at": "2026-11-12T01:00:00Z",
+        "occurred_at": null,
+        "precision": "unknown",
+        "source": "metasploit",
+        "type": "poc_published",
+        "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/linux/http/gpustack_rce.rb"
+      },
+      {
+        "code": "POC",
+        "dedupe_key": "CVE-2026-102895",
+        "detail": {
+          "confidence": "curated",
+          "kind": "detection_template",
+          "template_id": "CVE-2026-102895",
+          "title": "GPUStack - Auth Bypass",
+          "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2026/CVE-2026-102895.yaml"
+        },
+        "effective_at": null,
+        "id": 6,
+        "is_backfill": true,
+        "observed_at": "2026-11-12T01:00:00Z",
+        "occurred_at": null,
+        "precision": "unknown",
+        "source": "nuclei",
+        "type": "poc_published",
+        "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2026/CVE-2026-102895.yaml"
+      }
+    ],
+    "first_seen_at": "2026-11-12T01:00:00Z",
+    "is_rejected": false,
+    "kev": {
+      "added_at": "2026-11-09T00:00:00Z",
+      "date_added": "2026-11-09",
+      "due_date": "2026-11-12",
+      "event_id": 2,
+      "forensic_triage": "Yes",
+      "known_ransomware_campaign_use": "Unknown",
+      "notes": "n",
+      "precision": "day",
+      "product": "GPUStack",
+      "required_action": "Apply mitigations",
+      "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "vendor_project": "GPUStack",
+      "vulnerability_name": "GPUStack Improper Authentication Vulnerability"
+    },
+    "modified_at": null,
+    "patches": [
+      {
+        "advisory_id": "GHSA-gj9m-f8ph-pmhr",
+        "advisory_published_at": "2026-11-09T22:15:27Z",
+        "event_id": 3,
+        "fix_commit_urls": [
+          "https://github.com/gpustack/gpustack/pull/5346",
+          "https://github.com/gpustack/gpustack/commit/53f42a6"
+        ],
+        "packages": [
+          {
+            "affected_range": "\u003c 2.2.0",
+            "ecosystem": "pip",
+            "fixed_version": "2.2.0",
+            "name": "gpustack"
+          },
+          {
+            "affected_range": "\u003c= 1.0",
+            "ecosystem": "npm",
+            "fixed_version": null,
+            "name": "gpustack-ui"
+          }
+        ],
+        "severity": "critical",
+        "source": "ghsa",
+        "source_code_location": "https://github.com/gpustack/gpustack",
+        "url": "https://github.com/advisories/GHSA-gj9m-f8ph-pmhr"
+      }
+    ],
+    "poc": [
+      {
+        "items": [
+          {
+            "event_id": 4,
+            "key": "52001",
+            "kind": "exploit",
+            "occurred_at": "2026-11-08T00:00:00Z",
+            "precision": "day",
+            "title": "GPUStack 2.1 - Auth Bypass",
+            "url": "https://www.exploit-db.com/exploits/52001"
+          }
+        ],
+        "present": true,
+        "source": "exploitdb"
+      },
+      {
+        "items": [
+          {
+            "event_id": 5,
+            "key": "exploit/linux/http/gpustack_rce",
+            "kind": "msf_module",
+            "occurred_at": null,
+            "precision": "unknown",
+            "title": "GPUStack RCE",
+            "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/linux/http/gpustack_rce.rb"
+          }
+        ],
+        "present": true,
+        "source": "metasploit"
+      },
+      {
+        "items": [
+          {
+            "event_id": 6,
+            "key": "CVE-2026-102895",
+            "kind": "detection_template",
+            "occurred_at": null,
+            "precision": "unknown",
+            "title": "GPUStack - Auth Bypass",
+            "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2026/CVE-2026-102895.yaml"
+          }
+        ],
+        "present": true,
+        "source": "nuclei"
+      }
+    ],
+    "poc_sources": 3,
+    "products": [
+      {
+        "product": "GPUStack",
+        "vendor": "GPUStack"
+      }
+    ],
+    "published_at": null,
+    "raw_records": [
+      {
+        "fetched_at": "2026-11-12T01:00:00Z",
+        "key": "CVE-2026-102895",
+        "path": "/raw/cvelist/CVE-2026-102895.json",
+        "source": "cvelist"
+      },
+      {
+        "fetched_at": "2026-11-12T01:00:00Z",
+        "key": "52001",
+        "path": "/raw/exploitdb/52001.json",
+        "source": "exploitdb"
+      },
+      {
+        "fetched_at": "2026-11-12T01:00:00Z",
+        "key": "GHSA-gj9m-f8ph-pmhr",
+        "path": "/raw/ghsa/GHSA-gj9m-f8ph-pmhr.json",
+        "source": "ghsa"
+      },
+      {
+        "fetched_at": "2026-11-12T01:00:00Z",
+        "key": "CVE-2026-102895",
+        "path": "/raw/kev/CVE-2026-102895.json",
+        "source": "kev"
+      },
+      {
+        "fetched_at": "2026-11-12T01:00:00Z",
+        "key": "exploit/linux/http/gpustack_rce",
+        "path": "/raw/metasploit/exploit/linux/http/gpustack_rce.json",
+        "source": "metasploit"
+      },
+      {
+        "fetched_at": "2026-11-12T01:00:00Z",
+        "key": "CVE-2026-102895",
+        "path": "/raw/nuclei/CVE-2026-102895.json",
+        "source": "nuclei"
+      }
+    ],
+    "rejection": null,
+    "slots": [
+      {
+        "at": "2026-11-04T21:16:59.842Z",
+        "code": "DIS",
+        "days_since_disclosure": 0,
+        "event_ids": [
+          1
+        ],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": "exact",
+        "sources": [
+          "cvelist"
+        ],
+        "state": "known",
+        "type": "disclosed"
+      },
+      {
+        "at": null,
+        "code": "PAT",
+        "days_since_disclosure": null,
+        "event_ids": [
+          3
+        ],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": "unknown",
+        "sources": [
+          "ghsa"
+        ],
+        "state": "unknown",
+        "type": "patch_released"
+      },
+      {
+        "at": null,
+        "code": "ANA",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": null,
+        "sources": [],
+        "state": "none",
+        "type": "analysis_published"
+      },
+      {
+        "at": "2026-11-08T00:00:00Z",
+        "code": "POC",
+        "days_since_disclosure": 4,
+        "event_ids": [
+          4,
+          5,
+          6
+        ],
+        "implied_by": null,
+        "latest": false,
+        "not_after": null,
+        "precision": "day",
+        "sources": [
+          "exploitdb",
+          "metasploit",
+          "nuclei"
+        ],
+        "state": "known",
+        "type": "poc_published"
+      },
+      {
+        "at": null,
+        "code": "ITW",
+        "days_since_disclosure": null,
+        "event_ids": [],
+        "implied_by": "kev_added",
+        "latest": false,
+        "not_after": "2026-11-09T00:00:00Z",
+        "precision": null,
+        "sources": [],
+        "state": "implied",
+        "type": "exploited_in_wild"
+      },
+      {
+        "at": "2026-11-09T00:00:00Z",
+        "code": "KEV",
+        "days_since_disclosure": 5,
+        "event_ids": [
+          2
+        ],
+        "implied_by": null,
+        "latest": true,
+        "not_after": null,
+        "precision": "day",
+        "sources": [
+          "kev"
+        ],
+        "state": "known",
+        "type": "kev_added"
+      }
+    ],
+    "ssvc": {
+      "automatable": "yes",
+      "exploitation": "active",
+      "source": "cvelist:CISA-ADP",
+      "technical_impact": "total",
+      "timestamp": "2026-11-05T00:00:00+00:00"
+    },
+    "stage": "kev_added",
+    "stage_code": "KEV",
+    "state": {
+      "analysis_at": null,
+      "disclosed_at": "2026-11-04T21:16:59.842Z",
+      "event_count": 6,
+      "exploited": true,
+      "exploited_at": "2026-11-09T00:00:00Z",
+      "has_analysis": false,
+      "has_patch": true,
+      "has_poc": true,
+      "in_kev": true,
+      "is_rejected": false,
+      "kev_at": "2026-11-09T00:00:00Z",
+      "last_transition_at": "2026-11-09T00:00:00Z",
+      "last_transition_type": "kev_added",
+      "patch_at": null,
+      "poc_at": "2026-11-08T00:00:00Z",
+      "poc_sources": 3,
+      "stage": "kev_added",
+      "stage_code": "KEV",
+      "stage_rank": 6
+    },
+    "summary_zh": null,
+    "title": "GPUStack: Authentication bypass via trusted loopback source",
+    "title_zh": null,
+    "transition": {
+      "at": "2026-11-09T00:00:00Z",
+      "code": "KEV",
+      "event_id": 2,
+      "precision": "day",
+      "source": "kev",
+      "type": "kev_added"
+    }
+  }
+}

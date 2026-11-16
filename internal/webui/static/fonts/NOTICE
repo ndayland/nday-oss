@@ -1,0 +1,14 @@
+JetBrains Mono, version 2.304
+Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+License: SIL Open Font License, Version 1.1 (see OFL.txt in this directory)
+
+Source: https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip
+  zip sha256 6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf
+Files taken unmodified from fonts/webfonts/ in that zip:
+  JetBrainsMono-Regular.woff2  sha256 a9cb1cd82332b23a47e3a1239d25d13c86d16c4220695e34b243effa999f45f2
+  JetBrainsMono-Bold.woff2     sha256 c503cc5ec5f8b2c7666b7ecda1adf44bd45f2e6579b2eba0fc292150416588a2
+OFL.txt is the zip's OFL.txt (sha256 30f0c136e3c88e422d0791acd97238870f9054a9729bc34cf2ff0d4ed8cac4ad).
+
+Only weights 400 and 700 are shipped; CSS weight 600 resolves to 700.
+The release has no variable-weight woff2 (only a 303 KB variable .ttf), so the
+two static woff2 files (181 KB together) are the smaller choice.

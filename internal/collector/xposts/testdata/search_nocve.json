@@ -1,0 +1,46 @@
+{
+  "data": [
+    {
+      "id": "2120930000000000000",
+      "author_id": "1001",
+      "created_at": "2026-11-12T17:21:31.000Z",
+      "lang": "en",
+      "text": "Heads up: pre-auth RCE in FooGateway, CVE pending, writeup after the patch.",
+      "edit_history_tweet_ids": ["2120930000000000000"]
+    },
+    {
+      "id": "2120920000000000000",
+      "author_id": "9999",
+      "created_at": "2026-11-12T16:41:47.000Z",
+      "lang": "en",
+      "text": "Not on the allowlist and no id either: CVE soon",
+      "edit_history_tweet_ids": ["2120920000000000000"]
+    },
+    {
+      "id": "2120910000000000000",
+      "author_id": "1002",
+      "created_at": "2026-11-12T16:02:03.000Z",
+      "lang": "en",
+      "text": "CVE-2026-4444 confirmed",
+      "edit_history_tweet_ids": ["2120910000000000000"]
+    },
+    {
+      "id": "2120900000000000000",
+      "author_id": "1001",
+      "created_at": "2026-11-12T15:22:19.000Z",
+      "text": "CVE-2026-XXXX reserved for the BarCMS bug",
+      "edit_history_tweet_ids": ["2120900000000000000"]
+    }
+  ],
+  "includes": {
+    "users": [
+      {"id": "1001", "name": "Alice", "username": "alice_sec"},
+      {"id": "9999", "name": "Mallory", "username": "mallory"}
+    ]
+  },
+  "meta": {
+    "newest_id": "2120930000000000000",
+    "oldest_id": "2120900000000000000",
+    "result_count": 4
+  }
+}

@@ -1,0 +1,170 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main acctpage" id="main" data-page="account">
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "acct.page.h1"}}</h1>
+</div>
+<noscript><p class="lede">{{t "acct.page.nojs"}}</p></noscript>
+<p class="acct-st" id="acct-status" role="status" aria-live="polite"><span id="acct-loading" class="dim" hidden="">{{t "acct.page.loading"}}</span></p>
+
+<section class="acct-sec" id="acct-out" hidden="" aria-labelledby="acct-out-t">
+<p class="lede" id="acct-out-t">{{t "acct.page.signed_out"}}</p>
+<ul class="acct-btns">
+<li><a class="btn acct-btn" href="{{.LoginHref}}">{{t "acct.slot.signin"}}</a></li>
+</ul>
+</section>
+
+<div class="acct-body acct-split" id="acct-in" hidden="">
+<nav class="acct-menu" aria-label="{{ts "acct.page.h1"}}">
+<ul>
+<li><a href="#profile">{{t "acct.profile.h2"}}</a></li>
+<li><a href="#follows">{{t "acct.follows.h2"}}</a></li>
+{{- if .Providers}}
+<li><a href="#methods">{{t "acct.methods.h2"}}</a></li>
+{{- end}}
+{{- if .Passkeys}}
+<li><a href="#passkeys">{{t "acct.passkeys.h2"}}</a></li>
+{{- end}}
+<li><a href="#sessions">{{t "acct.sessions.h2"}}</a></li>
+<li hidden=""><a href="#terms">{{t "acct.terms.h2"}}</a></li>
+<li class="acct-mdel"><a href="#delete">{{t "acct.delete.h2"}}</a></li>
+</ul>
+</nav>
+
+<div class="acct-pane" id="acct-pane">
+<div class="banner acct-susp" id="acct-susp" hidden="">
+<p class="t" id="acct-susp-t"></p>
+<p id="acct-susp-r" hidden=""></p>
+<p class="note">{{t "acct.suspended.limits"}}</p>
+</div>
+
+<section class="acct-panel" id="reauth" hidden="" aria-labelledby="reauth-h">
+<h2 class="h2" id="reauth-h" tabindex="-1"><span class="h" aria-hidden="true"># </span>{{t "acct.reauth.h2"}}</h2>
+<p class="prose">{{t "acct.reauth.lede"}}</p>
+<ul class="acct-btns">
+{{- range .Providers}}
+<li hidden=""><button type="button" class="btn acct-btn" data-reauth="{{.ID}}">{{t "acct.reauth.provider" "provider" .Name}}</button></li>
+{{- end}}
+{{- if .Passkeys}}
+<li hidden=""><button type="button" class="btn acct-btn" data-reauth="passkey">{{t "acct.reauth.passkey"}}</button></li>
+{{- end}}
+</ul>
+<p class="note" id="reauth-none" hidden="">{{t "acct.reauth.none"}}</p>
+<p class="acct-st" role="status" aria-live="polite"></p>
+<div><button type="button" class="btn sm" id="reauth-close">{{t "acct.cancel"}}</button></div>
+</section>
+
+<section class="acct-sec" id="profile" data-pane="profile" aria-labelledby="h-profile">
+<h2 class="h2" id="h-profile"><span class="h" aria-hidden="true"># </span>{{t "acct.profile.h2"}}</h2>
+<dl class="facts acct-facts">
+<div><dt>{{t "acct.profile.handle"}}</dt><dd id="v-handle"></dd></div>
+<div><dt>{{t "acct.profile.display_name"}}</dt><dd id="v-name"></dd></div>
+<div><dt>{{t "acct.profile.role"}}</dt><dd id="v-role"></dd></div>
+<div><dt>{{t "acct.profile.member_since"}}</dt><dd id="v-since"></dd></div>
+</dl>
+<p class="note">{{t "acct.profile.readonly"}}</p>
+<form class="acct-form" id="f-handle" novalidate="">
+<label for="in-handle">{{t "acct.handle.label"}}</label>
+<div class="acct-row">
+<span class="prompt" aria-hidden="true">@</span>
+<input class="acct-in" id="in-handle" type="text" minlength="3" maxlength="30" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="handle-rules handle-next"/>
+<button type="submit" class="btn">{{t "acct.handle.submit"}}</button>
+</div>
+<p class="note" id="handle-rules">{{t "acct.handle.rules"}}</p>
+<p class="note" id="handle-next" hidden=""></p>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</section>
+
+<section class="acct-sec" id="follows" data-pane="follows" aria-labelledby="h-follows">
+<h2 class="h2" id="h-follows"><span class="h" aria-hidden="true"># </span>{{t "acct.follows.h2"}}</h2>
+<p class="note" id="fol-none" hidden="">{{t "acct.follows.none"}}</p>
+<ul class="acct-list" id="fol-list" hidden=""></ul>
+<p class="note">{{t "acct.follows.note"}}</p>
+<ul class="acct-btns">
+<li><a class="btn acct-btn" href="{{.WelcomeHref}}">{{t "acct.follows.add"}}</a></li>
+</ul>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</section>
+
+{{- if .Providers}}
+<section class="acct-sec" id="methods" data-pane="methods" aria-labelledby="h-methods">
+<h2 class="h2" id="h-methods"><span class="h" aria-hidden="true"># </span>{{t "acct.methods.h2"}}</h2>
+<ul class="acct-list">
+{{- range .Providers}}
+<li class="acct-item" data-provider="{{.ID}}">
+<span class="acct-pn">{{.Name}}</span>
+<span class="acct-state dim"></span>
+<span class="acct-acts"><button type="button" class="btn" data-act="link" hidden="">{{t "acct.methods.link"}}</button><button type="button" class="btn" data-act="unlink" hidden="">{{t "acct.methods.unlink"}}</button></span>
+</li>
+{{- end}}
+</ul>
+<p class="note">{{t "acct.methods.note"}}</p>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</section>
+{{- end}}
+
+{{- if .Passkeys}}
+<section class="acct-sec" id="passkeys" data-pane="passkeys" aria-labelledby="h-passkeys">
+<h2 class="h2" id="h-passkeys"><span class="h" aria-hidden="true"># </span>{{t "acct.passkeys.h2"}}</h2>
+<p class="note" id="pk-none" hidden="">{{t "acct.passkeys.none"}}</p>
+<div class="tbl-x">
+<table class="aff acct-pk" id="pk-table" hidden="">
+<thead><tr><th scope="col">{{t "acct.passkeys.name"}}</th><th scope="col">{{t "acct.passkeys.created"}}</th><th scope="col">{{t "acct.passkeys.last_used"}}</th><th scope="col">{{t "acct.passkeys.backed_up"}}</th><td></td></tr></thead>
+<tbody id="pk-rows"></tbody>
+</table>
+</div>
+<form class="acct-form" id="f-pk-add" novalidate="">
+<label for="in-pk-name">{{t "acct.passkeys.add_label"}}</label>
+<div class="acct-row">
+<input class="acct-in" id="in-pk-name" type="text" maxlength="64" autocomplete="off" spellcheck="false"/>
+<button type="submit" class="btn">{{t "acct.passkeys.add"}}</button>
+</div>
+{{- if .MaxPasskeys}}
+<p class="note">{{t "acct.passkeys.limit" "max" .MaxPasskeys}}</p>
+{{- end}}
+<p class="note acct-nowa" hidden="">{{t "acct.passkeys.unsupported"}}</p>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</section>
+{{- end}}
+
+<section class="acct-sec" id="sessions" data-pane="sessions" aria-labelledby="h-sessions">
+<h2 class="h2" id="h-sessions"><span class="h" aria-hidden="true"># </span>{{t "acct.sessions.h2"}}</h2>
+<p class="prose" id="v-session"></p>
+<p class="note" id="v-recent"></p>
+<ul class="acct-btns">
+<li><button type="button" class="btn" id="b-signout">{{t "acct.sessions.signout"}}</button></li>
+<li><button type="button" class="btn" id="b-signout-all">{{t "acct.sessions.signout_all"}}</button></li>
+</ul>
+<p class="note">{{t "acct.sessions.signout_all_note"}}</p>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</section>
+
+<section class="acct-sec" id="sec-terms" data-pane="terms" data-na="" hidden="" aria-labelledby="h-terms">
+<h2 class="h2" id="h-terms"><span class="h" aria-hidden="true"># </span>{{t "acct.terms.h2"}}</h2>
+<p class="prose" id="v-terms"></p>
+<p class="note">{{t "rules.account"}} <a href="{{href "/rules"}}">{{t "rules.title"}}</a></p>
+<div><button type="button" class="btn" id="b-terms" hidden=""></button></div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</section>
+
+<section class="acct-sec acct-danger" id="delete" data-pane="delete" aria-labelledby="h-delete">
+<h2 class="h2" id="h-delete"><span class="h" aria-hidden="true"># </span>{{t "acct.delete.h2"}}</h2>
+<p class="prose">{{t "acct.delete.note"}}</p>
+<form class="acct-form" id="f-delete" novalidate="">
+<label for="in-delete" id="l-delete"></label>
+<div class="acct-row">
+<input class="acct-in" id="in-delete" type="text" autocomplete="off" spellcheck="false" autocapitalize="none"/>
+<button type="submit" class="btn acct-del" disabled="">{{t "acct.delete.submit"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</section>
+</div>
+</div>
+</main>
+</div>
+</div>
+{{end}}{{end}}

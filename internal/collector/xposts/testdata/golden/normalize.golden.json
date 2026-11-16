@@ -1,0 +1,89 @@
+{
+  "2120788687057846272": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+      {
+        "cve_id": "CVE-2026-1111",
+        "dedupe_key": "2120788687057846272",
+        "detail": {
+          "author_handle": "bob_sec",
+          "author_id": "1002",
+          "cves": [
+            "CVE-2026-1111"
+          ],
+          "lang": "zh",
+          "post_id": "2120788687057846272",
+          "text": "在野利用 CVE-2026-1111，详见公告"
+        },
+        "occurred_at": "2026-11-12T08:00:00.000000Z",
+        "source": "xposts",
+        "type": "social_post",
+        "url": "https://x.com/bob_sec/status/2120788687057846272"
+      }
+    ],
+    "vulns": []
+  },
+  "2120818886046646272": {
+    "affected": [],
+    "aliases": [],
+    "events": [],
+    "posts_no_cve": [
+      {
+        "author_handle": "bob_sec",
+        "author_id": "1002",
+        "lang": "en",
+        "post_id": "2120818886046646272",
+        "posted_at": "2026-11-12T10:00:00.000000Z",
+        "text": "No id in this one, just CVE talk (CVE-20261111 is not an id).",
+        "url": "https://x.com/bob_sec/status/2120818886046646272"
+      }
+    ],
+    "vulns": []
+  },
+  "2120833985541046272": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+      {
+        "cve_id": "CVE-2026-1111",
+        "dedupe_key": "2120833985541046272",
+        "detail": {
+          "author_handle": "alice_sec",
+          "author_id": "1001",
+          "cves": [
+            "CVE-2026-1111",
+            "CVE-2026-22222"
+          ],
+          "lang": "en",
+          "post_id": "2120833985541046272",
+          "text": "Patch now: cve-2026-1111 and CVE-2026-1111 again; a PoC exists for CVE-2026-22222."
+        },
+        "occurred_at": "2026-11-12T11:00:00.000000Z",
+        "source": "xposts",
+        "type": "social_post",
+        "url": "https://x.com/alice_sec/status/2120833985541046272"
+      },
+      {
+        "cve_id": "CVE-2026-22222",
+        "dedupe_key": "2120833985541046272",
+        "detail": {
+          "author_handle": "alice_sec",
+          "author_id": "1001",
+          "cves": [
+            "CVE-2026-1111",
+            "CVE-2026-22222"
+          ],
+          "lang": "en",
+          "post_id": "2120833985541046272",
+          "text": "Patch now: cve-2026-1111 and CVE-2026-1111 again; a PoC exists for CVE-2026-22222."
+        },
+        "occurred_at": "2026-11-12T11:00:00.000000Z",
+        "source": "xposts",
+        "type": "social_post",
+        "url": "https://x.com/alice_sec/status/2120833985541046272"
+      }
+    ],
+    "vulns": []
+  }
+}

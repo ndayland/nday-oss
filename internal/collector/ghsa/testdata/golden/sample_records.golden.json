@@ -1,0 +1,218 @@
+{
+ "collector": "ghsa",
+ "input": "internal/collector/ghsa/testdata/sample_records.json",
+ "kind": "records",
+ "records": [
+  {
+   "content_hash": "fedf7e95a5d402f354fdb956f5de6a914845b6721feab1f0b00dd5f3d8ee311a",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [
+     {
+      "alias": "GHSA-7ph3-grqh-pv9v",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2025-53648"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2025-53648",
+      "dedupe_key": "GHSA-7ph3-grqh-pv9v",
+      "detail": {
+       "advisory_published_at": "2026-06-30T15:30:46Z",
+       "advisory_updated_at": "2026-11-05T18:05:13Z",
+       "cvss": {
+        "cvss_v3": {
+         "score": 5.4,
+         "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"
+        },
+        "cvss_v4": {
+         "score": 0.0,
+         "vector_string": null
+        }
+       },
+       "cwes": [
+        {
+         "cwe_id": "CWE-89",
+         "name": "Improper Neutralization of Special Elements used in an SQL Command"
+        }
+       ],
+       "fix_commit_urls": [
+        "https://github.com/apache/gravitino/pull/8000",
+        "https://github.com/apache/gravitino/commit/5355bd075d54cad1323606723e72cc32ca564f24"
+       ],
+       "ghsa_id": "GHSA-7ph3-grqh-pv9v",
+       "github_reviewed_at": "2026-11-05T18:05:11Z",
+       "packages": [
+        {
+         "ecosystem": "maven",
+         "first_patched_version": "1.0.0",
+         "name": "org.apache.gravitino:catalog-jdbc-common",
+         "vulnerable_version_range": ">= 0.5.0, < 1.0.0"
+        }
+       ],
+       "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-53648",
+        "https://lists.apache.org/thread/s0hytcv17z52dwp5dojjjwgrtqtyh2xk",
+        "http://www.openwall.com/lists/oss-security/2026/06/30/2",
+        "https://github.com/apache/gravitino/pull/8000",
+        "https://github.com/github/advisory-database/pull/10102",
+        "https://github.com/apache/gravitino/commit/5355bd075d54cad1323606723e72cc32ca564f24",
+        "https://github.com/apache/gravitino/releases/tag/v1.0.0",
+        "https://github.com/advisories/GHSA-7ph3-grqh-pv9v"
+       ],
+       "severity": "medium",
+       "source_code_location": "https://github.com/apache/gravitino"
+      },
+      "occurred_at": null,
+      "source": "ghsa",
+      "type": "patch_released",
+      "url": "https://github.com/advisories/GHSA-7ph3-grqh-pv9v"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": false,
+      "cve_id": "CVE-2025-53648",
+      "description": "SQL misconfiguration in the Gravitino UI, in versions 0.5.0 until 1.0.0, can allow a malicious user to read or truncate files.\nUsers are recommended to upgrade to version 1.0.0, which fixes this issue.",
+      "modified_at": null,
+      "published_at": null,
+      "title": "Apache Gravitino JDBC configuration validation bypass can allow file reads or truncation"
+     }
+    ]
+   },
+   "source_key": "GHSA-7ph3-grqh-pv9v"
+  },
+  {
+   "content_hash": "c390bc1931d64a3563e6375a01c4dda43bee84657259553b22d1e517eeb81ddc",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [
+     {
+      "alias": "GHSA-r4hm-p9f9-fj9v",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-55649"
+     }
+    ],
+    "events": [
+     {
+      "cve_id": "CVE-2026-55649",
+      "dedupe_key": "GHSA-r4hm-p9f9-fj9v",
+      "detail": {
+       "advisory_published_at": "2026-11-06T19:50:34Z",
+       "advisory_updated_at": "2026-11-06T19:50:35Z",
+       "cvss": {
+        "cvss_v3": {
+         "score": 6.3,
+         "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:U/C:H/I:L/A:N"
+        },
+        "cvss_v4": {
+         "score": 0.0,
+         "vector_string": null
+        }
+       },
+       "cwes": [
+        {
+         "cwe_id": "CWE-79",
+         "name": "Improper Neutralization of Input During Web Page Generation"
+        }
+       ],
+       "fix_commit_urls": [
+        "https://github.com/GeoNode/geonode/pull/14322",
+        "https://github.com/GeoNode/geonode/pull/14343",
+        "https://github.com/GeoNode/geonode/commit/0803857b22eba5b55729145ef401b1bc1c23e332",
+        "https://github.com/GeoNode/geonode/commit/730d8fae206ea5b051f630718aeecae1bf7b5760"
+       ],
+       "ghsa_id": "GHSA-r4hm-p9f9-fj9v",
+       "github_reviewed_at": "2026-11-06T19:50:34Z",
+       "packages": [
+        {
+         "ecosystem": "pip",
+         "first_patched_version": "5.0.3",
+         "name": "GeoNode",
+         "vulnerable_version_range": "< 5.0.3"
+        }
+       ],
+       "references": [
+        "https://github.com/GeoNode/geonode/security/advisories/GHSA-r4hm-p9f9-fj9v",
+        "https://github.com/GeoNode/geonode/pull/14322",
+        "https://github.com/GeoNode/geonode/pull/14343",
+        "https://github.com/GeoNode/geonode/commit/0803857b22eba5b55729145ef401b1bc1c23e332",
+        "https://github.com/GeoNode/geonode/commit/730d8fae206ea5b051f630718aeecae1bf7b5760",
+        "https://github.com/GeoNode/geonode/releases/tag/5.0.3",
+        "https://github.com/advisories/GHSA-r4hm-p9f9-fj9v"
+       ],
+       "severity": "medium",
+       "source_code_location": "https://github.com/GeoNode/geonode"
+      },
+      "occurred_at": null,
+      "source": "ghsa",
+      "type": "patch_released",
+      "url": "https://github.com/advisories/GHSA-r4hm-p9f9-fj9v"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": false,
+      "cve_id": "CVE-2026-55649",
+      "description": "The abstract metadata of documents is not sanitised. It’s possible to store arbitrary HTML (and JS) that will be executed when visiting the page.",
+      "modified_at": null,
+      "published_at": null,
+      "title": "GeoNode has Stored XSS in Documents metadata abstract field"
+     }
+    ]
+   },
+   "source_key": "GHSA-r4hm-p9f9-fj9v"
+  },
+  {
+   "content_hash": "f4f62b6b8e97bb141887a7be6a4d496f934e85d33e82b5e5de7a145ca0962810",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [
+     {
+      "alias": "GHSA-9754-6rhw-gj3h",
+      "alias_type": "ghsa",
+      "cve_id": "CVE-2026-6658"
+     }
+    ],
+    "events": [],
+    "vulns": [
+     {
+      "authoritative": false,
+      "cve_id": "CVE-2026-6658",
+      "description": "A vulnerability in jupyter/nbconvert versions <= 7.17.0 allows for Cross-site Scripting (XSS) via unsanitized `text/vnd.mermaid` output in HTML exports. The `data_mermaid` block in `share/templates/lab/base.html.j2` renders `text/vnd.mermaid` cell output directly into HTML without escaping, enabling attackers to inject arbitrary HTML/JavaScript by breaking out of the `<pre>` tag. This vulnerability impacts any server using nbconvert to render notebooks as HTML, allowing attackers to execute arbitrary JavaScript in the context of users viewing the HTML export.",
+      "modified_at": null,
+      "published_at": null,
+      "title": "jupyter/nbconvert allows Cross-site Scripting (XSS) via unsanitized `text/vnd.mermaid` output in HTML exports"
+     }
+    ]
+   },
+   "source_key": "GHSA-9754-6rhw-gj3h"
+  },
+  {
+   "content_hash": "b02a563dd552e65ca9aecd7e3232ef5553ddbdba916adb28a8020d9683048db3",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [],
+    "vulns": []
+   },
+   "source_key": "GHSA-2cm2-m3w5-gp2f"
+  },
+  {
+   "content_hash": "45a941b04c95d3620f59bdca48dccd9e5b545fad0f44ef1f64a21327f1d4048e",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [],
+    "vulns": []
+   },
+   "source_key": "GHSA-jmqv-2mx7-544h"
+  }
+ ]
+}

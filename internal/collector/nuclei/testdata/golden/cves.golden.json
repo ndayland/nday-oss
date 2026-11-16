@@ -1,0 +1,152 @@
+{
+ "collector": "nuclei",
+ "cursor": {
+  "etag": null,
+  "feed": {
+   "bytes": 1903,
+   "items_in_scope": 4,
+   "items_nul_scrubbed": [],
+   "items_with_cve": 4,
+   "items_without_cve": 0,
+   "lines": 4,
+   "malformed_skipped": 0
+  },
+  "last_modified": null,
+  "last_run": {
+   "attempts": 1,
+   "bytes": 1903,
+   "http_status": 200,
+   "items_in_scope": 4,
+   "items_nul_scrubbed": [],
+   "items_with_cve": 4,
+   "items_without_cve": 0,
+   "lines": 4,
+   "malformed_skipped": 0
+  },
+  "url": "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json"
+ },
+ "input": "tests/fixtures/nuclei/cves.json",
+ "kind": "fetch",
+ "records": [
+  {
+   "content_hash": "2293076cdb5d79beea73ef1ec05f4e798618f8e606d987c093770ad7bd6338cd",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2000-0114",
+      "dedupe_key": "CVE-2000-0114",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": "5.3",
+       "kind": "detection_template",
+       "severity": "medium",
+       "template_id": "CVE-2000-0114",
+       "template_path": "http/cves/2000/CVE-2000-0114.yaml",
+       "title": "Microsoft FrontPage Extensions - Information Disclosure",
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2000/CVE-2000-0114.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2000/CVE-2000-0114.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "CVE-2000-0114"
+  },
+  {
+   "content_hash": "1503b6786f7d1642d9003a388300bc8827cbb226e9ab846f74943c4ddcef2a8f",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2021-44228",
+      "dedupe_key": "CVE-2021-44228",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": "10",
+       "kind": "detection_template",
+       "severity": "critical",
+       "template_id": "CVE-2021-44228",
+       "template_path": "http/cves/2021/CVE-2021-44228.yaml",
+       "title": "Apache Log4j2 Remote Code Injection",
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2021/CVE-2021-44228.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2021/CVE-2021-44228.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "CVE-2021-44228"
+  },
+  {
+   "content_hash": "e4d78e50bafd4d15b823b01b16874921b9ea6cf134b8390b2e5e1958f90cc21f",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-41940",
+      "dedupe_key": "CVE-2026-41940",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": "N/A",
+       "kind": "detection_template",
+       "severity": "critical",
+       "template_id": "CVE-2026-41940",
+       "template_path": "http/cves/2026/CVE-2026-41940.yaml",
+       "title": "cPanel & WHM - Authentication Bypass via Session-File CRLF Injection",
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2026/CVE-2026-41940.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2026/CVE-2026-41940.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "CVE-2026-41940"
+  },
+  {
+   "content_hash": "0b2c04da6df22573431555203be755338aada443cda9774850e1089dfefd29dc",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-9198",
+      "dedupe_key": "CVE-2026-9198",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": "9.8",
+       "kind": "detection_template",
+       "severity": "critical",
+       "template_id": "CVE-2026-9198",
+       "template_path": "http/cves/2026/CVE-2026-9198.yaml",
+       "title": "IBM Langflow - Remote Code Execution",
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2026/CVE-2026-9198.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2026/CVE-2026-9198.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "CVE-2026-9198"
+  }
+ ]
+}

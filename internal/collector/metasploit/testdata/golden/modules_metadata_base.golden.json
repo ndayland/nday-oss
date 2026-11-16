@@ -1,0 +1,246 @@
+{
+ "collector": "metasploit",
+ "cursor": {
+  "etag": null,
+  "feed": {
+   "bytes": 15964,
+   "items_in_scope": 6,
+   "items_nul_scrubbed": [],
+   "items_with_cve": 5,
+   "items_without_cve": 1,
+   "malformed_skipped": 0,
+   "modules": 8,
+   "out_of_scope_types": 2
+  },
+  "last_modified": null,
+  "last_run": {
+   "attempts": 1,
+   "bytes": 15964,
+   "http_status": 200,
+   "items_in_scope": 6,
+   "items_nul_scrubbed": [],
+   "items_with_cve": 5,
+   "items_without_cve": 1,
+   "malformed_skipped": 0,
+   "modules": 8,
+   "out_of_scope_types": 2
+  },
+  "url": "https://raw.githubusercontent.com/rapid7/metasploit-framework/master/db/modules_metadata_base.json"
+ },
+ "input": "tests/fixtures/metasploit/modules_metadata_base.json",
+ "kind": "fetch",
+ "records": [
+  {
+   "content_hash": "0118626965dc4e8aa0468c600efdaaba248b0ce24b84cf896e955eeca729c6c6",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2007-4387",
+      "dedupe_key": "auxiliary/admin/2wire/xslt_password_reset",
+      "detail": {
+       "check": false,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2007-4387"
+       ],
+       "fullname": "auxiliary/admin/2wire/xslt_password_reset",
+       "kind": "msf_module",
+       "module_last_modified": "2025-05-21 08:32:40 +0000",
+       "module_type": "auxiliary",
+       "path": "/modules/auxiliary/admin/2wire/xslt_password_reset.rb",
+       "rank": 300,
+       "rank_name": "normal",
+       "title": "2Wire Cross-Site Request Forgery Password Reset Vulnerability",
+       "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/admin/2wire/xslt_password_reset.rb",
+       "vuln_disclosure_date": "2007-08-15"
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/admin/2wire/xslt_password_reset.rb"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "auxiliary/admin/2wire/xslt_password_reset"
+  },
+  {
+   "content_hash": "10e27b0b1a80b3ed855e1482f9750ff2efdec63d6778ad597ec72f82432579d5",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2026-9198",
+      "dedupe_key": "exploit/multi/http/langflow_unauth_rce_cve_2026_9198",
+      "detail": {
+       "check": true,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2026-9198"
+       ],
+       "fullname": "exploit/multi/http/langflow_unauth_rce_cve_2026_9198",
+       "kind": "msf_module",
+       "module_last_modified": "2026-08-21 14:02:04 +0000",
+       "module_type": "exploit",
+       "path": "/modules/exploits/multi/http/langflow_unauth_rce_cve_2026_9198.rb",
+       "rank": 600,
+       "rank_name": "excellent",
+       "title": "Langflow AI auto_login RCE",
+       "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/multi/http/langflow_unauth_rce_cve_2026_9198.rb",
+       "vuln_disclosure_date": "2026-07-17"
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/multi/http/langflow_unauth_rce_cve_2026_9198.rb"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/multi/http/langflow_unauth_rce_cve_2026_9198"
+  },
+  {
+   "content_hash": "e64291c19397c98fdbb65af86b8bbcc0334de09ae87c484c60c1556cccfe2b91",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2012-6636",
+      "dedupe_key": "exploit/android/browser/webview_addjavascriptinterface",
+      "detail": {
+       "check": false,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2012-6636",
+        "CVE-2013-4710"
+       ],
+       "fullname": "exploit/android/browser/webview_addjavascriptinterface",
+       "kind": "msf_module",
+       "module_last_modified": "2025-04-26 01:28:35 +0000",
+       "module_type": "exploit",
+       "path": "/modules/exploits/android/browser/webview_addjavascriptinterface.rb",
+       "rank": 600,
+       "rank_name": "excellent",
+       "title": "Android Browser and WebView addJavascriptInterface Code Execution",
+       "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/android/browser/webview_addjavascriptinterface.rb",
+       "vuln_disclosure_date": "2012-12-21"
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/android/browser/webview_addjavascriptinterface.rb"
+     },
+     {
+      "cve_id": "CVE-2013-4710",
+      "dedupe_key": "exploit/android/browser/webview_addjavascriptinterface",
+      "detail": {
+       "check": false,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2012-6636",
+        "CVE-2013-4710"
+       ],
+       "fullname": "exploit/android/browser/webview_addjavascriptinterface",
+       "kind": "msf_module",
+       "module_last_modified": "2025-04-26 01:28:35 +0000",
+       "module_type": "exploit",
+       "path": "/modules/exploits/android/browser/webview_addjavascriptinterface.rb",
+       "rank": 600,
+       "rank_name": "excellent",
+       "title": "Android Browser and WebView addJavascriptInterface Code Execution",
+       "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/android/browser/webview_addjavascriptinterface.rb",
+       "vuln_disclosure_date": "2012-12-21"
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/android/browser/webview_addjavascriptinterface.rb"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/android/browser/webview_addjavascriptinterface"
+  },
+  {
+   "content_hash": "ac5a95668d41dc363ee846b13224e871f2218eaa51e946fe0df3697f36d98a2b",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2015-3035",
+      "dedupe_key": "auxiliary/gather/tplink_archer_c7_traversal",
+      "detail": {
+       "check": true,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2015-3035"
+       ],
+       "fullname": "auxiliary/gather/tplink_archer_c7_traversal",
+       "kind": "msf_module",
+       "module_last_modified": "2026-04-22 11:52:36 +0000",
+       "module_type": "auxiliary",
+       "path": "/modules/auxiliary/gather/tplink_archer_c7_traversal.rb",
+       "rank": 300,
+       "rank_name": "normal",
+       "title": "Archer C7 Directory Traversal Vulnerability",
+       "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/gather/tplink_archer_c7_traversal.rb",
+       "vuln_disclosure_date": "2015-04-08"
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/auxiliary/gather/tplink_archer_c7_traversal.rb"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "auxiliary/gather/tplink_archer_c7_traversal"
+  },
+  {
+   "content_hash": "aea6e5d8ae6b8046162d53ec182af0a066838a3f988d07c7020727c0b2af5db2",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2015-9263",
+      "dedupe_key": "exploit/multi/http/uptime_file_upload_2",
+      "detail": {
+       "check": true,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2015-9263"
+       ],
+       "fullname": "exploit/multi/http/uptime_file_upload_2",
+       "kind": "msf_module",
+       "module_last_modified": "2026-04-22 11:58:04 +0000",
+       "module_type": "exploit",
+       "path": "/modules/exploits/multi/http/uptime_file_upload_2.rb",
+       "rank": 600,
+       "rank_name": "excellent",
+       "title": "Idera Up.Time Monitoring Station 7.4 post2file.php Arbitrary File Upload",
+       "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/multi/http/uptime_file_upload_2.rb",
+       "vuln_disclosure_date": "2013-11-18"
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/multi/http/uptime_file_upload_2.rb"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/multi/http/uptime_file_upload_2"
+  }
+ ]
+}

@@ -1,0 +1,12 @@
+[Unit]
+Description=nday: refresh the Cloudflare IP ranges in ufw every 6 hours
+
+[Timer]
+# 00:15, 06:15, 12:15, 18:15 server time plus up to 30 minutes; clear of the
+# 04:30 backup. Persistent: a run missed while the host was down happens at boot.
+OnCalendar=*-*-* 00/6:15:00
+RandomizedDelaySec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

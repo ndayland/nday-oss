@@ -1,0 +1,67 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- with .Body}}
+<section class="sec" id="corrections" aria-labelledby="h-corr">
+<h2 class="h2" id="h-corr"><span class="h" aria-hidden="true"># </span>{{t "admin.corr.h2"}}</h2>
+<p class="note">{{t "admin.corr.lede"}}</p>
+<nav class="seg" aria-label="{{ts "admin.corr.filter_label"}}">
+{{- range .Filters}}
+<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{if eq .Value "pending"}}{{t "admin.corr.pending" "n" $.Data.Body.Pending}}{{else}}{{t "admin.corr.decided"}}{{end}}</a>
+{{- end}}
+</nav>
+{{- if .Items}}
+<div class="adm-list">
+{{- range .Items}}
+<article class="cm adm-cm" id="k-{{.ID}}">
+<p class="cm-h">
+{{- if .SubmitterHref}}<a class="cm-au" href="{{.SubmitterHref}}">{{if .Submitter}}<bdi>@{{.Submitter}}</bdi>{{else}}{{t "admin.user.no_handle"}}{{end}}</a>{{else}}<span class="cm-gone">{{t "admin.mod.gone"}}</span>{{end}}
+<span class="cm-time">{{.At.HTML}}</span>
+<a href="{{.VulnHref}}">{{.CVE}}</a>
+<span class="tag">{{t "corr.category" "category" .Category}}</span>
+<span class="adm-st {{.Status}}">{{t "corr.status" "status" .Status}}</span>
+</p>
+<pre class="cm-src" dir="auto">{{.Body}}</pre>
+{{- with .Evidence}}
+<p class="note">{{t "admin.corr.evidence"}} {{template "link" .}}</p>
+{{- end}}
+{{- if .Decided}}
+<p class="note">{{t "admin.corr.decided_by" "time" .DecidedAt.HTML}} {{if .DeciderHref}}<a href="{{.DeciderHref}}">{{if .Decider}}<bdi>@{{.Decider}}</bdi>{{else}}{{t "admin.user.no_handle"}}{{end}}</a>{{else}}{{t "admin.mod.gone"}}{{end}}</p>
+{{- with .PublicNote}}
+<p class="cm-note">{{t "admin.corr.public_note"}} <bdi>{{.}}</bdi></p>
+{{- end}}
+{{- with .InternalNote}}
+<p class="cm-note">{{t "admin.corr.internal_note"}} <bdi>{{.}}</bdi></p>
+{{- end}}
+{{- else}}
+<form class="acct-form adm-corr" data-act="accept" data-id="{{.ID}}" novalidate="">
+<label for="ca-{{.ID}}">{{t "admin.corr.accept_label" "max" $.Data.Body.MaxPublic}}</label>
+<textarea class="disc-ta" id="ca-{{.ID}}" rows="3" maxlength="{{$.Data.Body.MaxPublic}}"></textarea>
+<p class="note">{{t "admin.corr.accept_note"}}</p>
+<div class="acct-row"><button type="submit" class="btn">{{t "admin.corr.accept"}}</button></div>
+</form>
+<form class="acct-form adm-corr" data-act="reject" data-id="{{.ID}}" novalidate="">
+<div class="acct-row">
+<input class="acct-in" type="text" maxlength="{{$.Data.Body.MaxInternal}}" autocomplete="off" aria-label="{{ts "admin.corr.reject_label"}}" placeholder="{{ts "admin.corr.reject_label"}}"/>
+<button type="submit" class="btn">{{t "admin.corr.reject"}}</button>
+</div>
+</form>
+{{- end}}
+<p class="acct-st" role="status" aria-live="polite"></p>
+</article>
+{{- end}}
+</div>
+{{- else}}
+<p class="note">{{if eq .State "pending"}}{{t "admin.corr.empty_pending"}}{{else}}{{t "admin.corr.empty_decided"}}{{end}}</p>
+{{- end}}
+{{- if or .Next .First}}
+<p class="pager">{{with .First}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .Next}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
+{{- end}}
+</section>
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}

@@ -1,0 +1,35 @@
+# Allowlist import format for the xposts collector (docs/xposts.md).
+#
+#   nday x-accounts-import deploy/x-accounts.txt
+#
+# One account per line, in one of two forms:
+#
+#   <numeric X user id> <handle>   # optional note
+#   @<handle>                      # optional note: the id is looked up
+#
+# - The numeric user id is the key (handles change). A line with only a
+#   handle has its id looked up at import time through the official X API
+#   user lookup (GET https://api.x.com/2/users/by?usernames=..., 100 handles
+#   per request) with NDAY_X_BEARER_TOKEN; the id found then stays the key and
+#   the handle is stored in the spelling X returns. Without a token such lines
+#   are an error (nothing is imported); write the id yourself then.
+# - How a line is read: two fields are always "<id> <handle>"; one field is
+#   always a handle. Because a handle can be all digits, a one-field line
+#   made only of digits is refused as ambiguous: write it as @<digits> (an id
+#   alone is never accepted; it always comes with its handle). Writing '@'
+#   before every handle-only line is the clearest form.
+# - The handle is written without '@' in the two-field form (a leading '@' is
+#   accepted and dropped); it is used in the search query, so update it when
+#   the account renames.
+# - Everything after '#' is a note; lines that are blank or start with '#'
+#   are ignored. A user id listed twice (also when a looked-up id equals an
+#   id on another line) or a handle-only handle listed twice is an error.
+# - On the admin page (/admin/x) preview first: it shows the id found for
+#   each handle and writes nothing. Any invalid line, or a handle that is not
+#   found or whose account is suspended, means nothing is imported and every
+#   such line is listed (the CLI prints them all to stderr).
+# - Import upserts: new ids are added (enabled), existing ids get the new
+#   handle and, when given, the new note. Nothing is ever deleted and a
+#   disabled account stays disabled (nday x-accounts-enable <id> re-enables).
+#
+# This example deliberately lists no accounts.

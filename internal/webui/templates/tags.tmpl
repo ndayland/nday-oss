@@ -1,0 +1,40 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main" id="main">
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "tag.page.h1"}}</h1>
+<p class="lede">{{t "tag.page.lede"}}</p>
+</div>
+<details class="apid">
+<summary>{{t "hot.api.summary"}}</summary>
+{{template "cmd" .Curl}}
+</details>
+{{- range .Groups}}
+<section class="sec tgsec" aria-labelledby="dim-{{.Dim}}">
+<div class="sec-head">
+<h2 class="h2" id="dim-{{.Dim}}"><span class="h" aria-hidden="true"># </span>{{t "tag.dim" "dim" .Dim}}</h2>
+<span class="note">{{t "tag.dim_desc" "dim" .Dim}}</span>
+</div>
+<dl class="tglist">
+{{- range .Rows}}
+<div><dt>{{template "tagchipn" .Chip}}<code class="slug">{{.Chip.Slug}}</code></dt><dd class="n{{if .Zero}} weak{{end}}">{{.Count}}</dd><dd class="d">{{tagdesc .Chip.Slug}}</dd></div>
+{{- end}}
+</dl>
+{{- if .More}}
+<details class="tgmore">
+<summary>{{t "tag.page.more" "n" (len .More)}}</summary>
+<dl class="tglist">
+{{- range .More}}
+<div><dt>{{template "tagchipn" .Chip}}<code class="slug">{{.Chip.Slug}}</code></dt><dd class="n{{if .Zero}} weak{{end}}">{{.Count}}</dd><dd class="d">{{tagdesc .Chip.Slug}}</dd></div>
+{{- end}}
+</dl>
+</details>
+{{- end}}
+</section>
+{{- end}}
+<p class="note">{{if .CountsAt}}{{t "tag.counts_at" "time" .CountsAt}}{{else}}{{t "tag.page.counts_never"}}{{end}}</p>
+</main>
+</div>
+</div>
+{{end}}{{end}}

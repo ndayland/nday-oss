@@ -1,0 +1,323 @@
+// Command worldmap generates internal/webui/worldmap_data.go, the country
+// geometry of the visitor map on the back office statistics page
+// (internal/webui/worldmap.go, docs/admin.md).
+//
+// Input: Natural Earth admin-0 countries as GeoJSON from
+// github.com/nvkelso/natural-earth-vector at a release tag (never master),
+// downloaded by hand into a scratch directory and passed by path:
+//
+//	TAG=v5.1.2 DIR=/abs/scratch/ne-$TAG; mkdir "$DIR"
+//	for s in 110m 50m; do curl -fsSL -o "$DIR/ne_${s}_admin_0_countries.geojson" \
+//	  "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/$TAG/geojson/ne_${s}_admin_0_countries.geojson"; done
+//	go run ./tools/worldmap -tag $TAG -shapes "$DIR/ne_110m_admin_0_countries.geojson" \
+//	  -points "$DIR/ne_50m_admin_0_countries.geojson" -out internal/webui/worldmap_data.go
+//
+// -shapes (1:110m) gives the country outlines. -points (1:50m) is read only
+// for territories that have an ISO 3166-1 alpha-2 code but no outline at
+// 1:110m (Singapore, Hong Kong, Macao, small island states): each becomes a
+// marker at the feature's label point (LABEL_X/LABEL_Y, Natural Earth's own
+// placement, which stays on land and does not break for groups of islands
+// spanning the antimeridian the way an averaged centroid would).
+//
+// The code is ISO_A2_EH (ISO_A2 is "-99" for France, Norway and Kosovo),
+// falling back to ISO_A2; features with neither ("-99") are kept as outlines
+// without a code. Antarctica (AQ) is left out and latitudes are cropped to
+// [LatBottom, LatTop]. Projection: Miller cylindrical, Width units wide,
+// coordinates rounded to integers, paths in relative commands. The output is
+// deterministic (keys sorted) and lists the features without a code on
+// stderr.
+//
+// The program never touches the network and is not part of the server.
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"go/format"
+	"math"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+const (
+	Width     = 2000 // viewBox width; 360° of longitude
+	LatTop    = 84.0
+	LatBottom = -58.0
+)
+
+type feature struct {
+	Properties map[string]any `json:"properties"`
+	Geometry   struct {
+		Type        string          `json:"type"`
+		Coordinates json.RawMessage `json:"coordinates"`
+	} `json:"geometry"`
+}
+
+type collection struct {
+	Type     string    `json:"type"`
+	Features []feature `json:"features"`
+}
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, "worldmap:", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	shapes := flag.String("shapes", "", "path of ne_110m_admin_0_countries.geojson")
+	points := flag.String("points", "", "path of ne_50m_admin_0_countries.geojson")
+	tag := flag.String("tag", "", "natural-earth-vector release tag the files were downloaded from (e.g. v5.1.2)")
+	out := flag.String("out", "", "output Go file (internal/webui/worldmap_data.go)")
+	flag.Parse()
+	if *shapes == "" || *points == "" || *tag == "" || *out == "" {
+		flag.Usage()
+		return errors.New("-shapes, -points, -tag and -out are required")
+	}
+	if *tag == "master" || !strings.HasPrefix(*tag, "v") {
+		return fmt.Errorf("-tag %q: use a release tag such as v5.1.2", *tag)
+	}
+	big, err := load(*shapes)
+	if err != nil {
+		return err
+	}
+	small, err := load(*points)
+	if err != nil {
+		return err
+	}
+
+	rings := map[string][][][2]float64{} // code -> rings of all its features
+	var uncoded []string
+	for _, f := range big.Features {
+		code := alpha2(f.Properties)
+		if code == "AQ" {
+			continue
+		}
+		rs, err := polygons(f)
+		if err != nil {
+			return fmt.Errorf("%s: %w", name(f), err)
+		}
+		if code == "" {
+			fmt.Fprintf(os.Stderr, "no alpha-2 code (outline kept, never coloured): %s\n", name(f))
+			if d := pathD(rs); d != "" {
+				uncoded = append(uncoded, d)
+			}
+			continue
+		}
+		rings[code] = append(rings[code], rs...)
+	}
+	paths := map[string]string{}
+	for code, rs := range rings {
+		if d := pathD(rs); d != "" {
+			paths[code] = d
+		} else {
+			fmt.Fprintf(os.Stderr, "empty after rounding, left out: %s\n", code)
+		}
+	}
+
+	type cand struct {
+		x, y    int
+		zoom    float64
+		name    string
+		lon, la float64
+	}
+	marks := map[string]cand{}
+	for _, f := range small.Features {
+		code := alpha2(f.Properties)
+		if code == "" || code == "AQ" || paths[code] != "" {
+			continue
+		}
+		lon, ok1 := num(f.Properties["LABEL_X"])
+		lat, ok2 := num(f.Properties["LABEL_Y"])
+		if !ok1 || !ok2 {
+			return fmt.Errorf("%s: no LABEL_X/LABEL_Y", name(f))
+		}
+		if lat > LatTop || lat < LatBottom {
+			fmt.Fprintf(os.Stderr, "marker outside the cropped latitudes, left out: %s (%s)\n", name(f), code)
+			continue
+		}
+		x, y := project(lon, lat)
+		zoom, _ := num(f.Properties["MIN_ZOOM"])
+		c := cand{x: int(math.Round(x)), y: int(math.Round(y)), zoom: zoom, name: name(f)}
+		if old, ok := marks[code]; ok && (old.zoom < c.zoom || old.zoom == c.zoom && old.name < c.name) {
+			continue
+		}
+		marks[code] = c
+	}
+
+	var b bytes.Buffer
+	fmt.Fprintf(&b, `// Code generated by tools/worldmap; DO NOT EDIT.
+
+// World map geometry of the back office visitor map (worldmap.go).
+//
+// Source: Natural Earth admin-0 countries (public domain),
+// github.com/nvkelso/natural-earth-vector tag %s:
+// geojson/ne_110m_admin_0_countries.geojson for the outlines and
+// geojson/ne_50m_admin_0_countries.geojson for the marker points of
+// territories without an outline at 1:110m (label point LABEL_X/LABEL_Y).
+// Codes are ISO_A2_EH, else ISO_A2. Antarctica left out; Miller projection
+// cropped to latitudes %g..%g; integer coordinates.
+//
+// Regenerate (see tools/worldmap/main.go for the download commands):
+//
+//	go run ./tools/worldmap -tag %s -shapes DIR/ne_110m_admin_0_countries.geojson \
+//	  -points DIR/ne_50m_admin_0_countries.geojson -out internal/webui/worldmap_data.go
+
+package webui
+
+// mapW and mapH are the viewBox size of the map.
+const (
+	mapW = %d
+	mapH = %d
+)
+
+// mapShapes is the outline (SVG path data) of every country by alpha-2 code.
+var mapShapes = map[string]string{
+`, *tag, LatBottom, LatTop, *tag, Width, int(math.Ceil(height())))
+	codes := make([]string, 0, len(paths))
+	for c := range paths {
+		codes = append(codes, c)
+	}
+	sort.Strings(codes)
+	for _, c := range codes {
+		fmt.Fprintf(&b, "\t%q: %q,\n", c, paths[c])
+	}
+	b.WriteString("}\n\n// mapUncoded are outlines without an alpha-2 code (drawn, never coloured).\nvar mapUncoded = []string{\n")
+	sort.Strings(uncoded)
+	for _, d := range uncoded {
+		fmt.Fprintf(&b, "\t%q,\n", d)
+	}
+	b.WriteString("}\n\n// mapPoints are the marker positions of territories without an outline.\nvar mapPoints = map[string][2]int{\n")
+	mcodes := make([]string, 0, len(marks))
+	for c := range marks {
+		mcodes = append(mcodes, c)
+	}
+	sort.Strings(mcodes)
+	for _, c := range mcodes {
+		fmt.Fprintf(&b, "\t%q: {%d, %d},\n", c, marks[c].x, marks[c].y)
+	}
+	b.WriteString("}\n")
+	src, err := format.Source(b.Bytes())
+	if err != nil {
+		return fmt.Errorf("gofmt: %w", err)
+	}
+	if err := os.WriteFile(*out, src, 0o644); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "%s: %d bytes, %d outlines, %d uncoded outlines, %d markers (%s)\n",
+		*out, len(src), len(codes), len(uncoded), len(mcodes), strings.Join(mcodes, " "))
+	return nil
+}
+
+func load(path string) (*collection, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var c collection
+	if err := json.Unmarshal(b, &c); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	if c.Type != "FeatureCollection" || len(c.Features) == 0 {
+		return nil, fmt.Errorf("%s: not a FeatureCollection with features", path)
+	}
+	return &c, nil
+}
+
+// alpha2 is the feature's ISO 3166-1 alpha-2 code ("" when it has none).
+func alpha2(p map[string]any) string {
+	for _, k := range []string{"ISO_A2_EH", "ISO_A2"} {
+		if s, _ := p[k].(string); len(s) == 2 && s[0] >= 'A' && s[0] <= 'Z' && s[1] >= 'A' && s[1] <= 'Z' {
+			return s
+		}
+	}
+	return ""
+}
+
+func name(f feature) string {
+	s, _ := f.Properties["ADMIN"].(string)
+	return s
+}
+
+func num(v any) (float64, bool) {
+	f, ok := v.(float64)
+	return f, ok
+}
+
+// polygons returns the outer and inner rings of a Polygon or MultiPolygon.
+func polygons(f feature) ([][][2]float64, error) {
+	switch f.Geometry.Type {
+	case "Polygon":
+		var p [][][2]float64
+		err := json.Unmarshal(f.Geometry.Coordinates, &p)
+		return p, err
+	case "MultiPolygon":
+		var mp [][][][2]float64
+		if err := json.Unmarshal(f.Geometry.Coordinates, &mp); err != nil {
+			return nil, err
+		}
+		var out [][][2]float64
+		for _, p := range mp {
+			out = append(out, p...)
+		}
+		return out, nil
+	}
+	return nil, fmt.Errorf("geometry type %q", f.Geometry.Type)
+}
+
+func miller(lat float64) float64 {
+	return 1.25 * math.Log(math.Tan(math.Pi/4+0.4*lat*math.Pi/180))
+}
+
+// k is the projection scale: Width units per radian.
+const k = Width / (2 * math.Pi)
+
+func height() float64 { return (miller(LatTop) - miller(LatBottom)) * k }
+
+// project maps a longitude/latitude (cropped) to viewBox coordinates.
+func project(lon, lat float64) (float64, float64) {
+	lat = math.Max(LatBottom, math.Min(LatTop, lat))
+	return (lon + 180) * math.Pi / 180 * k, (miller(LatTop) - miller(lat)) * k
+}
+
+// pathD renders rings as relative SVG path data on the integer grid; rings
+// that collapse to fewer than three distinct points are dropped.
+func pathD(rings [][][2]float64) string {
+	var b strings.Builder
+	var cx, cy int // current point: the start of the last subpath after z
+	for _, r := range rings {
+		var pts [][2]int
+		for _, c := range r {
+			x, y := project(c[0], c[1])
+			p := [2]int{int(math.Round(x)), int(math.Round(y))}
+			if n := len(pts); n > 0 && pts[n-1] == p {
+				continue
+			}
+			pts = append(pts, p)
+		}
+		for len(pts) > 1 && pts[len(pts)-1] == pts[0] {
+			pts = pts[:len(pts)-1] // z closes the ring
+		}
+		if len(pts) < 3 {
+			continue
+		}
+		b.WriteString("m")
+		px, py := cx, cy
+		for i, p := range pts {
+			if i > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteString(strconv.Itoa(p[0]-px) + " " + strconv.Itoa(p[1]-py))
+			px, py = p[0], p[1]
+		}
+		b.WriteString("z")
+		cx, cy = pts[0][0], pts[0][1]
+	}
+	return b.String()
+}

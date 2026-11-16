@@ -1,0 +1,265 @@
+{
+ "collector": "metasploit",
+ "cursor": {
+  "etag": null,
+  "feed": {
+   "bytes": 1897,
+   "items_in_scope": 8,
+   "items_nul_scrubbed": [
+    "exploit/d",
+    "exploit/f"
+   ],
+   "items_with_cve": 6,
+   "items_without_cve": 2,
+   "malformed_skipped": 4,
+   "modules": 14,
+   "out_of_scope_types": 2
+  },
+  "last_modified": null,
+  "last_run": {
+   "attempts": 1,
+   "bytes": 1897,
+   "http_status": 200,
+   "items_in_scope": 8,
+   "items_nul_scrubbed": [
+    "exploit/d",
+    "exploit/f"
+   ],
+   "items_with_cve": 6,
+   "items_without_cve": 2,
+   "malformed_skipped": 4,
+   "modules": 14,
+   "out_of_scope_types": 2
+  },
+  "url": "https://raw.githubusercontent.com/rapid7/metasploit-framework/master/db/modules_metadata_base.json"
+ },
+ "input": "internal/collector/metasploit/testdata/feed_edge.json",
+ "kind": "fetch",
+ "records": [
+  {
+   "content_hash": "3bca0d3600c40bc50299acaa15495279c8a6ccac9e253c19948b06fc59c482dd",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0001",
+      "dedupe_key": "exploit/a",
+      "detail": {
+       "check": null,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2020-0001"
+       ],
+       "fullname": "exploit/a",
+       "kind": "msf_module",
+       "module_last_modified": null,
+       "module_type": "exploit",
+       "path": "modules/exploits/a.rb",
+       "rank": 500,
+       "rank_name": "great",
+       "title": "A-dup-key-last-wins",
+       "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/a.rb",
+       "vuln_disclosure_date": null
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": "https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/a.rb"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/a"
+  },
+  {
+   "content_hash": "c815cf654452f8be41d84747506333c1bb3c8851e449ae8966c468a00939e00b",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0003",
+      "dedupe_key": "exploit/b",
+      "detail": {
+       "check": false,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2020-0003"
+       ],
+       "fullname": "exploit/b",
+       "kind": "msf_module",
+       "module_last_modified": null,
+       "module_type": "exploit",
+       "path": null,
+       "rank": true,
+       "rank_name": null,
+       "title": "B",
+       "url": null,
+       "vuln_disclosure_date": null
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": null
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/b"
+  },
+  {
+   "content_hash": "aefa07671b62fdb9f1f56ac15804b573faa936597541ef3321b7b1e514345786",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0004",
+      "dedupe_key": "exploit/c",
+      "detail": {
+       "check": null,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2020-0004"
+       ],
+       "fullname": "exploit/c",
+       "kind": "msf_module",
+       "module_last_modified": null,
+       "module_type": "exploit",
+       "path": null,
+       "rank": false,
+       "rank_name": "manual",
+       "title": "C",
+       "url": null,
+       "vuln_disclosure_date": null
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": null
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/c"
+  },
+  {
+   "content_hash": "28342518f07907fa76180e0ef11f650513a534d4b3a1faacc4fd79822b768aea",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0005",
+      "dedupe_key": "exploit/d",
+      "detail": {
+       "check": null,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2020-0005"
+       ],
+       "fullname": "exploit/d",
+       "kind": "msf_module",
+       "module_last_modified": null,
+       "module_type": "auxiliary",
+       "path": "x\\u0000y.rb",
+       "rank": 300.0,
+       "rank_name": null,
+       "title": "D",
+       "url": "https://github.com/rapid7/metasploit-framework/blob/master/x\\u0000y.rb",
+       "vuln_disclosure_date": null
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": "https://github.com/rapid7/metasploit-framework/blob/master/x\\u0000y.rb"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/d"
+  },
+  {
+   "content_hash": "2d37064e8dd1e036dfd600e704e9473c2a8cb900e3e0f2e40d70003e60b56bef",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0006",
+      "dedupe_key": "exploit/f",
+      "detail": {
+       "check": null,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2020-0006"
+       ],
+       "fullname": "exploit/f",
+       "kind": "msf_module",
+       "module_last_modified": null,
+       "module_type": "exploit",
+       "path": null,
+       "rank": 123,
+       "rank_name": null,
+       "title": "F",
+       "url": null,
+       "vuln_disclosure_date": null
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": null
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/f"
+  },
+  {
+   "content_hash": "b03a4b229b9031e8bcdee58850c54378c3af6381c29cdafa5970d9637557d632",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0011",
+      "dedupe_key": "exploit/h",
+      "detail": {
+       "check": null,
+       "confidence": "curated",
+       "cve_ids": [
+        "CVE-2020-0011"
+       ],
+       "dropped_cve_tokens": [
+        "CVE-2019–9193"
+       ],
+       "fullname": "exploit/h",
+       "kind": "msf_module",
+       "module_last_modified": null,
+       "module_type": "auxiliary",
+       "path": null,
+       "rank": 99999999999999999999999,
+       "rank_name": null,
+       "title": "Hé😀",
+       "url": null,
+       "vuln_disclosure_date": null
+      },
+      "occurred_at": null,
+      "source": "metasploit",
+      "type": "poc_published",
+      "url": null
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "exploit/h"
+  }
+ ]
+}

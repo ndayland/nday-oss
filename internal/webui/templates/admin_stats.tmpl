@@ -1,0 +1,109 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- with .Body}}
+<nav class="seg adm-range" aria-label="{{ts "admin.stats.range_label"}}">
+{{- range .Ranges}}
+<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{t "admin.stats.days" "n" .Days}}</a>
+{{- end}}
+</nav>
+<div class="prose-block">
+<p class="note">{{if .HasStats}}{{t "admin.stats.fresh" "time" .LastRollup "n" .RolledDays "days" .Days}}{{else}}{{t "admin.stats.never"}}{{end}}</p>
+<p class="note">{{t "admin.stats.note"}} {{t "admin.stats.zone" "zone" .Zone}}</p>
+</div>
+<section class="sec" aria-labelledby="h-cards">
+<h2 class="h2" id="h-cards"><span class="h" aria-hidden="true"># </span>{{t "admin.stats.cards_h2" "n" .Days}}</h2>
+<dl class="totals adm-cards">
+{{- range .Cards}}
+<div><dt>{{t "admin.stats.card" "card" .Key}}</dt><dd>{{.Range}}</dd>
+<dd class="adm-sub">{{t "admin.stats.today" "n" .Today}}</dd>
+{{- if .HumanRange}}
+<dd class="adm-sub">{{t "admin.stats.human" "range" .HumanRange "today" .HumanToday}}</dd>
+{{- end}}
+</div>
+{{- end}}
+</dl>
+<p class="note">{{t "admin.stats.cards_note"}}</p>
+</section>
+<section class="sec" aria-labelledby="h-charts">
+<h2 class="h2" id="h-charts"><span class="h" aria-hidden="true"># </span>{{t "admin.stats.charts_h2"}}</h2>
+<div class="adm-charts">
+{{- range .Charts}}
+<figure class="adm-chart" id="{{.ID}}">
+<figcaption>{{t "admin.stats.chart" "chart" .Key}}</figcaption>
+<div class="adm-plot">
+<span class="adm-max">{{.Max}}</span>
+<svg viewBox="0 0 {{.Width}} 100" preserveAspectRatio="none" role="img" aria-label="{{.Aria}}">
+{{- range .Gaps}}<rect class="{{.Class}}" x="{{.X}}" y="{{.Y}}" width="{{.W}}" height="{{.H}}"><title>{{.Title}}</title></rect>{{end}}
+{{- range .Bars}}<rect class="{{.Class}}" x="{{.X}}" y="{{.Y}}" width="{{.W}}" height="{{.H}}"><title>{{.Title}}</title></rect>{{end}}
+</svg>
+</div>
+<div class="adm-axis"><span>{{.First}}</span><span>{{.Last}}</span></div>
+<ul class="adm-legend">
+{{- range .Legend}}
+<li><span class="sw {{.Class}}" aria-hidden="true"></span>{{t "admin.stats.series" "series" .Key}}</li>
+{{- end}}
+{{- if .HasGaps}}
+<li><span class="sw gap" aria-hidden="true"></span>{{t "admin.stats.gap"}}</li>
+{{- end}}
+</ul>
+{{- if .Empty}}
+<p class="note">{{t "admin.stats.chart_empty"}}</p>
+{{- end}}
+</figure>
+{{- end}}
+</div>
+</section>
+<section class="sec" aria-labelledby="h-map">
+<h2 class="h2" id="h-map"><span class="h" aria-hidden="true"># </span>{{t "admin.stats.map_h2" "n" .Days}}</h2>
+<p class="note">{{t "admin.stats.map_note"}}</p>
+{{- with .Map}}
+{{- if .Empty}}
+<p class="note">{{t "admin.stats.chart_empty"}}</p>
+{{- else}}
+<figure class="adm-map" id="map-cc">
+{{.SVG}}
+<div class="adm-map-tip" role="status" hidden=""></div>
+<ul class="adm-legend">
+<li><span class="sw m0" aria-hidden="true"></span>{{t "admin.stats.map_none"}}</li>
+{{- range .Legend}}
+<li><span class="sw {{.Class}}" aria-hidden="true"></span>{{.Label}}</li>
+{{- end}}
+</ul>
+{{- if .Unplaced}}
+<p class="note">{{t "admin.stats.map_unplaced" "list" .Unplaced}}</p>
+{{- end}}
+</figure>
+{{- end}}
+{{- end}}
+</section>
+<section class="sec" aria-labelledby="h-tops">
+<h2 class="h2" id="h-tops"><span class="h" aria-hidden="true"># </span>{{t "admin.stats.tops_h2" "n" .Days}}</h2>
+<p class="note">{{if .BotShare}}{{t "admin.stats.bot_share" "pct" .BotShare "bots" .Bots "all" .Reqs}} {{end}}{{t "admin.stats.tops_note"}}</p>
+<div class="adm-tops">
+{{- range .Tables}}
+<section class="adm-top" aria-labelledby="{{.ID}}">
+<h3 class="adm-h3" id="{{.ID}}">{{t "admin.stats.top" "table" .Key}}</h3>
+{{- if .Rows}}
+<div class="tbl-x"><table class="aff adm-tbl">
+<thead><tr><th scope="col">{{t "admin.stats.col" "col" .Col}}</th><th scope="col" class="r">{{t "admin.stats.count"}}</th></tr></thead>
+<tbody>
+{{- range .Rows}}
+<tr><td>{{if .Href}}<a href="{{.Href}}">{{.Key}}</a>{{else}}<bdi{{with .Lang}} lang="{{.}}"{{end}}>{{.Key}}</bdi>{{end}}</td><td class="r">{{.Value}}</td></tr>
+{{- end}}
+</tbody>
+</table></div>
+{{- else}}
+<p class="note">{{t "admin.stats.none"}}</p>
+{{- end}}
+</section>
+{{- end}}
+</div>
+</section>
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}

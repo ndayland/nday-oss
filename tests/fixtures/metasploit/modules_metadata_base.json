@@ -1,0 +1,489 @@
+{
+  "auxiliary_admin/2wire/xslt_password_reset": {
+    "name": "2Wire Cross-Site Request Forgery Password Reset Vulnerability",
+    "fullname": "auxiliary/admin/2wire/xslt_password_reset",
+    "aliases": [],
+    "rank": 300,
+    "disclosure_date": "2007-08-15",
+    "type": "auxiliary",
+    "author": [
+      "hkm <hkm@hakim.ws>",
+      "Travis Phillips"
+    ],
+    "description": "This module will reset the admin password on a 2Wire wireless router.  This is\n          done by using the /xslt page where authentication is not required, thus allowing\n          configuration changes (such as resetting the password) as administrators.",
+    "references": [
+      "CVE-2007-4387",
+      "OSVDB-37667",
+      "BID-36075",
+      "URL-https://seclists.org/bugtraq/2007/Aug/225"
+    ],
+    "platform": "",
+    "arch": "",
+    "rport": 80,
+    "autofilter_ports": [
+      80,
+      8080,
+      443,
+      8000,
+      8888,
+      8880,
+      8008,
+      3000,
+      8443
+    ],
+    "autofilter_services": [
+      "http",
+      "https"
+    ],
+    "targets": null,
+    "mod_time": "2025-05-21 08:32:40 +0000",
+    "path": "/modules/auxiliary/admin/2wire/xslt_password_reset.rb",
+    "is_install_path": true,
+    "ref_name": "admin/2wire/xslt_password_reset",
+    "check": false,
+    "post_auth": false,
+    "default_credential": false,
+    "notes": {
+      "Stability": [
+        "crash-safe"
+      ],
+      "SideEffects": [
+        "ioc-in-logs",
+        "config-changes"
+      ],
+      "Reliability": []
+    },
+    "session_types": false,
+    "needs_cleanup": false,
+    "actions": []
+  },
+  "exploit_multi/http/langflow_unauth_rce_cve_2026_9198": {
+    "name": "Langflow AI auto_login RCE",
+    "fullname": "exploit/multi/http/langflow_unauth_rce_cve_2026_9198",
+    "aliases": [],
+    "rank": 600,
+    "disclosure_date": "2026-07-17",
+    "type": "exploit",
+    "author": [
+      "Richard Howe <rhowe425>"
+    ],
+    "description": "Langflow versions 1.10.0 and below are susceptible to\n          unauthenticated remote code execution. By chaining\n          /api/v1/auto_login with /api/v1/validate/code, a remote\n          unauthenticated attacker can send crafted HTTP requests to execute\n          arbitrary code.",
+    "references": [
+      "CVE-2026-9198",
+      "URL-https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2026-9198"
+    ],
+    "platform": "Python",
+    "arch": "python",
+    "rport": 7860,
+    "autofilter_ports": [
+      80,
+      8080,
+      443,
+      8000,
+      8888,
+      8880,
+      8008,
+      3000,
+      8443
+    ],
+    "autofilter_services": [
+      "http",
+      "https"
+    ],
+    "targets": [
+      "Python payload"
+    ],
+    "mod_time": "2026-08-21 14:02:04 +0000",
+    "path": "/modules/exploits/multi/http/langflow_unauth_rce_cve_2026_9198.rb",
+    "is_install_path": true,
+    "ref_name": "multi/http/langflow_unauth_rce_cve_2026_9198",
+    "check": true,
+    "post_auth": false,
+    "default_credential": false,
+    "notes": {
+      "Stability": [
+        "crash-safe"
+      ],
+      "SideEffects": [
+        "ioc-in-logs"
+      ],
+      "Reliability": [
+        "repeatable-session"
+      ]
+    },
+    "session_types": false,
+    "needs_cleanup": null
+  },
+  "exploit_android/browser/webview_addjavascriptinterface": {
+    "name": "Android Browser and WebView addJavascriptInterface Code Execution",
+    "fullname": "exploit/android/browser/webview_addjavascriptinterface",
+    "aliases": [],
+    "rank": 600,
+    "disclosure_date": "2012-12-21",
+    "type": "exploit",
+    "author": [
+      "jduck <jduck@metasploit.com>",
+      "joev <joev@metasploit.com>"
+    ],
+    "description": "This module exploits a privilege escalation issue in Android < 4.2's WebView component\n          that arises when untrusted JavaScript code is executed by a WebView that has one or more\n          Interfaces added to it. The untrusted JavaScript code can call into the Java Reflection\n          APIs exposed by the Interface and execute arbitrary commands.\n\n          Some distributions of the Android Browser app have an addJavascriptInterface\n          call tacked on, and thus are vulnerable to RCE. The Browser app in the Google APIs\n          4.1.2 release of Android is known to be vulnerable.\n\n          A secondary attack vector involves the WebViews embedded inside a large number\n          of Android applications. Ad integrations are perhaps the worst offender here.\n          If you can MITM the WebView's HTTP connection, or if you can get a persistent XSS\n          into the page displayed in the WebView, then you can inject the html/js served\n          by this module and get a shell.\n\n          Note: Adding a .js to the URL will return plain javascript (no HTML markup).",
+    "references": [
+      "URL-http://blog.trustlook.com/2013/09/04/alert-android-webview-addjavascriptinterface-code-execution-vulnerability/",
+      "URL-https://labs.mwrinfosecurity.com/blog/2012/04/23/adventures-with-android-webviews/",
+      "URL-http://50.56.33.56/blog/?p=314",
+      "URL-https://labs.mwrinfosecurity.com/advisories/2013/09/24/webview-addjavascriptinterface-remote-code-execution/",
+      "URL-https://github.com/mwrlabs/drozer/blob/bcadf5c3fd08c4becf84ed34302a41d7b5e9db63/src/drozer/modules/exploit/mitm/addJavaScriptInterface.py",
+      "CVE-2012-6636",
+      "CVE-2013-4710",
+      "EDB-31519",
+      "OSVDB-97520"
+    ],
+    "platform": "Android,Linux",
+    "arch": "dalvik, x86, armle, mipsle",
+    "rport": null,
+    "autofilter_ports": [],
+    "autofilter_services": [],
+    "targets": [
+      "Automatic"
+    ],
+    "mod_time": "2025-04-26 01:28:35 +0000",
+    "path": "/modules/exploits/android/browser/webview_addjavascriptinterface.rb",
+    "is_install_path": true,
+    "ref_name": "android/browser/webview_addjavascriptinterface",
+    "check": false,
+    "post_auth": false,
+    "default_credential": false,
+    "notes": {
+      "SideEffects": [
+        "artifacts-on-disk"
+      ],
+      "Reliability": [
+        "unreliable-session"
+      ],
+      "Stability": [
+        "crash-safe"
+      ]
+    },
+    "session_types": false,
+    "needs_cleanup": null
+  },
+  "exploit_android/adb/adb_server_exec": {
+    "name": "Android ADB Debug Server Remote Payload Execution",
+    "fullname": "exploit/android/adb/adb_server_exec",
+    "aliases": [],
+    "rank": 600,
+    "disclosure_date": "2016-01-01",
+    "type": "exploit",
+    "author": [
+      "joev <joev@metasploit.com>"
+    ],
+    "description": "Writes and spawns a native payload on an Android device that is listening\n          for adb debug messages.",
+    "references": [],
+    "platform": "Linux",
+    "arch": "armle, x86, x64, mipsle",
+    "rport": 5555,
+    "autofilter_ports": [],
+    "autofilter_services": [],
+    "targets": [
+      "armle",
+      "x86",
+      "x64",
+      "mipsle"
+    ],
+    "mod_time": "2026-04-22 11:59:31 +0000",
+    "path": "/modules/exploits/android/adb/adb_server_exec.rb",
+    "is_install_path": true,
+    "ref_name": "android/adb/adb_server_exec",
+    "check": true,
+    "post_auth": false,
+    "default_credential": false,
+    "notes": {
+      "SideEffects": [
+        "artifacts-on-disk"
+      ],
+      "Reliability": [
+        "repeatable-session"
+      ],
+      "Stability": [
+        "crash-safe"
+      ]
+    },
+    "session_types": false,
+    "needs_cleanup": null
+  },
+  "auxiliary_gather/tplink_archer_c7_traversal": {
+    "name": "Archer C7 Directory Traversal Vulnerability",
+    "fullname": "auxiliary/gather/tplink_archer_c7_traversal",
+    "aliases": [
+      "auxiliary/scanner/http/archer_c7_traversal"
+    ],
+    "rank": 300,
+    "disclosure_date": "2015-04-08",
+    "type": "auxiliary",
+    "author": [
+      "Nick Cottrell <ncottrellweb@gmail.com>",
+      "Anna Graterol <annagraterol95@gmail.com>",
+      "Mana Mostaani <mana.mostaani@gmail.com>"
+    ],
+    "description": "This module exploits a directory traversal vulnerability in the PATH_INFO found at /login/\n          on TP-Link Archer C5, C7, and C9 routers of varying versions.",
+    "references": [
+      "BID-74050 ",
+      "CVE-2015-3035"
+    ],
+    "platform": "",
+    "arch": "",
+    "rport": 80,
+    "autofilter_ports": [
+      80,
+      8080,
+      443,
+      8000,
+      8888,
+      8880,
+      8008,
+      3000,
+      8443
+    ],
+    "autofilter_services": [
+      "http",
+      "https"
+    ],
+    "targets": null,
+    "mod_time": "2026-04-22 11:52:36 +0000",
+    "path": "/modules/auxiliary/gather/tplink_archer_c7_traversal.rb",
+    "is_install_path": true,
+    "ref_name": "gather/tplink_archer_c7_traversal",
+    "check": true,
+    "post_auth": false,
+    "default_credential": false,
+    "notes": {
+      "Stability": [
+        "crash-safe"
+      ],
+      "Reliability": [
+        "repeatable-session"
+      ],
+      "SideEffects": []
+    },
+    "session_types": false,
+    "needs_cleanup": false,
+    "actions": []
+  },
+  "post_android/local/koffee": {
+    "name": "KOFFEE - Kia OFFensivE Exploit",
+    "fullname": "post/android/local/koffee",
+    "aliases": [],
+    "rank": 300,
+    "disclosure_date": "2020-12-02",
+    "type": "post",
+    "author": [
+      "Gianpiero Costantino",
+      "Ilaria Matteucci"
+    ],
+    "description": "This module exploits CVE-2020-8539, which is an arbitrary code execution vulnerability that allows an to\n          attacker execute the micomd binary file on the head unit of Kia Motors. This module has been tested on\n          SOP.003.30.18.0703, SOP.005.7.181019 and SOP.007.1.191209 head unit software versions. This module, run on an\n          active session, allows an attacker to send crafted micomd commands that allow the attacker to control the head\n          unit and send CAN bus frames into the Multimedia CAN (M-Can) of the vehicle.",
+    "references": [
+      "CVE-2020-8539",
+      "URL-https://sowhat.iit.cnr.it/pdf/IIT-20-2020.pdf"
+    ],
+    "platform": "Android",
+    "arch": "",
+    "rport": null,
+    "autofilter_ports": null,
+    "autofilter_services": null,
+    "targets": null,
+    "mod_time": "2023-02-03 18:12:53 +0000",
+    "path": "/modules/post/android/local/koffee.rb",
+    "is_install_path": true,
+    "ref_name": "android/local/koffee",
+    "check": false,
+    "post_auth": false,
+    "default_credential": false,
+    "notes": {
+      "Stability": [
+        "crash-safe"
+      ],
+      "SideEffects": [
+        "screen-effects",
+        "config-changes",
+        "ioc-in-logs"
+      ],
+      "Reliability": []
+    },
+    "session_types": [
+      "meterpreter"
+    ],
+    "needs_cleanup": null,
+    "actions": [
+      {
+        "name": "CAMERA_REVERSE_OFF",
+        "description": "It hides the parking camera video stream"
+      },
+      {
+        "name": "CAMERA_REVERSE_ON",
+        "description": "It shows the parking camera video stream"
+      },
+      {
+        "name": "CLUSTER_CHANGE_LANGUAGE",
+        "description": "It changes the cluster language"
+      },
+      {
+        "name": "CLUSTER_RADIO_INFO",
+        "description": "It shows radio info in the instrument cluster "
+      },
+      {
+        "name": "CLUSTER_RANDOM_NAVIGATION",
+        "description": "It shows navigation signals in the instrument cluster "
+      },
+      {
+        "name": "CLUSTER_ROUNDABOUT_FARAWAY",
+        "description": "It shows a round about signal with variable distance in the instrument cluster "
+      },
+      {
+        "name": "CLUSTER_SPEED_LIMIT",
+        "description": "It changes the speed limit shown in the instrument cluster"
+      },
+      {
+        "name": "HIGH_SCREEN_BRIGHTNESS",
+        "description": "It increases the head unit screen brightness"
+      },
+      {
+        "name": "INJECT_CUSTOM",
+        "description": "It injects custom micom payloads"
+      },
+      {
+        "name": "LOW_FUEL_WARNING",
+        "description": "It pops up a low fuel message on the head unit"
+      },
+      {
+        "name": "LOW_SCREEN_BRIGHTNESS",
+        "description": "It decreases the head unit screen brightness"
+      },
+      {
+        "name": "MAX_RADIO_VOLUME",
+        "description": "It sets the radio volume to the max"
+      },
+      {
+        "name": "NAVIGATION_FULL_SCREEN",
+        "description": "It pops up the navigation app window"
+      },
+      {
+        "name": "REDUCE_RADIO_VOLUME",
+        "description": "It decreases the radio volume"
+      },
+      {
+        "name": "SEEK_DOWN_SEARCH",
+        "description": "It triggers the seek down radio frequency search"
+      },
+      {
+        "name": "SEEK_UP_SEARCH",
+        "description": "It triggers the seek up radio frequency search"
+      },
+      {
+        "name": "SET_NAVIGATION_ADDRESS",
+        "description": "It pops up the navigation address window"
+      },
+      {
+        "name": "SWITCH_OFF_HU",
+        "description": "It switches off the head unit"
+      },
+      {
+        "name": "SWITCH_ON_HU",
+        "description": "It switches on the head unit"
+      },
+      {
+        "name": "TOGGLE_RADIO_MUTE",
+        "description": "It mutes/umutes the radio"
+      }
+    ]
+  },
+  "payload_aix/ppc/shell_bind_tcp": {
+    "name": "AIX Command Shell, Bind TCP Inline",
+    "fullname": "payload/aix/ppc/shell_bind_tcp",
+    "aliases": [],
+    "rank": 300,
+    "disclosure_date": null,
+    "type": "payload",
+    "author": [
+      "Ramon de C Valle <rcvalle@metasploit.com>"
+    ],
+    "description": "Listen for a connection and spawn a command shell",
+    "references": [],
+    "platform": "AIX",
+    "arch": "ppc",
+    "rport": null,
+    "autofilter_ports": null,
+    "autofilter_services": null,
+    "targets": null,
+    "mod_time": "2025-04-20 02:57:34 +0000",
+    "path": "/modules/payloads/singles/aix/ppc/shell_bind_tcp.rb",
+    "is_install_path": true,
+    "ref_name": "aix/ppc/shell_bind_tcp",
+    "check": false,
+    "post_auth": false,
+    "default_credential": false,
+    "notes": {},
+    "session_types": false,
+    "needs_cleanup": false,
+    "payload_type": 1,
+    "staged": false
+  },
+  "exploit_multi/http/uptime_file_upload_2": {
+    "name": "Idera Up.Time Monitoring Station 7.4 post2file.php Arbitrary File Upload",
+    "fullname": "exploit/multi/http/uptime_file_upload_2",
+    "aliases": [],
+    "rank": 600,
+    "disclosure_date": "2013-11-18",
+    "type": "exploit",
+    "author": [
+      "Denis Andzakovic",
+      "Ewerson Guimaraes(Crash) <crash@dclabs.com.br>",
+      "Gjoko Krstic(LiquidWorm) <gjoko@zeroscience.mk>"
+    ],
+    "description": "This module exploits a vulnerability found in Uptime version 7.4.0 and 7.5.0.\n\n          The vulnerability began as a classic arbitrary file upload vulnerability in post2file.php,\n          which can be exploited by exploits/multi/http/uptime_file_upload_1.rb, but it was mitigated\n          by the vendor.\n\n          Although the mitigation in place will prevent uptime_file_upload_1.rb from working, it\n          can still be bypassed and gain privilege escalation, and allows the attacker to upload file\n          again, and execute arbitrary commands.",
+    "references": [
+      "CVE-2015-9263 ",
+      "EDB-37888",
+      "URL-http://www.zeroscience.mk/en/vulnerabilities/ZSL-2015-5254.php"
+    ],
+    "platform": "PHP",
+    "arch": "php",
+    "rport": 9999,
+    "autofilter_ports": [
+      80,
+      8080,
+      443,
+      8000,
+      8888,
+      8880,
+      8008,
+      3000,
+      8443
+    ],
+    "autofilter_services": [
+      "http",
+      "https"
+    ],
+    "targets": [
+      "Automatic"
+    ],
+    "mod_time": "2026-04-22 11:58:04 +0000",
+    "path": "/modules/exploits/multi/http/uptime_file_upload_2.rb",
+    "is_install_path": true,
+    "ref_name": "multi/http/uptime_file_upload_2",
+    "check": true,
+    "post_auth": true,
+    "default_credential": false,
+    "notes": {
+      "Reliability": [
+        "unknown-reliability"
+      ],
+      "Stability": [
+        "unknown-stability"
+      ],
+      "SideEffects": [
+        "unknown-side-effects"
+      ]
+    },
+    "session_types": false,
+    "needs_cleanup": null
+  }
+}

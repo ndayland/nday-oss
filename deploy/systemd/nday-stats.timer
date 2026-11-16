@@ -1,0 +1,10 @@
+[Unit]
+Description=Roll the nday access logs up into statistics every 10 minutes
+
+[Timer]
+OnCalendar=*:0/10
+RandomizedDelaySec=30
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,132 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- with .Body}}
+{{- if .ModeratorLimit}}
+<p class="note">{{t "admin.user.limited"}}</p>
+{{- end}}
+<section class="sec" aria-labelledby="h-profile">
+<h2 class="h2" id="h-profile"><span class="h" aria-hidden="true"># </span>{{t "admin.user.profile_h2"}}</h2>
+<dl class="facts acct-facts">
+<div><dt>{{t "admin.user.field" "field" "handle"}}</dt><dd>{{if .Handle}}<bdi>@{{.Handle}}</bdi>{{else}}{{t "admin.user.no_handle"}}{{end}}</dd></div>
+<div><dt>{{t "admin.user.field" "field" "display_name"}}</dt><dd><bdi>{{.DisplayName}}</bdi></dd></div>
+<div><dt>{{t "admin.user.field" "field" "id"}}</dt><dd><code>{{.ID}}</code></dd></div>
+<div><dt>{{t "admin.user.field" "field" "role"}}</dt><dd>{{t "acct.role.name" "role" .Role}}</dd></div>
+<div><dt>{{t "admin.user.field" "field" "status"}}</dt><dd><span class="adm-st {{.Status}}">{{t "admin.user.status" "status" .Status}}</span>{{if eq .Status "suspended"}} {{if .Until.Text}}{{t "admin.user.until" "time" .Until.HTML}}{{else}}{{t "admin.user.until_lifted"}}{{end}}{{end}}</dd></div>
+{{- if .Reason}}
+<div><dt>{{t "admin.user.field" "field" "reason"}}</dt><dd><bdi>{{.Reason}}</bdi></dd></div>
+{{- end}}
+<div><dt>{{t "admin.user.field" "field" "joined"}}</dt><dd>{{.Joined.HTML}}</dd></div>
+{{- if .Full}}
+<div><dt>{{t "admin.user.field" "field" "last_seen"}}</dt><dd>{{.LastSeen.HTML}}</dd></div>
+<div><dt>{{t "admin.user.field" "field" "passkeys"}}</dt><dd>{{.Passkeys}}</dd></div>
+<div><dt>{{t "admin.user.field" "field" "sessions"}}</dt><dd>{{.Sessions}}</dd></div>
+{{- end}}
+<div><dt>{{t "admin.user.field" "field" "comments"}}</dt><dd>{{.CommentCount}}</dd></div>
+</dl>
+</section>
+{{- if .Full}}
+<section class="sec" aria-labelledby="h-methods">
+<h2 class="h2" id="h-methods"><span class="h" aria-hidden="true"># </span>{{t "admin.user.methods_h2"}}</h2>
+{{- if .Identities}}
+<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+<thead><tr><th scope="col">{{t "admin.user.field" "field" "provider"}}</th><th scope="col">{{t "admin.user.field" "field" "provider_handle"}}</th><th scope="col">{{t "admin.user.field" "field" "subject"}}</th><th scope="col">{{t "admin.user.field" "field" "linked"}}</th><th scope="col">{{t "admin.user.field" "field" "last_used"}}</th></tr></thead>
+<tbody>
+{{- range .Identities}}
+<tr><td>{{.Provider}}</td><td><bdi>{{.Handle}}</bdi></td><td><code>{{.Subject}}</code></td><td>{{.Linked.HTML}}</td><td>{{.Used.HTML}}</td></tr>
+{{- end}}
+</tbody>
+</table>
+</div>
+{{- else}}
+<p class="note">{{t "admin.none"}}</p>
+{{- end}}
+</section>
+<section class="sec adm-actions" id="actions" aria-labelledby="h-actions" data-user="{{.ID}}">
+<h2 class="h2" id="h-actions"><span class="h" aria-hidden="true"># </span>{{t "admin.user.actions_h2"}}</h2>
+{{- if .Self}}
+<p class="note">{{t "admin.user.self"}}</p>
+{{- else if .Protected}}
+<p class="note">{{t "admin.user.protected"}}</p>
+{{- else}}
+<p class="note">{{t "admin.user.recent_note"}}</p>
+<form class="acct-form" id="f-suspend" data-act="suspend" novalidate="">
+<label for="in-sreason">{{t "admin.user.suspend_reason"}}</label>
+<textarea class="acct-in adm-ta" id="in-sreason" maxlength="{{.MaxReason}}" rows="2"></textarea>
+<label for="in-sfor">{{t "admin.user.suspend_for"}}</label>
+<div class="acct-row">
+<select class="acct-in" id="in-sfor">
+{{- range .Durations}}
+<option value="{{.}}">{{t "admin.user.duration" "d" .}}</option>
+{{- end}}
+</select>
+<button type="submit" class="btn acct-del">{{if eq .Status "suspended"}}{{t "admin.user.resuspend"}}{{else}}{{t "admin.user.suspend"}}{{end}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+<ul class="acct-btns">
+{{- if eq .Status "suspended"}}
+<li><button type="button" class="btn" data-act="unsuspend">{{t "admin.user.unsuspend"}}</button></li>
+{{- end}}
+{{- if eq .Role "user"}}
+<li><button type="button" class="btn" data-act="role" data-role="moderator">{{t "admin.user.grant_mod"}}</button></li>
+{{- else if eq .Role "moderator"}}
+<li><button type="button" class="btn" data-act="role" data-role="user">{{t "admin.user.revoke_mod"}}</button></li>
+{{- end}}
+<li><button type="button" class="btn" data-act="signout">{{t "admin.user.signout_all"}}</button></li>
+</ul>
+<p class="note">{{t "admin.user.signout_note"}}</p>
+<p class="acct-st" role="status" aria-live="polite"></p>
+{{- end}}
+</section>
+{{template "reauthpanel" .}}
+{{- end}}
+<section class="sec" aria-labelledby="h-comments">
+<h2 class="h2" id="h-comments"><span class="h" aria-hidden="true"># </span>{{t "admin.user.comments_h2"}}</h2>
+{{- if .Comments}}
+<div class="adm-list">
+{{- range .Comments}}
+{{template "modcomment" .}}
+{{- end}}
+</div>
+{{- else}}
+<p class="note">{{t "admin.none"}}</p>
+{{- end}}
+</section>
+<section class="sec" aria-labelledby="h-rabout">
+<h2 class="h2" id="h-rabout"><span class="h" aria-hidden="true"># </span>{{t "admin.user.reports_about_h2"}}</h2>
+{{template "reportrows" .ReportsAbout}}
+</section>
+{{- if .Full}}
+<section class="sec" aria-labelledby="h-rfiled">
+<h2 class="h2" id="h-rfiled"><span class="h" aria-hidden="true"># </span>{{t "admin.user.reports_filed_h2"}}</h2>
+{{template "reportrows" .ReportsFiled}}
+</section>
+<section class="sec" aria-labelledby="h-audit">
+<h2 class="h2" id="h-audit"><span class="h" aria-hidden="true"># </span>{{t "admin.user.audit_h2"}}</h2>
+{{- if .Audit}}
+{{template "auditrows" .Audit}}
+{{- else}}
+<p class="note">{{t "admin.none"}}</p>
+{{- end}}
+</section>
+{{- end}}
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}
+
+{{define "reportrows"}}{{if .}}<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+<thead><tr><th scope="col">{{t "admin.rep.col" "col" "when"}}</th><th scope="col">{{t "admin.rep.col" "col" "reason"}}</th><th scope="col">{{t "admin.rep.col" "col" "comment"}}</th><th scope="col">{{t "admin.rep.col" "col" "state"}}</th></tr></thead>
+<tbody>
+{{- range .}}
+<tr><td>{{.At.HTML}}</td><td>{{t "disc.report.reason" "reason" .Reason}}{{with .Note}}<br/><bdi class="cm-note">{{.}}</bdi>{{end}}</td><td><a href="{{.Permalink}}">{{.CVE}}</a> <bdi class="dim">{{.Excerpt}}</bdi></td><td>{{t "admin.rep.state" "state" .State}}</td></tr>
+{{- end}}
+</tbody>
+</table>
+</div>{{else}}<p class="note">{{t "admin.none"}}</p>{{end}}{{end}}

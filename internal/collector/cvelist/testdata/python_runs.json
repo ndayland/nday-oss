@@ -1,0 +1,2094 @@
+{
+ "test_404_tracked_skipped_then_retried_and_bounded": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 2,
+    "alias_inserted": 1,
+    "event_inserted": 3,
+    "event_updated": 0,
+    "fetched": 3,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 3,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 3,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {
+     "CVE-2026-80001": "2026-11-12T15:00:00+00:00",
+     "CVE-2026-80002": "2026-11-12T15:00:00+00:00",
+     "CVE-2026-80003": "2026-11-12T15:00:00+00:00"
+    },
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 3,
+     "backfill_missing_tracked": 3,
+     "backfill_queued": 3,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 3,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {
+     "CVE-2026-80001": "2026-11-12T15:00:00+00:00",
+     "CVE-2026-80002": "2026-11-12T15:00:00+00:00",
+     "CVE-2026-80003": "2026-11-12T15:00:00+00:00"
+    },
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 3,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 3,
+     "backfill_wanted": 3,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 1,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {
+     "CVE-2026-80001": "2026-11-20T14:00:00+00:00",
+     "CVE-2026-80003": "2026-11-20T14:00:00+00:00"
+    },
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 1,
+     "backfill_missing": 2,
+     "backfill_missing_tracked": 2,
+     "backfill_queued": 3,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 3,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 1,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 1,
+    "alias_inserted": 0,
+    "event_inserted": 1,
+    "event_updated": 0,
+    "fetched": 1,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 1,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 1
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {
+     "CVE-2026-80001": "2026-11-20T15:00:00+00:00",
+     "CVE-2026-80003": "2026-11-20T15:00:00+00:00"
+    },
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 2,
+     "backfill_missing_tracked": 2,
+     "backfill_queued": 2,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 2,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 3,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {
+     "CVE-2026-80001": "2026-12-20T14:00:00+00:00",
+     "CVE-2026-80003": "2026-12-20T14:00:00+00:00"
+    },
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 3,
+     "backfill_missing_tracked": 2,
+     "backfill_queued": 3,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 3,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_bootstrap_ignores_wanted": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 2,
+    "alias_inserted": 1,
+    "event_inserted": 3,
+    "event_updated": 0,
+    "fetched": 3,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 3,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 3,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_deltalog_failure_fails_run_and_keeps_cursor": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 6,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 4
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 5,
+    "alias_inserted": 1,
+    "event_inserted": 6,
+    "event_updated": 0,
+    "fetched": 6,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 6,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 6,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 6,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 4
+    },
+    "pending": []
+   },
+   "cvelist_status": "error",
+   "error": "HTTPStatusError"
+  }
+ ],
+ "test_falling_behind_warns_and_records_gap": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 6,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 4
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 5,
+    "alias_inserted": 1,
+    "event_inserted": 6,
+    "event_updated": 0,
+    "fetched": 6,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 6,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 6,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-12-22T14:00:00+00:00",
+      "log_starts": "2026-11-22T10:00:00.000Z",
+      "missed_from": "2026-11-12T09:00:00.000Z"
+     }
+    ],
+    "last_fetch_time": "2026-12-22T10:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 0,
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 2,
+     "files_missing": [],
+     "http_requests": 3,
+     "ids_queued": 2,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 2,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 2,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-12-22T14:00:00+00:00",
+      "log_starts": "2026-11-22T10:00:00.000Z",
+      "missed_from": "2026-11-12T09:00:00.000Z"
+     }
+    ],
+    "last_fetch_time": "2026-12-22T11:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 0,
+     "change_sets": 1,
+     "files_failed": 0,
+     "files_fetched": 1,
+     "files_missing": [],
+     "http_requests": 2,
+     "ids_queued": 1,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 1,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 1,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_first_run_falls_back_to_deltalog_when_zip_missing": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-11T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 3,
+     "files_failed": 0,
+     "files_fetched": 5,
+     "files_missing": [],
+     "http_requests": 8,
+     "ids_queued": 5,
+     "pending": 0,
+     "zip_records": 2
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 5,
+    "alias_inserted": 1,
+    "event_inserted": 6,
+    "event_updated": 0,
+    "fetched": 6,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 6,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 6,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_first_run_uses_zips_then_deltalog_for_today": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 6,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 4
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 5,
+    "alias_inserted": 1,
+    "event_inserted": 6,
+    "event_updated": 0,
+    "fetched": 6,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 6,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 6,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_incremental_fetches_only_new_change_sets": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 6,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 4
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 5,
+    "alias_inserted": 1,
+    "event_inserted": 6,
+    "event_updated": 0,
+    "fetched": 6,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 6,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 6,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T14:30:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 0,
+     "change_sets": 1,
+     "files_failed": 0,
+     "files_fetched": 1,
+     "files_missing": [],
+     "http_requests": 2,
+     "ids_queued": 1,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 1,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 1,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 1
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T15:30:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 0,
+     "change_sets": 1,
+     "files_failed": 0,
+     "files_fetched": 1,
+     "files_missing": [],
+     "http_requests": 2,
+     "ids_queued": 1,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 1,
+    "event_updated": 0,
+    "fetched": 1,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 1,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 1,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_kev_only_vuln_gains_disclosure": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 2,
+    "alias_inserted": 1,
+    "event_inserted": 3,
+    "event_updated": 0,
+    "fetched": 3,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 3,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 3,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "kev",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 5,
+    "alias_inserted": 0,
+    "event_inserted": 5,
+    "event_updated": 0,
+    "fetched": 5,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 5,
+    "raw_unchanged": 0,
+    "source": "kev",
+    "vuln_inserted": 5,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {
+     "CVE-2026-102895": "2026-11-12T15:00:00+00:00",
+     "CVE-2026-124194": "2026-11-12T15:00:00+00:00",
+     "CVE-2026-53362": "2026-11-12T15:00:00+00:00"
+    },
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 2,
+     "backfill_missing": 3,
+     "backfill_missing_tracked": 3,
+     "backfill_queued": 5,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 5,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 2,
+     "files_missing": [],
+     "http_requests": 6,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 1,
+    "alias_inserted": 0,
+    "event_inserted": 2,
+    "event_updated": 0,
+    "fetched": 2,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 2,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 2
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {
+     "CVE-2026-102895": "2026-11-12T15:00:00+00:00",
+     "CVE-2026-124194": "2026-11-12T15:00:00+00:00",
+     "CVE-2026-53362": "2026-11-12T15:00:00+00:00"
+    },
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 3,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 3,
+     "backfill_wanted": 3,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 1,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_missing_map_pruned_when_no_longer_wanted": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 2,
+    "alias_inserted": 1,
+    "event_inserted": 3,
+    "event_updated": 0,
+    "fetched": 3,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 3,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 3,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {
+     "CVE-2026-80001": "2026-11-12T15:00:00+00:00"
+    },
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 1,
+     "backfill_missing_tracked": 1,
+     "backfill_queued": 1,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 1,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 2,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 0,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 1,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_missing_record_file_is_dropped": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 2,
+     "files_missing": [
+      "CVE-2026-111793"
+     ],
+     "http_requests": 4,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 1,
+    "alias_inserted": 1,
+    "event_inserted": 2,
+    "event_updated": 0,
+    "fetched": 2,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 2,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 2,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_per_run_cap_keeps_backlog_pending": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 2,
+     "files_missing": [],
+     "http_requests": 3,
+     "ids_queued": 3,
+     "pending": 1,
+     "zip_records": 0
+    },
+    "pending": [
+     "CVE-2026-111793"
+    ]
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 1,
+    "alias_inserted": 1,
+    "event_inserted": 2,
+    "event_updated": 0,
+    "fetched": 2,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 2,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 2,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T15:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 0,
+     "change_sets": 1,
+     "files_failed": 0,
+     "files_fetched": 2,
+     "files_missing": [],
+     "http_requests": 3,
+     "ids_queued": 3,
+     "pending": 1
+    },
+    "pending": [
+     "CVE-2026-116081"
+    ]
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 1,
+    "alias_inserted": 0,
+    "event_inserted": 2,
+    "event_updated": 0,
+    "fetched": 2,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 2,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 2,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_pipeline_fills_wanted_only_for_opted_in": [
+  {
+   "collector": "spy",
+   "cvelist_cursor": null,
+   "cvelist_status": null,
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "spy",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "wspy",
+   "cvelist_cursor": null,
+   "cvelist_status": null,
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "wspy",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "kev",
+   "cvelist_cursor": null,
+   "cvelist_status": null,
+   "stats": {
+    "affected_inserted": 5,
+    "alias_inserted": 0,
+    "event_inserted": 5,
+    "event_updated": 0,
+    "fetched": 5,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 5,
+    "raw_unchanged": 0,
+    "source": "kev",
+    "vuln_inserted": 5,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_queue_order_pending_then_changes_then_wanted_under_cap": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 2,
+     "files_missing": [],
+     "http_requests": 3,
+     "ids_queued": 3,
+     "pending": 1,
+     "zip_records": 0
+    },
+    "pending": [
+     "CVE-2026-111793"
+    ]
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 1,
+    "alias_inserted": 1,
+    "event_inserted": 2,
+    "event_updated": 0,
+    "fetched": 2,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 2,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 2,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T15:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 2,
+     "backfill_failed": 0,
+     "backfill_fetched": 1,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 1,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 3,
+     "change_sets": 1,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 2,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 2,
+    "alias_inserted": 0,
+    "event_inserted": 3,
+    "event_updated": 0,
+    "fetched": 3,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 3,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 2,
+    "vuln_updated": 1
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T15:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 2,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 2,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 2,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 2,
+     "files_missing": [],
+     "http_requests": 3,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 2,
+    "alias_inserted": 0,
+    "event_inserted": 2,
+    "event_updated": 0,
+    "fetched": 2,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 2,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 2
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T15:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 0,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 1,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_retry_with_backoff_then_failure_stays_pending": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 1,
+     "files_fetched": 2,
+     "files_missing": [],
+     "http_requests": 9,
+     "ids_queued": 3,
+     "pending": 1,
+     "zip_records": 0
+    },
+    "pending": [
+     "CVE-2026-111793"
+    ]
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 1,
+    "alias_inserted": 1,
+    "event_inserted": 2,
+    "event_updated": 0,
+    "fetched": 2,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 2,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 2,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_second_run_is_idempotent": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 6,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 4
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 5,
+    "alias_inserted": 1,
+    "event_inserted": 6,
+    "event_updated": 0,
+    "fetched": 6,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 6,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 6,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 0,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 1,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 2,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": [
+      "2026-11-10",
+      "2026-11-11"
+     ]
+    },
+    "gaps": [],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 0,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 1,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  }
+ ],
+ "test_transient_failure_of_wanted_is_dropped_not_pending": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 2,
+    "alias_inserted": 1,
+    "event_inserted": 3,
+    "event_updated": 0,
+    "fetched": 3,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 3,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 3,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 1,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 1,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 1,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 0,
+     "files_missing": [],
+     "http_requests": 5,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 0,
+    "event_updated": 0,
+    "fetched": 0,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 0,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T16:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 1,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 1,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 1,
+     "change_sets": 1,
+     "files_failed": 0,
+     "files_fetched": 1,
+     "files_missing": [],
+     "http_requests": 6,
+     "ids_queued": 1,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 2,
+    "alias_inserted": 0,
+    "event_inserted": 1,
+    "event_updated": 0,
+    "fetched": 1,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 1,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 1,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T16:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 1,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 1,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 1,
+     "change_sets": 0,
+     "files_failed": 0,
+     "files_fetched": 1,
+     "files_missing": [],
+     "http_requests": 2,
+     "ids_queued": 0,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 1,
+    "alias_inserted": 0,
+    "event_inserted": 1,
+    "event_updated": 0,
+    "fetched": 1,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 1,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 1
+   }
+  }
+ ],
+ "test_wanted_id_already_in_change_set_is_not_backfill": [
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T09:00:00.000Z",
+    "last_run": {
+     "change_sets": 2,
+     "files_failed": 0,
+     "files_fetched": 3,
+     "files_missing": [],
+     "http_requests": 4,
+     "ids_queued": 3,
+     "pending": 0,
+     "zip_records": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 2,
+    "alias_inserted": 1,
+    "event_inserted": 3,
+    "event_updated": 0,
+    "fetched": 3,
+    "is_backfill": true,
+    "normalize_errors": 0,
+    "raw_new": 3,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 3,
+    "vuln_updated": 0
+   }
+  },
+  {
+   "collector": "cvelist",
+   "cvelist_cursor": {
+    "backfill_missing": {},
+    "bootstrap": {
+     "at": "2026-11-12T14:00:00+00:00",
+     "days": 0,
+     "deltalog_from": "2026-11-12T00:00:00+00:00",
+     "zip_days": []
+    },
+    "gaps": [
+     {
+      "detected_at": "2026-11-12T14:00:00+00:00",
+      "log_starts": "2026-11-12T08:00:00.000Z",
+      "missed_from": "2026-11-12T00:00:00+00:00"
+     }
+    ],
+    "last_fetch_time": "2026-11-12T15:00:00.000Z",
+    "last_run": {
+     "backfill_dropped": 0,
+     "backfill_failed": 0,
+     "backfill_fetched": 0,
+     "backfill_missing": 0,
+     "backfill_missing_tracked": 0,
+     "backfill_queued": 0,
+     "backfill_skipped_missing": 0,
+     "backfill_wanted": 1,
+     "change_sets": 1,
+     "files_failed": 0,
+     "files_fetched": 1,
+     "files_missing": [],
+     "http_requests": 2,
+     "ids_queued": 1,
+     "pending": 0
+    },
+    "pending": []
+   },
+   "cvelist_status": "ok",
+   "stats": {
+    "affected_inserted": 0,
+    "alias_inserted": 0,
+    "event_inserted": 1,
+    "event_updated": 0,
+    "fetched": 1,
+    "is_backfill": false,
+    "normalize_errors": 0,
+    "raw_new": 1,
+    "raw_unchanged": 0,
+    "source": "cvelist",
+    "vuln_inserted": 0,
+    "vuln_updated": 1
+   }
+  }
+ ]
+}

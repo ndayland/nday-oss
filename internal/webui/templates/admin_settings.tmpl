@@ -1,0 +1,104 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- with .Body}}
+<p class="note">{{t "admin.set.lede"}}</p>
+{{- if not .Available}}
+<p class="banner">{{t "admin.set.unavailable"}}</p>
+{{- else}}
+{{- if .Warnings}}
+<div class="banner">
+<p>{{t "admin.set.warnings"}}</p>
+{{- range .Warnings}}
+<p><code dir="ltr">{{.}}</code></p>
+{{- end}}
+</div>
+{{- end}}
+{{- $key := .HasKey}}
+{{- if gt (len .Groups) 1}}
+<nav class="seg adm-jump" aria-label="{{ts "admin.set.jump_label"}}">
+{{- range .Groups}}
+<a href="#set-{{.Name}}">{{t "admin.set.group_h2" "group" .Name}}</a>
+{{- end}}
+</nav>
+{{- end}}
+{{- range .Groups}}
+{{- $g := .Name}}
+<section class="sec" id="set-{{$g}}" aria-labelledby="h-set-{{$g}}">
+<h2 class="h2" id="h-set-{{$g}}"><span class="h" aria-hidden="true"># </span>{{t "admin.set.group_h2" "group" $g}}</h2>
+<p class="note">{{t "admin.set.group_note" "group" $g}} {{t "admin.set.empty_note"}}</p>
+<form class="acct-form adm-xset adm-setform" data-group="{{$g}}" novalidate="">
+{{- range .Plain}}
+<div class="adm-field" id="s-{{.Key}}" data-key="{{.Key}}" data-kind="{{.Kind}}">
+<div class="adm-sname"><label for="in-{{.Key}}">{{t "admin.set.name" "key" .Key}}</label> <code class="adm-skey" dir="ltr">{{.Key}}</code></div>
+<p class="note">{{t "admin.set.desc" "key" .Key}}</p>
+<div class="acct-row">
+{{- if eq .Kind "onoff"}}
+<select class="acct-in" id="in-{{.Key}}" data-in="">
+<option value=""{{if eq .Value ""}} selected=""{{end}}>{{t "admin.set.not_stored"}}</option>
+<option value="on"{{if eq .Value "on"}} selected=""{{end}}>{{t "admin.x.onoff" "v" "on"}}</option>
+<option value="off"{{if eq .Value "off"}} selected=""{{end}}>{{t "admin.x.onoff" "v" "off"}}</option>
+{{- if and .Value (ne .Value "on") (ne .Value "off")}}
+<option value="{{.Value}}" selected="">{{.Value}}</option>
+{{- end}}
+</select>
+{{- else}}
+<input class="acct-in" id="in-{{.Key}}" data-in="" type="text" value="{{.Value}}" maxlength="1024" autocomplete="off" spellcheck="false" autocapitalize="none" dir="ltr" placeholder="{{ts "admin.set.not_stored"}}"/>
+{{- end}}
+<span class="adm-st {{.Source}}" data-src="">{{t "admin.set.source" "src" .Source}}</span>
+{{- if .Restart}}
+<span class="dim">{{t "admin.set.restart"}}</span>
+{{- else}}
+<span class="dim">{{t "admin.set.effect" "when" .Effect}}</span>
+{{- end}}
+</div>
+<p class="acct-st" data-err="" role="status" aria-live="polite"></p>
+</div>
+{{- end}}
+{{- range .Secrets}}
+{{- if .Stored}}
+<label class="adm-def"><input type="checkbox" data-clear="{{.Key}}"/> <code dir="ltr">{{.Key}}</code> {{t "admin.set.clear_on_save"}}</label>
+{{- end}}
+{{- end}}
+<div><button type="submit" class="btn acct-del">{{t "admin.set.save"}}</button></div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+{{- if .Secrets}}
+<h3 class="adm-h3">{{t "admin.set.secrets_h3"}}</h3>
+<p class="note">{{t "admin.set.secrets_note"}}</p>
+{{- if not $key}}
+<p class="banner">{{t "admin.set.no_key"}}</p>
+{{- end}}
+{{- range .Secrets}}
+<form class="acct-form adm-field adm-secret" id="s-{{.Key}}" data-key="{{.Key}}" data-kind="{{.Kind}}" novalidate="">
+<div class="adm-sname"><label for="in-{{.Key}}">{{t "admin.set.name" "key" .Key}}</label> <code class="adm-skey" dir="ltr">{{.Key}}</code></div>
+<p class="note">{{t "admin.set.desc" "key" .Key}}</p>
+<p><span data-sstate="">{{if eq .SecretState "set"}}{{if .Hint}}{{t "admin.set.secret_set_hint" "hint" .Hint}}{{else}}{{t "admin.set.secret_state" "state" "set"}}{{end}}{{else}}{{t "admin.set.secret_state" "state" .SecretState}}{{end}}</span>
+<span class="adm-st {{.Source}}" data-src="">{{t "admin.set.source" "src" .Source}}</span>
+<span class="dim">{{if .Restart}}{{t "admin.set.restart"}}{{else}}{{t "admin.set.effect" "when" .Effect}}{{end}}</span></p>
+<div class="acct-row">
+{{- if eq .Kind "pem"}}
+<textarea class="acct-in adm-ta adm-import" id="in-{{.Key}}" rows="5" autocomplete="off" spellcheck="false" autocapitalize="none" dir="ltr"{{if not $key}} disabled=""{{end}}></textarea>
+{{- else}}
+<input class="acct-in" id="in-{{.Key}}" type="password" autocomplete="off" spellcheck="false" autocapitalize="none" dir="ltr"{{if not $key}} disabled=""{{end}}/>
+{{- end}}
+</div>
+<div class="acct-row">
+<button type="submit" class="btn"{{if not $key}} disabled=""{{end}}>{{t "admin.set.secret_save"}}</button>
+<button type="button" class="btn acct-del" data-act="clearsecret"{{if not .Stored}} disabled=""{{end}}>{{t "admin.set.secret_clear"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+{{- end}}
+{{- end}}
+</section>
+{{- end}}
+{{- end}}
+{{template "reauthpanel" .}}
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}

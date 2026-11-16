@@ -1,0 +1,309 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- with .Body}}
+<p class="note">{{t "admin.x.lede"}}</p>
+<section class="sec" id="status" aria-labelledby="h-xstatus">
+<h2 class="h2" id="h-xstatus"><span class="h" aria-hidden="true"># </span>{{t "admin.x.status_h2"}}</h2>
+<dl class="facts">
+<div><dt>{{t "admin.sys.col" "col" "status"}}</dt><dd><span class="{{.StatusClass}}">{{.Status}}</span></dd></div>
+<div><dt>{{t "admin.sys.col" "col" "last_run"}}</dt><dd>{{.LastRun.HTML}}</dd></div>
+<div><dt>{{t "admin.sys.col" "col" "last_success"}}</dt><dd>{{.LastOK.HTML}}</dd></div>
+<div><dt>{{t "admin.x.field" "f" "accounts"}}</dt><dd>{{.EnabledN}} / {{.Total}}</dd></div>
+</dl>
+{{- with .Error}}
+<p class="note">{{t "admin.sys.col" "col" "error"}}: <bdi class="adm-err">{{.}}</bdi></p>
+{{- end}}
+{{- if .HasRun}}
+<h3 class="adm-h3">{{t "admin.x.last_run_h3"}} <span class="dim">{{.RunAt.HTML}}</span></h3>
+{{- if .Skipped}}
+<p class="banner">{{t "admin.x.skipped" "why" .Skipped}}</p>
+{{- else}}
+<dl class="facts">
+<div><dt>{{t "admin.x.field" "f" "posts"}}</dt><dd>{{.Posts}}</dd></div>
+<div><dt>{{t "admin.x.field" "f" "kept"}}</dt><dd>{{.Kept}}</dd></div>
+<div><dt>{{t "admin.x.field" "f" "kept_no_cve"}}</dt><dd>{{.KeptNoCVE}}</dd></div>
+<div><dt>{{t "admin.x.field" "f" "dropped_author"}}</dt><dd>{{.DroppedAuthor}}</dd></div>
+<div><dt>{{t "admin.x.field" "f" "requests"}}</dt><dd>{{.Requests}}</dd></div>
+<div><dt>{{t "admin.x.field" "f" "batches"}}</dt><dd>{{.BatchesDone}} / {{.Batches}}</dd></div>
+<div><dt>{{t "admin.x.field" "f" "mode"}}</dt><dd><code>{{.Mode}}</code></dd></div>
+<div><dt>{{t "admin.x.field" "f" "since_id"}}</dt><dd><code dir="ltr">{{.SinceID}}</code></dd></div>
+</dl>
+{{- if .Stopped}}
+<p class="banner">{{t "admin.x.stopped"}} <code dir="ltr">{{.Stopped}}</code>{{with .StopInfo}} <code class="adm-det" dir="ltr">{{.}}</code>{{end}}</p>
+{{- end}}
+{{- end}}
+{{- else}}
+<p class="note">{{t "admin.x.never_ran"}}</p>
+{{- end}}
+<p class="note">{{t "admin.x.token_note"}}</p>
+</section>
+
+<section class="sec" id="cost" aria-labelledby="h-xcost">
+<h2 class="h2" id="h-xcost"><span class="h" aria-hidden="true"># </span>{{t "admin.x.cost_h2"}}</h2>
+<p class="note">{{t "admin.x.price" "price" .Price}}{{if .LastCost}} {{t "admin.x.last_cost" "posts" .Posts "cost" .LastCost}}{{end}}</p>
+<dl class="totals adm-cost" id="x-cost" data-price="{{.PriceRaw}}" data-runs="{{.RunsPerDay}}" data-page="{{.PostsPerPage}}">
+<div><dt>{{t "admin.x.worst" "per" "run"}}</dt><dd id="x-worst-run">{{.WorstRun}}</dd><dd class="adm-sub" id="x-worst-posts">{{t "admin.x.worst_posts" "n" .WorstPosts}}</dd></div>
+<div><dt>{{t "admin.x.worst" "per" "day"}}</dt><dd id="x-worst-day">{{.WorstDay}}</dd></div>
+<div><dt>{{t "admin.x.worst" "per" "month"}}</dt><dd id="x-worst-30">{{.Worst30}}</dd></div>
+</dl>
+<p class="note">{{t "admin.x.schedule_note" "runs" .RunsPerDay}}</p>
+</section>
+
+<section class="sec" id="settings" aria-labelledby="h-xset">
+<h2 class="h2" id="h-xset"><span class="h" aria-hidden="true"># </span>{{t "admin.x.settings_h2"}}</h2>
+{{- range .Warnings}}
+<p class="banner"><code dir="ltr">{{.}}</code></p>
+{{- end}}
+<p class="note">{{if .SettingsStored}}{{t "admin.x.settings_at" "time" .SettingsAt.HTML}}{{else}}{{t "admin.x.settings_none"}}{{end}} {{t "admin.user.recent_note"}}</p>
+<form class="acct-form adm-xset" id="f-xset" novalidate="">
+<div class="adm-field" data-field="enabled">
+<label for="x-enabled">{{t "admin.x.setting" "s" "enabled"}}</label>
+<div class="acct-row">
+<select class="acct-in" id="x-enabled">
+<option value="default"{{if eq .Enabled "default"}} selected=""{{end}}>{{t "admin.x.use_default" "value" (ts "admin.x.onoff" "v" "on")}}</option>
+<option value="on"{{if eq .Enabled "on"}} selected=""{{end}}>{{t "admin.x.onoff" "v" "on"}}</option>
+<option value="off"{{if eq .Enabled "off"}} selected=""{{end}}>{{t "admin.x.onoff" "v" "off"}}</option>
+</select>
+</div>
+<p class="acct-st" data-err="enabled" role="status" aria-live="polite"></p>
+</div>
+{{- range .Fields}}
+<div class="adm-field" data-field="{{.Name}}" data-default="{{.Default}}" data-min="{{.Min}}" data-max="{{.Max}}">
+<label for="x-{{.Name}}">{{t "admin.x.setting" "s" .Name}}</label>
+<div class="acct-row">
+<input class="acct-in adm-num" id="x-{{.Name}}" type="number" inputmode="numeric" min="{{.Min}}" max="{{.Max}}" step="1" value="{{if .UsesDefault}}{{.Default}}{{else}}{{.Value}}{{end}}"{{if .UsesDefault}} disabled=""{{end}}/>
+<label class="adm-def"><input type="checkbox" data-def="{{.Name}}"{{if .UsesDefault}} checked=""{{end}}/> {{t "admin.x.use_default" "value" .Default}}</label>
+</div>
+<p class="note">{{t "admin.x.range" "min" .Min "max" .Max "default" .Default}}</p>
+<p class="acct-st" data-err="{{.Name}}" role="status" aria-live="polite"></p>
+</div>
+{{- end}}
+<div><button type="submit" class="btn acct-del">{{t "admin.x.save"}}</button></div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</section>
+
+<section class="sec adm-xacc" id="accounts" aria-labelledby="h-xacc">
+<h2 class="h2" id="h-xacc"><span class="h" aria-hidden="true"># </span>{{t "admin.x.accounts_h2"}}</h2>
+<p class="note">{{t "admin.x.accounts_note"}}</p>
+{{- if .Total}}
+<form class="acct-form adm-filter" method="get" action="{{href "/admin/x"}}#accounts" role="search">
+<div class="acct-row">
+<label for="in-xq">{{t "admin.x.search_label"}}</label>
+<input class="acct-in" id="in-xq" type="search" name="q" value="{{.Q}}" maxlength="32" autocomplete="off" spellcheck="false" autocapitalize="none"/>
+{{- with .Author}}
+<input type="hidden" name="author" value="{{.}}"/>
+{{- end}}
+{{- with .CVE}}
+<input type="hidden" name="cve" value="{{.}}"/>
+{{- end}}
+<button type="submit" class="btn">{{t "admin.x.search"}}</button>
+{{- with .AccClear}}
+<a href="{{.}}">{{t "admin.x.search_clear"}}</a>
+{{- end}}
+</div>
+</form>
+{{- end}}
+{{- if .List}}
+<p class="note">{{if .Q}}{{t "admin.x.search_found" "n" .Matched "total" .Total "q" .QHTML "from" .From "to" .To}}{{else}}{{t "admin.x.accounts_range" "total" .Matched "from" .From "to" .To}}{{end}}</p>
+<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+<thead><tr><th scope="col">{{t "admin.x.col" "c" "user_id"}}</th><th scope="col">{{t "admin.x.col" "c" "handle"}}</th><th scope="col">{{t "admin.x.col" "c" "note"}}</th><th scope="col">{{t "admin.x.col" "c" "state"}}</th><th scope="col">{{t "admin.x.col" "c" "posts"}}</th><th scope="col">{{t "admin.x.col" "c" "created"}}</th><th scope="col">{{t "admin.x.col" "c" "updated"}}</th><th scope="col">{{t "admin.x.col" "c" "actions"}}</th></tr></thead>
+<tbody>
+{{- $max := .MaxNote}}
+{{- range .List}}
+<tr>
+<td><code dir="ltr">{{.UserID}}</code></td>
+<td>{{if .Href}}<a href="{{.Href}}" rel="noopener noreferrer nofollow">@{{.Handle}}</a>{{else}}<bdi>@{{.Handle}}</bdi>{{end}}</td>
+<td><bdi>{{.Note}}</bdi></td>
+<td><span class="adm-st {{if .Enabled}}active{{else}}suspended{{end}}">{{t "admin.x.state" "s" .State}}</span></td>
+<td class="r">{{.Posts}}</td>
+<td>{{.Created.HTML}}</td>
+<td>{{.Updated.HTML}}</td>
+<td>
+<div class="cm-acts">
+{{- if .Enabled}}
+<button type="button" class="btn sm" data-act="xdisable" data-x="{{.UserID}}">{{t "admin.x.disable"}}</button>
+{{- else}}
+<button type="button" class="btn sm" data-act="xenable" data-x="{{.UserID}}">{{t "admin.x.enable"}}</button>
+{{- end}}
+</div>
+<details class="adm-hist"><summary>{{t "admin.x.edit"}}</summary>
+<form class="acct-form adm-xedit" data-x="{{.UserID}}" novalidate="">
+<input class="acct-in" type="text" name="handle" value="{{.Handle}}" maxlength="16" autocomplete="off" spellcheck="false" autocapitalize="none" aria-label="{{ts "admin.x.col" "c" "handle"}}"/>
+<input class="acct-in" type="text" name="note" value="{{.FormNote}}" maxlength="{{$max}}" autocomplete="off" aria-label="{{ts "admin.x.col" "c" "note"}}"/>
+<button type="submit" class="btn sm">{{t "admin.x.save"}}</button>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</details>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</td>
+</tr>
+{{- end}}
+</tbody>
+</table>
+</div>
+{{- if gt .Pages 1}}
+<p class="pager">{{with .AccPrev}}<a href="{{.}}" rel="prev">{{t "admin.x.prev"}}</a>{{end}}<span>{{t "admin.x.page_of" "page" .Page "pages" .Pages}}</span>{{with .AccNext}}<a href="{{.}}" rel="next">{{t "admin.next"}}</a>{{end}}</p>
+{{- end}}
+{{- else if and .Q .Total}}
+<p class="note">{{t "admin.x.search_none" "q" .QHTML}} <a href="{{.AccClear}}">{{t "admin.x.search_clear"}}</a></p>
+{{- else}}
+<p class="note">{{t "admin.none"}}</p>
+{{- end}}
+<form class="acct-form" id="f-xadd" novalidate="" data-lookup="{{if .Lookup}}on{{else}}off{{end}}">
+<h3 class="adm-h3">{{t "admin.x.add_h3"}}</h3>
+<p class="note" id="x-lookup">{{if .Lookup}}{{t "admin.x.lookup_on"}}{{else}}{{t "admin.x.lookup_off"}}{{end}}</p>
+<div class="acct-row">
+<input class="acct-in" id="x-add-handle" type="text" maxlength="16" autocomplete="off" spellcheck="false" autocapitalize="none" aria-label="{{ts "admin.x.col" "c" "handle"}}" placeholder="{{ts "admin.x.col" "c" "handle"}}"/>
+<input class="acct-in" id="x-add-note" type="text" maxlength="{{.MaxNote}}" autocomplete="off" aria-label="{{ts "admin.x.col" "c" "note"}}" placeholder="{{ts "admin.x.col" "c" "note"}}"/>
+<input class="acct-in" id="x-add-id" type="text" inputmode="numeric" maxlength="19" autocomplete="off" spellcheck="false" aria-label="{{ts "admin.x.add_id"}}" placeholder="{{ts "admin.x.add_id"}}"/>
+<button type="submit" class="btn">{{t "admin.x.add"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+<form class="acct-form" id="f-ximport" novalidate="">
+<h3 class="adm-h3"><label for="x-import">{{t "admin.x.import_h3"}}</label></h3>
+<p class="note">{{t "admin.x.import_note"}}</p>
+<textarea class="acct-in adm-ta adm-import" id="x-import" rows="6" spellcheck="false" autocomplete="off"></textarea>
+<div class="acct-row">
+<button type="button" class="btn" data-act="ximport" data-dry="1">{{t "admin.x.preview"}}</button>
+<button type="button" class="btn acct-del" data-act="ximport" data-dry="0">{{t "admin.x.import"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+<ul class="adm-reps" id="x-import-lines"></ul>
+</form>
+</section>
+
+<section class="sec adm-xcand" id="candidates" aria-labelledby="h-xcand">
+<h2 class="h2" id="h-xcand"><span class="h" aria-hidden="true"># </span>{{t "admin.x.cand_h2"}}</h2>
+<p class="acct-st" role="status" aria-live="polite"></p>
+{{- if .Cands.Rows}}
+{{- if gt .CandN (len .Cands.Rows)}}
+<p class="note">{{t "admin.x.cand_first" "shown" (len .Cands.Rows) "total" .CandN}}</p>
+{{- end}}
+{{template "xcands" .Cands}}
+{{- else}}
+<p class="note">{{t "admin.none"}}</p>
+{{- end}}
+{{- if .CandDismissedN}}
+<details class="adm-hist"><summary>{{t "admin.x.cand_dismissed" "n" .CandDismissedN}}</summary>
+{{- if gt .CandDismissedN (len .CandsDismissed.Rows)}}
+<p class="note">{{t "admin.x.cand_first" "shown" (len .CandsDismissed.Rows) "total" .CandDismissedN}}</p>
+{{- end}}
+{{template "xcands" .CandsDismissed}}
+</details>
+{{- end}}
+</section>
+
+<section class="sec" id="posts" aria-labelledby="h-xposts">
+<h2 class="h2" id="h-xposts"><span class="h" aria-hidden="true"># </span>{{t "admin.x.posts_h2"}}</h2>
+<div class="adm-charts">
+{{- with .Chart}}
+<figure class="adm-chart" id="{{.ID}}">
+<figcaption>{{t "admin.stats.chart" "chart" .Key}}</figcaption>
+<div class="adm-plot">
+<span class="adm-max">{{.Max}}</span>
+<svg viewBox="0 0 {{.Width}} 100" preserveAspectRatio="none" role="img" aria-label="{{.Aria}}">
+{{- range .Bars}}<rect class="{{.Class}}" x="{{.X}}" y="{{.Y}}" width="{{.W}}" height="{{.H}}"><title>{{.Title}}</title></rect>{{end}}
+</svg>
+</div>
+<div class="adm-axis"><span>{{.First}}</span><span>{{.Last}}</span></div>
+{{- if .Empty}}
+<p class="note">{{t "admin.stats.chart_empty"}}</p>
+{{- end}}
+</figure>
+{{- end}}
+<section class="adm-top" aria-labelledby="h-xper">
+<h3 class="adm-h3" id="h-xper">{{t "admin.x.per_account_h3"}}</h3>
+{{- if .PerAccount}}
+<div class="tbl-x"><table class="aff adm-tbl">
+<thead><tr><th scope="col">{{t "admin.x.col" "c" "handle"}}</th><th scope="col" class="r">{{t "admin.x.col" "c" "posts"}}</th></tr></thead>
+<tbody>
+{{- range .PerAccount}}
+<tr><td>{{if .Profile}}<a href="{{.Profile}}" rel="noopener noreferrer nofollow">@{{.Handle}}</a>{{else}}<bdi>@{{.Handle}}</bdi>{{end}} <code class="dim" dir="ltr">{{.AuthorID}}</code></td><td class="r">{{.Posts}}</td></tr>
+{{- end}}
+</tbody>
+</table></div>
+{{- else}}
+<p class="note">{{t "admin.none"}}</p>
+{{- end}}
+</section>
+</div>
+<form class="acct-form adm-filter" method="get" action="{{href "/admin/x"}}#posts">
+<div class="acct-row">
+<label for="in-xauthor">{{t "admin.x.col" "c" "handle"}}</label>
+<input class="acct-in" id="in-xauthor" type="text" name="author" value="{{.Author}}" maxlength="16" autocomplete="off" spellcheck="false" autocapitalize="none"/>
+</div>
+<div class="acct-row">
+<label for="in-xcve">{{t "admin.x.col" "c" "cve"}}</label>
+<input class="acct-in" id="in-xcve" type="text" name="cve" value="{{.CVE}}" maxlength="24" autocomplete="off" spellcheck="false"/>
+<button type="submit" class="btn">{{t "admin.audit.apply"}}</button>
+</div>
+{{- with .Q}}
+<input type="hidden" name="q" value="{{.}}"/>
+{{- end}}
+{{- with .PageParam}}
+<input type="hidden" name="page" value="{{.}}"/>
+{{- end}}
+</form>
+{{- if .PostList}}
+<div class="adm-list">
+{{- range .PostList}}
+<article class="cm adm-cm">
+<p class="cm-h">{{if .Profile}}<a class="cm-au" href="{{.Profile}}" rel="noopener noreferrer nofollow">@{{.Handle}}</a>{{else}}<bdi class="cm-au">@{{.Handle}}</bdi>{{end}}
+<span class="cm-time">{{.At.HTML}}</span>
+{{- range .CVEs}} {{template "link" .}}{{end}}
+{{- with .URL}} <a href="{{.}}" rel="noopener noreferrer nofollow">{{t "admin.x.on_x"}}</a>{{end}}
+<span class="dim">{{t "admin.x.seen" "time" .Seen.HTML}}</span></p>
+<p class="cm-body adm-tweet" dir="auto"{{with .Lang}} lang="{{.}}"{{end}}>{{.Text}}</p>
+</article>
+{{- end}}
+</div>
+{{- else}}
+<p class="note">{{t "admin.x.posts_none"}}</p>
+{{- end}}
+{{- if or .Next .First}}
+<p class="pager">{{with .First}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .Next}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
+{{- end}}
+</section>
+{{template "reauthpanel" .}}
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}
+
+{{define "xcands"}}<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+<thead><tr><th scope="col">{{t "admin.x.cand_col" "c" "handle"}}</th><th scope="col">{{t "admin.x.cand_col" "c" "user_id"}}</th><th scope="col" class="r">{{t "admin.x.cand_col" "c" "referrers"}}</th><th scope="col">{{t "admin.x.cand_col" "c" "kinds"}}</th><th scope="col">{{t "admin.x.cand_col" "c" "last_seen"}}</th><th scope="col">{{t "admin.x.cand_col" "c" "actions"}}</th></tr></thead>
+<tbody>
+{{- $open := .Open}}
+{{- range .Rows}}
+<tr data-cand="{{.UserID}}">
+<td>{{if .Href}}<a href="{{.Href}}" rel="noopener noreferrer nofollow">@{{.Handle}}</a>{{else}}<span class="dim">—</span>{{end}}</td>
+<td><code class="dim" dir="ltr">{{.UserID}}</code></td>
+<td class="r">{{.Referrers}}</td>
+<td>{{range $i, $k := .Kinds}}{{if $i}} · {{end}}{{t "admin.x.cand_kind" "k" $k}}{{end}}</td>
+<td>{{.LastSeen.HTML}}</td>
+<td>
+<div class="cm-acts">
+{{- if $open}}
+{{- if .Href}}
+<button type="button" class="btn sm" data-act="xcadd" data-x="{{.UserID}}">{{t "admin.x.cand_add"}}</button>
+{{- end}}
+<button type="button" class="btn sm" data-act="xcdismiss" data-x="{{.UserID}}">{{t "admin.x.cand_dismiss"}}</button>
+{{- else}}
+<button type="button" class="btn sm" data-act="xcrestore" data-x="{{.UserID}}">{{t "admin.x.cand_restore"}}</button>
+{{- end}}
+</div>
+</td>
+</tr>
+{{- end}}
+</tbody>
+</table>
+</div>
+{{- end}}

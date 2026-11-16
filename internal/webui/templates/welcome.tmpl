@@ -1,0 +1,96 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main acctpage wel" id="main" data-page="welcome" data-dest="{{.Dest}}">
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "acct.welcome.h1"}}</h1>
+<p class="lede">{{t "acct.welcome.lede"}}</p>
+</div>
+<noscript><p class="lede">{{t "acct.page.nojs"}}</p></noscript>
+<p class="acct-st" id="acct-status" role="status" aria-live="polite"><span id="acct-loading" class="dim" hidden="">{{t "acct.page.loading"}}</span></p>
+
+<section class="acct-sec" id="acct-out" hidden="" aria-labelledby="acct-out-t">
+<p class="lede" id="acct-out-t">{{t "acct.page.signed_out"}}</p>
+<ul class="acct-btns">
+<li><a class="btn acct-btn" href="{{.LoginHref}}">{{t "acct.slot.signin"}}</a></li>
+</ul>
+</section>
+
+<div class="acct-body wel-body" id="acct-in" hidden="">
+<section class="acct-sec" aria-labelledby="w-h-handle">
+<h2 class="h2" id="w-h-handle"><span class="h" aria-hidden="true">1 </span>{{t "acct.welcome.handle_h2"}}</h2>
+<div class="acct-row">
+<span class="prompt" aria-hidden="true">@</span>
+<input class="acct-in" id="w-handle" type="text" maxlength="30" autocomplete="off" spellcheck="false" autocapitalize="none" aria-labelledby="w-h-handle" aria-describedby="w-handle-st w-handle-rules"/>
+</div>
+<p class="acct-st" id="w-handle-st" role="status" aria-live="polite"></p>
+<div><button type="button" class="btn wel-use" id="w-handle-use" hidden=""></button></div>
+<ul id="w-provs" hidden="">{{range .Providers}}<li data-p="{{.ID}}">{{.Name}}</li>{{end}}</ul>
+<p class="note" id="w-handle-rules">{{t "acct.welcome.handle_rules"}}</p>
+</section>
+
+<section class="acct-sec" aria-labelledby="w-h-follows">
+<div class="wel-head">
+<h2 class="h2" id="w-h-follows"><span class="h" aria-hidden="true">2 </span>{{t "acct.welcome.follows_h2"}}</h2>
+<span class="dim" id="w-count">{{t "acct.welcome.follows_count" "n" 0}}</span>
+</div>
+<p class="note">{{t "acct.welcome.follows_note"}}</p>
+<ul class="wel-chips" id="w-presets" aria-label="{{ts "acct.welcome.presets_label"}}">
+{{- range .Presets}}
+<li><button type="button" class="btn wel-chip" aria-pressed="false" data-term="{{.Term}}" data-label="{{.Label}}"><span class="wel-mk" aria-hidden="true">[ ]</span>{{.Label}}</button></li>
+{{- end}}
+</ul>
+<ul class="wel-chips" id="w-extra" hidden=""></ul>
+<label for="w-q">{{t "acct.welcome.search_label"}}</label>
+<div class="acct-row">
+<span class="prompt" aria-hidden="true">/</span>
+<input class="acct-in" id="w-q" type="search" maxlength="100" autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="w-q-hint" aria-controls="w-res"/>
+</div>
+<p class="note" id="w-q-hint">{{t "acct.welcome.search_hint"}}</p>
+<ul class="wel-res" id="w-res" hidden=""></ul>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</section>
+
+{{- if .Rules}}
+<section class="acct-sec" id="w-rules" aria-labelledby="w-h-rules">
+<h2 class="h2" id="w-h-rules"><span class="h" aria-hidden="true">3 </span>{{t "rules.title"}}</h2>
+<label class="wel-chk" id="w-accept-l"><input type="checkbox" id="w-accept"/><span>{{t "acct.welcome.rules_accept"}}</span></label>
+<p class="note">{{t "acct.welcome.rules_note"}} <a href="{{href "/rules"}}">{{t "acct.welcome.rules_link"}}</a></p>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</section>
+{{- end}}
+
+<div class="cmd wel-cmd" role="group" aria-label="{{ts "acct.welcome.cmd_label"}}">
+<span class="prompt" aria-hidden="true">$</span>
+<code id="w-cmd">nday init</code>
+</div>
+
+<div class="wel-acts">
+<button type="button" class="btn wel-go" id="w-done">{{if .Next}}{{t "acct.welcome.finish_next"}}{{else}}{{t "acct.welcome.finish"}}{{end}}</button>
+<a class="wel-skip" href="{{.Dest}}">{{t "acct.welcome.skip"}}</a>
+</div>
+</div>
+</main>
+{{- if .DiscussDemo}}
+<aside class="side wel-side" aria-labelledby="w-side-h">
+<section class="panel">
+<h2 id="w-side-h"><span class="h" aria-hidden="true"># </span>{{t "acct.welcome.side_h2"}}</h2>
+<div class="wel-cmp">
+<div class="wel-pane">
+<p class="wel-lab">{{t "acct.welcome.side_out"}}</p>
+<p class="wel-scrib" aria-hidden="true">{{range .Scribble}}<span>{{.}}</span> {{end}}</p>
+<p class="sr">{{t "acct.welcome.sample_hidden"}}</p>
+</div>
+<div class="wel-pane">
+<p class="wel-lab in">{{t "acct.welcome.side_in"}}</p>
+<p class="wel-author">{{t "acct.welcome.sample_author"}}</p>
+<p class="wel-text">{{t "acct.welcome.sample_text"}}</p>
+</div>
+</div>
+<p class="note">{{t "acct.welcome.sample_note"}}</p>
+</section>
+</aside>
+{{- end}}
+</div>
+</div>
+{{end}}{{end}}

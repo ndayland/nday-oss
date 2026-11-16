@@ -1,0 +1,1264 @@
+%%% CVE-2024-42311 syzbot KMSAN report: frames with and without offsets, [inline], file:line, section label
+=====================================================
+BUG: KMSAN: uninit-value in hfs_revalidate_dentry+0x307/0x3f0 fs/hfs/sysdep.c:30
+ hfs_revalidate_dentry+0x307/0x3f0 fs/hfs/sysdep.c:30
+ d_revalidate fs/namei.c:862 [inline]
+ lookup_fast+0x89e/0x8e0 fs/namei.c:1649
+ walk_component fs/namei.c:2001 [inline]
+ link_path_walk+0x817/0x1480 fs/namei.c:2332
+ path_lookupat+0xd9/0x6f0 fs/namei.c:2485
+ filename_lookup+0x22e/0x740 fs/namei.c:2515
+ user_path_at_empty+0x8b/0x390 fs/namei.c:2924
+ user_path_at include/linux/namei.h:57 [inline]
+ do_mount fs/namespace.c:3689 [inline]
+ __do_sys_mount fs/namespace.c:3898 [inline]
+ __se_sys_mount+0x66b/0x810 fs/namespace.c:3875
+ __x64_sys_mount+0xe4/0x140 fs/namespace.c:3875
+ do_syscall_x64 arch/x86/entry/common.c:52 [inline]
+ do_syscall_64+0xcf/0x1e0 arch/x86/entry/common.c:83
+ entry_SYSCALL_64_after_hwframe+0x63/0x6b
+
+BUG: KMSAN: uninit-value in hfs_ext_read_extent fs/hfs/extent.c:196 [inline]
+BUG: KMSAN: uninit-value in hfs_get_block+0x92d/0x1620 fs/hfs/extent.c:366
+ hfs_ext_read_extent fs/hfs/extent.c:196 [inline]
+ hfs_get_block+0x92d/0x1620 fs/hfs/extent.c:366
+ block_read_full_folio+0x4ff/0x11b0 fs/buffer.c:2271
+ hfs_read_folio+0x55/0x60 fs/hfs/inode.c:39
+ filemap_read_folio+0x148/0x4f0 mm/filemap.c:2426
+ do_read_cache_folio+0x7c8/0xd90 mm/filemap.c:3553
+ do_read_cache_page mm/filemap.c:3595 [inline]
+ read_cache_page+0xfb/0x2f0 mm/filemap.c:3604
+ read_mapping_page include/linux/pagemap.h:755 [inline]
+ hfs_btree_open+0x928/0x1ae0 fs/hfs/btree.c:78
+ hfs_mdb_get+0x260c/0x3000 fs/hfs/mdb.c:204
+ hfs_fill_super+0x1fb1/0x2790 fs/hfs/super.c:406
+ mount_bdev+0x628/0x920 fs/super.c:1359
+ hfs_mount+0xcd/0xe0 fs/hfs/super.c:456
+ legacy_get_tree+0x167/0x2e0 fs/fs_context.c:610
+ vfs_get_tree+0xdc/0x5d0 fs/super.c:1489
+ do_new_mount+0x7a9/0x16f0 fs/namespace.c:3145
+ path_mount+0xf98/0x26a0 fs/namespace.c:3475
+ do_mount fs/namespace.c:3488 [inline]
+%%% want
+kind: log
+«hm|=====================================================»
+«he|BUG: KMSAN:» uninit-value in «hf|hfs_revalidate_dentry»«hm|+0x307/0x3f0» «hm|fs/hfs/sysdep.c:30»
+ «hf|hfs_revalidate_dentry»«hm|+0x307/0x3f0» «hm|fs/hfs/sysdep.c:30»
+ «hf|d_revalidate» «hm|fs/namei.c:862» «hm|[inline]»
+ «hf|lookup_fast»«hm|+0x89e/0x8e0» «hm|fs/namei.c:1649»
+ «hf|walk_component» «hm|fs/namei.c:2001» «hm|[inline]»
+ «hf|link_path_walk»«hm|+0x817/0x1480» «hm|fs/namei.c:2332»
+ «hf|path_lookupat»«hm|+0xd9/0x6f0» «hm|fs/namei.c:2485»
+ «hf|filename_lookup»«hm|+0x22e/0x740» «hm|fs/namei.c:2515»
+ «hf|user_path_at_empty»«hm|+0x8b/0x390» «hm|fs/namei.c:2924»
+ «hf|user_path_at» «hm|include/linux/namei.h:57» «hm|[inline]»
+ «hf|do_mount» «hm|fs/namespace.c:3689» «hm|[inline]»
+ «hf|__do_sys_mount» «hm|fs/namespace.c:3898» «hm|[inline]»
+ «hf|__se_sys_mount»«hm|+0x66b/0x810» «hm|fs/namespace.c:3875»
+ «hf|__x64_sys_mount»«hm|+0xe4/0x140» «hm|fs/namespace.c:3875»
+ «hf|do_syscall_x64» «hm|arch/x86/entry/common.c:52» «hm|[inline]»
+ «hf|do_syscall_64»«hm|+0xcf/0x1e0» «hm|arch/x86/entry/common.c:83»
+ «hf|entry_SYSCALL_64_after_hwframe»«hm|+0x63/0x6b»
+
+«he|BUG: KMSAN:» uninit-value in hfs_ext_read_extent «hm|fs/hfs/extent.c:196» «hm|[inline]»
+«he|BUG: KMSAN:» uninit-value in «hf|hfs_get_block»«hm|+0x92d/0x1620» «hm|fs/hfs/extent.c:366»
+ «hf|hfs_ext_read_extent» «hm|fs/hfs/extent.c:196» «hm|[inline]»
+ «hf|hfs_get_block»«hm|+0x92d/0x1620» «hm|fs/hfs/extent.c:366»
+ «hf|block_read_full_folio»«hm|+0x4ff/0x11b0» «hm|fs/buffer.c:2271»
+ «hf|hfs_read_folio»«hm|+0x55/0x60» «hm|fs/hfs/inode.c:39»
+ «hf|filemap_read_folio»«hm|+0x148/0x4f0» «hm|mm/filemap.c:2426»
+ «hf|do_read_cache_folio»«hm|+0x7c8/0xd90» «hm|mm/filemap.c:3553»
+ «hf|do_read_cache_page» «hm|mm/filemap.c:3595» «hm|[inline]»
+ «hf|read_cache_page»«hm|+0xfb/0x2f0» «hm|mm/filemap.c:3604»
+ «hf|read_mapping_page» «hm|include/linux/pagemap.h:755» «hm|[inline]»
+ «hf|hfs_btree_open»«hm|+0x928/0x1ae0» «hm|fs/hfs/btree.c:78»
+ «hf|hfs_mdb_get»«hm|+0x260c/0x3000» «hm|fs/hfs/mdb.c:204»
+ «hf|hfs_fill_super»«hm|+0x1fb1/0x2790» «hm|fs/hfs/super.c:406»
+ «hf|mount_bdev»«hm|+0x628/0x920» «hm|fs/super.c:1359»
+ «hf|hfs_mount»«hm|+0xcd/0xe0» «hm|fs/hfs/super.c:456»
+ «hf|legacy_get_tree»«hm|+0x167/0x2e0» «hm|fs/fs_context.c:610»
+ «hf|vfs_get_tree»«hm|+0xdc/0x5d0» «hm|fs/super.c:1489»
+ «hf|do_new_mount»«hm|+0x7a9/0x16f0» «hm|fs/namespace.c:3145»
+ «hf|path_mount»«hm|+0xf98/0x26a0» «hm|fs/namespace.c:3475»
+ «hf|do_mount» «hm|fs/namespace.c:3488» «hm|[inline]»
+%%% end
+%%% CVE-2021-47448 syzbot oops: RIP labels, Code: bytes dim, register dump numbers
+CPU: 1 PID: 8510 Comm: syz-executor827 Not tainted 5.15.0-rc2-next-20210920-syzkaller #0
+Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+RIP: 0010:bytes_is_nonzero mm/kasan/generic.c:84 [inline]
+RIP: 0010:memory_is_nonzero mm/kasan/generic.c:102 [inline]
+RIP: 0010:memory_is_poisoned_n mm/kasan/generic.c:128 [inline]
+RIP: 0010:memory_is_poisoned mm/kasan/generic.c:159 [inline]
+RIP: 0010:check_region_inline mm/kasan/generic.c:180 [inline]
+RIP: 0010:kasan_check_range+0xc8/0x180 mm/kasan/generic.c:189
+Code: 38 00 74 ed 48 8d 50 08 eb 09 48 83 c0 01 48 39 d0 74 7a 80 38 00 74 f2 48 89 c2 b8 01 00 00 00 48 85 d2 75 56 5b 5d 41 5c c3 <48> 85 d2 74 5e 48 01 ea eb 09 48 83 c0 01 48 39 d0 74 50 80 38 00
+RSP: 0018:ffffc9000cd676c8 EFLAGS: 00000283
+RAX: ffffed100e9a110e RBX: ffffed100e9a110f RCX: ffffffff88ea062a
+RDX: 0000000000000001 RSI: 0000000000000008 RDI: ffff888074d08870
+RBP: ffffed100e9a110e R08: 0000000000000001 R09: ffff888074d08877
+R10: ffffed100e9a110e R11: 0000000000000000 R12: ffff888074d08000
+R13: ffff888074d08000 R14: ffff888074d08088 R15: ffff888074d08000
+FS:  0000555556d8e300(0000) GS:ffff8880b9d00000(0000) knlGS:0000000000000000
+S:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000020000180 CR3: 0000000068909000 CR4: 00000000001506e0
+DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+Call Trace:
+ instrument_atomic_read_write include/linux/instrumented.h:101 [inline]
+ test_and_clear_bit include/asm-generic/bitops/instrumented-atomic.h:83 [inline]
+ mptcp_release_cb+0x14a/0x210 net/mptcp/protocol.c:3016
+ release_sock+0xb4/0x1b0 net/core/sock.c:3204
+ mptcp_wait_data net/mptcp/protocol.c:1770 [inline]
+ mptcp_recvmsg+0xfd1/0x27b0 net/mptcp/protocol.c:2080
+ inet6_recvmsg+0x11b/0x5e0 net/ipv6/af_inet6.c:659
+ sock_recvmsg_nosec net/socket.c:944 [inline]
+ ____sys_recvmsg+0x527/0x600 net/socket.c:2626
+ ___sys_recvmsg+0x127/0x200 net/socket.c:2670
+ do_recvmmsg+0x24d/0x6d0 net/socket.c:2764
+ __sys_recvmmsg net/socket.c:2843 [inline]
+ __do_sys_recvmmsg net/socket.c:2866 [inline]
+ __se_sys_recvmmsg net/socket.c:2859 [inline]
+ __x64_sys_recvmmsg+0x20b/0x260 net/socket.c:2859
+ do_syscall_x64 arch/x86/entry/common.c:50 [inline]
+ do_syscall_64+0x35/0xb0 arch/x86/entry/common.c:80
+ entry_SYSCALL_64_after_hwframe+0x44/0xae
+RIP: 0033:0x7fc200d2
+%%% want
+kind: log
+CPU: 1 PID: 8510 Comm: syz-executor827 Not tainted 5.15.0-rc2-next-20210920-syzkaller #0
+«hk|Hardware name:» Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+«hk|RIP:» 0010:bytes_is_nonzero «hm|mm/kasan/generic.c:84» «hm|[inline]»
+«hk|RIP:» 0010:memory_is_nonzero «hm|mm/kasan/generic.c:102» «hm|[inline]»
+«hk|RIP:» 0010:memory_is_poisoned_n «hm|mm/kasan/generic.c:128» «hm|[inline]»
+«hk|RIP:» 0010:memory_is_poisoned «hm|mm/kasan/generic.c:159» «hm|[inline]»
+«hk|RIP:» 0010:check_region_inline «hm|mm/kasan/generic.c:180» «hm|[inline]»
+«hk|RIP:» 0010:«hf|kasan_check_range»«hm|+0xc8/0x180» «hm|mm/kasan/generic.c:189»
+«hk|Code:» «hm|38 00 74 ed 48 8d 50 08 eb 09 48 83 c0 01 48 39 d0 74 7a 80 38 00 74 f2 48 89 c2 b8 01 00 00 00 48 85 d2 75 56 5b 5d 41 5c c3 <48> 85 d2 74 5e 48 01 ea eb 09 48 83 c0 01 48 39 d0 74 50 80 38 00»
+RSP: 0018:«hn|ffffc9000cd676c8» EFLAGS: «hn|00000283»
+RAX: «hn|ffffed100e9a110e» RBX: «hn|ffffed100e9a110f» RCX: «hn|ffffffff88ea062a»
+RDX: «hn|0000000000000001» RSI: «hn|0000000000000008» RDI: «hn|ffff888074d08870»
+RBP: «hn|ffffed100e9a110e» R08: «hn|0000000000000001» R09: «hn|ffff888074d08877»
+R10: «hn|ffffed100e9a110e» R11: «hn|0000000000000000» R12: «hn|ffff888074d08000»
+R13: «hn|ffff888074d08000» R14: «hn|ffff888074d08088» R15: «hn|ffff888074d08000»
+FS:  «hn|0000555556d8e300»(0000) GS:«hn|ffff8880b9d00000»(0000) knlGS:«hn|0000000000000000»
+S:  0010 DS: 0000 ES: 0000 CR0: «hn|0000000080050033»
+CR2: «hn|0000000020000180» CR3: «hn|0000000068909000» CR4: «hn|00000000001506e0»
+DR0: «hn|0000000000000000» DR1: «hn|0000000000000000» DR2: «hn|0000000000000000»
+DR3: «hn|0000000000000000» DR6: «hn|00000000fffe0ff0» DR7: «hn|0000000000000400»
+«hk|Call Trace:»
+ «hf|instrument_atomic_read_write» «hm|include/linux/instrumented.h:101» «hm|[inline]»
+ «hf|test_and_clear_bit» «hm|include/asm-generic/bitops/instrumented-atomic.h:83» «hm|[inline]»
+ «hf|mptcp_release_cb»«hm|+0x14a/0x210» «hm|net/mptcp/protocol.c:3016»
+ «hf|release_sock»«hm|+0xb4/0x1b0» «hm|net/core/sock.c:3204»
+ «hf|mptcp_wait_data» «hm|net/mptcp/protocol.c:1770» «hm|[inline]»
+ «hf|mptcp_recvmsg»«hm|+0xfd1/0x27b0» «hm|net/mptcp/protocol.c:2080»
+ «hf|inet6_recvmsg»«hm|+0x11b/0x5e0» «hm|net/ipv6/af_inet6.c:659»
+ «hf|sock_recvmsg_nosec» «hm|net/socket.c:944» «hm|[inline]»
+ «hf|____sys_recvmsg»«hm|+0x527/0x600» «hm|net/socket.c:2626»
+ «hf|___sys_recvmsg»«hm|+0x127/0x200» «hm|net/socket.c:2670»
+ «hf|do_recvmmsg»«hm|+0x24d/0x6d0» «hm|net/socket.c:2764»
+ «hf|__sys_recvmmsg» «hm|net/socket.c:2843» «hm|[inline]»
+ «hf|__do_sys_recvmmsg» «hm|net/socket.c:2866» «hm|[inline]»
+ «hf|__se_sys_recvmmsg» «hm|net/socket.c:2859» «hm|[inline]»
+ «hf|__x64_sys_recvmmsg»«hm|+0x20b/0x260» «hm|net/socket.c:2859»
+ «hf|do_syscall_x64» «hm|arch/x86/entry/common.c:50» «hm|[inline]»
+ «hf|do_syscall_64»«hm|+0x35/0xb0» «hm|arch/x86/entry/common.c:80»
+ «hf|entry_SYSCALL_64_after_hwframe»«hm|+0x44/0xae»
+«hk|RIP:» 0033:«hn|0x7fc200d2»
+%%% end
+%%% CVE-2025-21912 lockdep report with printk timestamps; '#0:' is not a comment; quotes in a log are not strings
+[    4.239592] =============================
+[    4.239595] [ BUG: Invalid wait context ]
+[    4.239599] 6.13.0-rc7-arm64-renesas-05496-gd088502a519f #35 Not tainted
+[    4.239603] -----------------------------
+[    4.239606] kworker/u8:5/76 is trying to lock:
+[    4.239609] ffff0000091898a0 (&p->lock){....}-{3:3}, at: gpio_rcar_config_interrupt_input_mode+0x34/0x164
+[    4.239641] other info that might help us debug this:
+[    4.239643] context-{5:5}
+[    4.239646] 5 locks held by kworker/u8:5/76:
+[    4.239651]  #0: ffff0000080fb148 ((wq_completion)async){+.+.}-{0:0}, at: process_one_work+0x190/0x62c
+[    4.250180] OF: /soc/sound@ec500000/ports/port@0/endpoint: Read of boolean property 'frame-master' with a value.
+[    4.254094]  #1: ffff80008299bd80 ((work_completion)(&entry->work)){+.+.}-{0:0}, at: process_one_work+0x1b8/0x62c
+[    4.254109]  #2: ffff00000920c8f8
+[    4.258345] OF: /soc/sound@ec500000/ports/port@1/endpoint: Read of boolean property 'bitclock-master' with a value.
+[    4.264803]  (&dev->mutex){....}-{4:4}, at: __device_attach_async_helper+0x3c/0xdc
+[    4.264820]  #3: ffff00000a50ca40 (request_class#2){+.+.}-{4:4}, at: __setup_irq+0xa0/0x690
+[    4.264840]  #4:
+[    4.268872] OF: /soc/sound@ec500000/ports/port@1/endpoint: Read of boolean property 'frame-master' with a value.
+[    4.273275] ffff00000a50c8c8 (lock_class){....}-{2:2}, at: __setup_irq+0xc4/0x690
+[    4.296130] renesas_sdhi_internal_dmac ee100000.mmc: mmc1 base at 0x00000000ee100000, max clock rate 200 MHz
+[    4.304082] stack backtrace:
+[    4.304086] CPU: 1 UID: 0 PID: 76 Comm: kworker/u8:5 Not tainted 6.13.0-rc7-arm64-renesas-05496-gd088502a519f #35
+[    4.304092] Hardware name: Renesas Salvator-X 2nd version board based on r8a77965 (DT)
+[    4.304097] Workqueue: async async_run_entry_fn
+[    4.304106] Call trace:
+[    4.304110]  show_stack+0x14/0x20 (C)
+[    4.304122]  dump_stack_lvl+0x6c/0x90
+[    4.304131]  dump_stack+0x14/0x1c
+[    4.304138]  __lock_acquire+0xdfc/0x1584
+[    4.426274]  lock_acquire+0x1c4/0x33c
+%%% want
+kind: log
+«hm|[    4.239592]» «hm|=============================»
+«hm|[    4.239595]» «he|[ BUG: Invalid wait context ]»
+«hm|[    4.239599]» 6.13.0-rc7-arm64-renesas-05496-gd088502a519f #35 Not tainted
+«hm|[    4.239603]» -----------------------------
+«hm|[    4.239606]» kworker/u8:5/76 is trying to lock:
+«hm|[    4.239609]» «hn|ffff0000091898a0» (&p->lock){....}-{3:3}, at: «hf|gpio_rcar_config_interrupt_input_mode»«hm|+0x34/0x164»
+«hm|[    4.239641]» «hk|other info that might help us debug this:»
+«hm|[    4.239643]» context-{5:5}
+«hm|[    4.239646]» 5 locks held by kworker/u8:5/76:
+«hm|[    4.239651]»  #0: «hn|ffff0000080fb148» ((wq_completion)async){+.+.}-{0:0}, at: «hf|process_one_work»«hm|+0x190/0x62c»
+«hm|[    4.250180]» OF: /soc/sound@«hn|ec500000»/ports/port@0/endpoint: Read of boolean property 'frame-master' with a value.
+«hm|[    4.254094]»  #1: «hn|ffff80008299bd80» ((work_completion)(&entry->work)){+.+.}-{0:0}, at: «hf|process_one_work»«hm|+0x1b8/0x62c»
+«hm|[    4.254109]»  #2: «hn|ffff00000920c8f8»
+«hm|[    4.258345]» OF: /soc/sound@«hn|ec500000»/ports/port@1/endpoint: Read of boolean property 'bitclock-master' with a value.
+«hm|[    4.264803]»  (&dev->mutex){....}-{4:4}, at: «hf|__device_attach_async_helper»«hm|+0x3c/0xdc»
+«hm|[    4.264820]»  #3: «hn|ffff00000a50ca40» (request_class#2){+.+.}-{4:4}, at: «hf|__setup_irq»«hm|+0xa0/0x690»
+«hm|[    4.264840]»  #4:
+«hm|[    4.268872]» OF: /soc/sound@«hn|ec500000»/ports/port@1/endpoint: Read of boolean property 'frame-master' with a value.
+«hm|[    4.273275]» «hn|ffff00000a50c8c8» (lock_class){....}-{2:2}, at: «hf|__setup_irq»«hm|+0xc4/0x690»
+«hm|[    4.296130]» renesas_sdhi_internal_dmac «hn|ee100000».mmc: mmc1 base at «hn|0x00000000ee100000», max clock rate 200 MHz
+«hm|[    4.304082]» «hk|stack backtrace:»
+«hm|[    4.304086]» CPU: 1 UID: 0 PID: 76 Comm: kworker/u8:5 Not tainted 6.13.0-rc7-arm64-renesas-05496-gd088502a519f #35
+«hm|[    4.304092]» «hk|Hardware name:» Renesas Salvator-X 2nd version board based on r8a77965 (DT)
+«hm|[    4.304097]» «hk|Workqueue:» async async_run_entry_fn
+«hm|[    4.304106]» «hk|Call trace:»
+«hm|[    4.304110]»  «hf|show_stack»«hm|+0x14/0x20» (C)
+«hm|[    4.304122]»  «hf|dump_stack_lvl»«hm|+0x6c/0x90»
+«hm|[    4.304131]»  «hf|dump_stack»«hm|+0x14/0x1c»
+«hm|[    4.304138]»  «hf|__lock_acquire»«hm|+0xdfc/0x1584»
+«hm|[    4.426274]»  «hf|lock_acquire»«hm|+0x1c4/0x33c»
+%%% end
+%%% CVE-2025-37898 apostrophe in a log line
+[  115.466896] module_64: cast_common: doesn't contain __patchable_function_entries.
+[  115.469189] ------------[ cut here ]------------
+[  115.469496] WARNING: CPU: 0 PID: 274 at mm/vmalloc.c:3778 __vmalloc_node_range_noprof+0x8b4/0x8f0
+...
+[  115.478574] ---[ end trace 0000000000000000 ]---
+[  115.479545] execmem: unable to allocate memory
+%%% want
+kind: log
+«hm|[  115.466896]» module_64: cast_common: doesn't contain __patchable_function_entries.
+«hm|[  115.469189]» «hm|------------[ cut here ]------------»
+«hm|[  115.469496]» «he|WARNING:» CPU: 0 PID: 274 at «hm|mm/vmalloc.c:3778» «hf|__vmalloc_node_range_noprof»«hm|+0x8b4/0x8f0»
+...
+«hm|[  115.478574]» «hm|---[ end trace 0000000000000000 ]---»
+«hm|[  115.479545]» execmem: unable to allocate memory
+%%% end
+%%% CVE-2026-31656 printk level before the timestamp
+<4> [487.221889] Workqueue: i915-unordered engine_retire [i915]
+<4> [487.222640] RIP: 0010:refcount_warn_saturate+0x68/0xb0
+...
+<4> [487.222707] Call Trace:
+<4> [487.222711]  <TASK>
+<4> [487.222716]  intel_engine_park_heartbeat.part.0+0x6f/0x80 [i915]
+<4> [487.223115]  intel_engine_park_heartbeat+0x25/0x40 [i915]
+<4> [487.223566]  __engine_park+0xb9/0x650 [i915]
+<4> [487.223973]  ____intel_wakeref_put_last+0x2e/0xb0 [i915]
+<4> [487.224408]  __intel_wakeref_put_last+0x72/0x90 [i915]
+<4> [487.224797]  intel_context_exit_engine+0x7c/0x80 [i915]
+<4> [487.225238]  intel_context_exit+0xf1/0x1b0 [i915]
+<4> [487.225695]  i915_request_retire.part.0+0x1b9/0x530 [i915]
+<4> [487.226178]  i915_request_retire+0x1c/0x40 [i915]
+<4> [487.226625]  engine_retire+0x122/0x180 [i915]
+<4> [487.227037]  process_one_work+0x239/0x760
+<4> [487.227060]  worker_thread+0x200/0x3f0
+<4> [487.227068]  ? __pfx_worker_thread+0x10/0x10
+<4> [487.227075]  kthread+0x10d/0x150
+<4> [487.227083]  ? __pfx_kthread+0x10/0x10
+<4> [487.227092]  ret_from_fork+0x3d4/0x480
+<4> [487.227099]  ? __pfx_kthread+0x10/0x10
+<4> [487.227107]  ret_from_fork_asm+0x1a/0x30
+<4> [487.227141]  </TASK>
+%%% want
+kind: log
+«hm|<4> [487.221889]» «hk|Workqueue:» i915-unordered engine_retire [i915]
+«hm|<4> [487.222640]» «hk|RIP:» 0010:«hf|refcount_warn_saturate»«hm|+0x68/0xb0»
+...
+«hm|<4> [487.222707]» «hk|Call Trace:»
+«hm|<4> [487.222711]»  «hm|<TASK>»
+«hm|<4> [487.222716]»  «hf|intel_engine_park_heartbeat.part.0»«hm|+0x6f/0x80 [i915]»
+«hm|<4> [487.223115]»  «hf|intel_engine_park_heartbeat»«hm|+0x25/0x40 [i915]»
+«hm|<4> [487.223566]»  «hf|__engine_park»«hm|+0xb9/0x650 [i915]»
+«hm|<4> [487.223973]»  «hf|____intel_wakeref_put_last»«hm|+0x2e/0xb0 [i915]»
+«hm|<4> [487.224408]»  «hf|__intel_wakeref_put_last»«hm|+0x72/0x90 [i915]»
+«hm|<4> [487.224797]»  «hf|intel_context_exit_engine»«hm|+0x7c/0x80 [i915]»
+«hm|<4> [487.225238]»  «hf|intel_context_exit»«hm|+0xf1/0x1b0 [i915]»
+«hm|<4> [487.225695]»  «hf|i915_request_retire.part.0»«hm|+0x1b9/0x530 [i915]»
+«hm|<4> [487.226178]»  «hf|i915_request_retire»«hm|+0x1c/0x40 [i915]»
+«hm|<4> [487.226625]»  «hf|engine_retire»«hm|+0x122/0x180 [i915]»
+«hm|<4> [487.227037]»  «hf|process_one_work»«hm|+0x239/0x760»
+«hm|<4> [487.227060]»  «hf|worker_thread»«hm|+0x200/0x3f0»
+«hm|<4> [487.227068]»  ? «hf|__pfx_worker_thread»«hm|+0x10/0x10»
+«hm|<4> [487.227075]»  «hf|kthread»«hm|+0x10d/0x150»
+«hm|<4> [487.227083]»  ? «hf|__pfx_kthread»«hm|+0x10/0x10»
+«hm|<4> [487.227092]»  «hf|ret_from_fork»«hm|+0x3d4/0x480»
+«hm|<4> [487.227099]»  ? «hf|__pfx_kthread»«hm|+0x10/0x10»
+«hm|<4> [487.227107]»  «hf|ret_from_fork_asm»«hm|+0x1a/0x30»
+«hm|<4> [487.227141]»  «hm|</TASK>»
+%%% end
+%%% CVE-2022-48664 syslog prefix before kernel lines
+Sep 07 11:52:00 debian9 unknown: run fstests generic/562 at 2022-09-07 11:52:00
+Sep 07 11:55:32 debian9 kernel: INFO: task umount:49438 blocked for more than 120 seconds.
+Sep 07 11:55:32 debian9 kernel:       Not tainted 6.0.0-rc2-btrfs-next-122 #1
+Sep 07 11:55:32 debian9 kernel: "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+Sep 07 11:55:32 debian9 kernel: task:umount          state:D stack:    0 pid:49438 ppid: 25683 flags:0x00004000
+Sep 07 11:55:32 debian9 kernel: Call Trace:
+Sep 07 11:55:32 debian9 kernel:  <TASK>
+Sep 07 11:55:32 debian9 kernel:  __schedule+0x3c8/0xec0
+Sep 07 11:55:32 debian9 kernel:  ? rcu_read_lock_sched_held+0x12/0x70
+Sep 07 11:55:32 debian9 kernel:  schedule+0x5d/0xf0
+Sep 07 11:55:32 debian9 kernel:  schedule_timeout+0xf1/0x130
+Sep 07 11:55:32 debian9 kernel:  ? lock_release+0x224/0x4a0
+%%% want
+kind: log
+Sep 07 11:52:00 debian9 unknown: run fstests generic/562 at 2022-09-07 11:52:00
+«hm|Sep 07 11:55:32 debian9 kernel:» «he|INFO:» task umount:49438 blocked for more than 120 seconds.
+«hm|Sep 07 11:55:32 debian9 kernel:»       Not tainted 6.0.0-rc2-btrfs-next-122 #1
+«hm|Sep 07 11:55:32 debian9 kernel:» "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+«hm|Sep 07 11:55:32 debian9 kernel:» task:umount          state:D stack:    0 pid:49438 ppid: 25683 flags:«hn|0x00004000»
+«hm|Sep 07 11:55:32 debian9 kernel:» «hk|Call Trace:»
+«hm|Sep 07 11:55:32 debian9 kernel:»  «hm|<TASK>»
+«hm|Sep 07 11:55:32 debian9 kernel:»  «hf|__schedule»«hm|+0x3c8/0xec0»
+«hm|Sep 07 11:55:32 debian9 kernel:»  ? «hf|rcu_read_lock_sched_held»«hm|+0x12/0x70»
+«hm|Sep 07 11:55:32 debian9 kernel:»  «hf|schedule»«hm|+0x5d/0xf0»
+«hm|Sep 07 11:55:32 debian9 kernel:»  «hf|schedule_timeout»«hm|+0xf1/0x130»
+«hm|Sep 07 11:55:32 debian9 kernel:»  ? «hf|lock_release»«hm|+0x224/0x4a0»
+%%% end
+%%% CVE-2026-80537 decoded stack trace: func (file:line)
+BUG: KASAN: slab-out-of-bounds in xfs_btree_lookup (fs/xfs/libxfs/xfs_btree.c:2101)
+Write of size 2 at addr ffff888018391658 by task exploit/144
+ xfs_btree_lookup (fs/xfs/libxfs/xfs_btree.c:2101)
+ xfs_btree_query_range (fs/xfs/libxfs/xfs_btree.c:5308)
+ xfs_refcount_recover_cow_leftovers (fs/xfs/libxfs/xfs_refcount.c:2113)
+ xfs_reflink_recover_cow (fs/xfs/xfs_reflink.c:1085)
+ xlog_recover_finish (fs/xfs/xfs_log_recover.c:3551)
+ xfs_mountfs (fs/xfs/xfs_mount.c:1158)
+ xfs_fs_fill_super (fs/xfs/xfs_super.c:1940)
+ get_tree_bdev_flags (fs/super.c:1634)
+ vfs_get_tree (fs/super.c:1694)
+ path_mount (fs/namespace.c:4161)
+ __x64_sys_mount (fs/namespace.c:4367)
+ entry_SYSCALL_64_after_hwframe (arch/x86/entry/entry_64.S:121)
+The buggy address belongs to the cache xfs_rtrefcountbt_cur of size 216
+The buggy address is located 8 bytes to the right of
+ allocated 216-byte region [ffff888018391578, ffff888018391650)
+Kernel panic - not syncing: Fatal exception
+%%% want
+kind: log
+«he|BUG: KASAN:» slab-out-of-bounds in xfs_btree_lookup («hm|fs/xfs/libxfs/xfs_btree.c:2101»)
+Write of size 2 at addr «hn|ffff888018391658» by task exploit/144
+ «hf|xfs_btree_lookup» («hm|fs/xfs/libxfs/xfs_btree.c:2101»)
+ «hf|xfs_btree_query_range» («hm|fs/xfs/libxfs/xfs_btree.c:5308»)
+ «hf|xfs_refcount_recover_cow_leftovers» («hm|fs/xfs/libxfs/xfs_refcount.c:2113»)
+ «hf|xfs_reflink_recover_cow» («hm|fs/xfs/xfs_reflink.c:1085»)
+ «hf|xlog_recover_finish» («hm|fs/xfs/xfs_log_recover.c:3551»)
+ «hf|xfs_mountfs» («hm|fs/xfs/xfs_mount.c:1158»)
+ «hf|xfs_fs_fill_super» («hm|fs/xfs/xfs_super.c:1940»)
+ «hf|get_tree_bdev_flags» («hm|fs/super.c:1634»)
+ «hf|vfs_get_tree» («hm|fs/super.c:1694»)
+ «hf|path_mount» («hm|fs/namespace.c:4161»)
+ «hf|__x64_sys_mount» («hm|fs/namespace.c:4367»)
+ «hf|entry_SYSCALL_64_after_hwframe» («hm|arch/x86/entry/entry_64.S:121»)
+«hk|The buggy address belongs to» the cache xfs_rtrefcountbt_cur of size 216
+The buggy address is located 8 bytes to the right of
+ allocated 216-byte region [«hn|ffff888018391578», «hn|ffff888018391650»)
+«he|Kernel panic - not syncing»: Fatal exception
+%%% end
+%%% CVE-2022-50405 crash(8) backtrace: '#0 [addr] func at addr', not a comment
+ #0 [ffffa25ec6978a38] machine_kexec at ffffffff8c669757
+ #1 [ffffa25ec6978a90] __crash_kexec at ffffffff8c7c0a4d
+ #2 [ffffa25ec6978b58] crash_kexec at ffffffff8c7c1c48
+ #3 [ffffa25ec6978b60] oops_end at ffffffff8c627f2b
+ #4 [ffffa25ec6978b80] page_fault_oops at ffffffff8c678fcb
+ #5 [ffffa25ec6978bd8] exc_page_fault at ffffffff8d109542
+ #6 [ffffa25ec6978c00] asm_exc_page_fault at ffffffff8d200b62
+    [exception RIP: vxlan_ecn_decapsulate+0x3b]
+    RIP: ffffffffc1014e7b  RSP: ffffa25ec6978cb0  RFLAGS: 00010246
+    RAX: 0000000000000008  RBX: ffff8aa000888000  RCX: 0000000000000000
+    RDX: 000000000000000e  RSI: ffff8a9fc7ab803e  RDI: ffff8a9fd1168700
+    RBP: ffff8a9fc7ab803e   R8: 0000000000700000   R9: 00000000000010ae
+    R10: ffff8a9fcb748980  R11: 0000000000000000  R12: ffff8a9fd1168700
+    R13: ffff8aa000888000  R14: 00000000002a0000  R15: 00000000000010ae
+    ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0018
+ #7 [ffffa25ec6978ce8] vxlan_rcv at ffffffffc10189cd [vxlan]
+ #8 [ffffa25ec6978d90] udp_queue_rcv_one_skb at ffffffff8cfb6507
+ #9 [ffffa25ec6978dc0] udp_unicast_rcv_skb at ffffffff8cfb6e45
+#10 [ffffa25ec6978dc8] __udp4_lib_rcv at ffffffff8cfb8807
+#11 [ffffa25ec6978e20] ip_protocol_deliver_rcu at ffffffff8cf76951
+#12 [ffffa25ec6978e48] ip_local_deliver at ffffffff8cf76bde
+#13 [ffffa25ec6978ea0] __netif_receive_skb_one_core at ffffffff8cecde9b
+#14 [ffffa25ec6978ec8] process_backlog at ffffffff8cece139
+#15 [ffffa25ec6978f00] __napi_poll at ffffffff8ceced1a
+#16 [ffffa25ec6978f28] net_rx_action at ffffffff8cecf1f3
+#17 [ffffa25ec6978fa0] __softirqentry_text_start at ffffffff8d4000ca
+#18 [ffffa25ec6978ff0] do_softirq at ffffffff8c6fbdc3
+%%% want
+kind: log
+ #0 «hm|[ffffa25ec6978a38]» «hf|machine_kexec» at «hn|ffffffff8c669757»
+ #1 «hm|[ffffa25ec6978a90]» «hf|__crash_kexec» at «hn|ffffffff8c7c0a4d»
+ #2 «hm|[ffffa25ec6978b58]» «hf|crash_kexec» at «hn|ffffffff8c7c1c48»
+ #3 «hm|[ffffa25ec6978b60]» «hf|oops_end» at «hn|ffffffff8c627f2b»
+ #4 «hm|[ffffa25ec6978b80]» «hf|page_fault_oops» at «hn|ffffffff8c678fcb»
+ #5 «hm|[ffffa25ec6978bd8]» «hf|exc_page_fault» at «hn|ffffffff8d109542»
+ #6 «hm|[ffffa25ec6978c00]» «hf|asm_exc_page_fault» at «hn|ffffffff8d200b62»
+    [exception RIP: vxlan_ecn_decapsulate+«hn|0x3b»]
+    «hk|RIP:» «hn|ffffffffc1014e7b»  RSP: «hn|ffffa25ec6978cb0»  RFLAGS: «hn|00010246»
+    RAX: «hn|0000000000000008»  RBX: «hn|ffff8aa000888000»  RCX: «hn|0000000000000000»
+    RDX: «hn|000000000000000e»  RSI: «hn|ffff8a9fc7ab803e»  RDI: «hn|ffff8a9fd1168700»
+    RBP: «hn|ffff8a9fc7ab803e»   R8: «hn|0000000000700000»   R9: «hn|00000000000010ae»
+    R10: «hn|ffff8a9fcb748980»  R11: «hn|0000000000000000»  R12: «hn|ffff8a9fd1168700»
+    R13: «hn|ffff8aa000888000»  R14: «hn|00000000002a0000»  R15: «hn|00000000000010ae»
+    ORIG_RAX: «hn|ffffffffffffffff»  CS: 0010  SS: 0018
+ #7 «hm|[ffffa25ec6978ce8]» «hf|vxlan_rcv» at «hn|ffffffffc10189cd» [vxlan]
+ #8 «hm|[ffffa25ec6978d90]» «hf|udp_queue_rcv_one_skb» at «hn|ffffffff8cfb6507»
+ #9 «hm|[ffffa25ec6978dc0]» «hf|udp_unicast_rcv_skb» at «hn|ffffffff8cfb6e45»
+#10 «hm|[ffffa25ec6978dc8]» «hf|__udp4_lib_rcv» at «hn|ffffffff8cfb8807»
+#11 «hm|[ffffa25ec6978e20]» «hf|ip_protocol_deliver_rcu» at «hn|ffffffff8cf76951»
+#12 «hm|[ffffa25ec6978e48]» «hf|ip_local_deliver» at «hn|ffffffff8cf76bde»
+#13 «hm|[ffffa25ec6978ea0]» «hf|__netif_receive_skb_one_core» at «hn|ffffffff8cecde9b»
+#14 «hm|[ffffa25ec6978ec8]» «hf|process_backlog» at «hn|ffffffff8cece139»
+#15 «hm|[ffffa25ec6978f00]» «hf|__napi_poll» at «hn|ffffffff8ceced1a»
+#16 «hm|[ffffa25ec6978f28]» «hf|net_rx_action» at «hn|ffffffff8cecf1f3»
+#17 «hm|[ffffa25ec6978fa0]» «hf|__softirqentry_text_start» at «hn|ffffffff8d4000ca»
+#18 «hm|[ffffa25ec6978ff0]» «hf|do_softirq» at «hn|ffffffff8c6fbdc3»
+%%% end
+%%% CVE-2026-52946 lockdep scenario: two columns of lock() calls, DEADLOCK marker
+       CPU0                    CPU1
+       ----                    ----
+  lock(tasklist_lock);
+                           local_irq_disable();
+                           lock(&dev->event_lock);
+                           lock(&f_owner->lock);
+  <Interrupt>
+    lock(&dev->event_lock);
+
+*** DEADLOCK ***
+%%% want
+kind: src
+       CPU0                    CPU1
+       ----                    ----
+  «hf|lock»(tasklist_lock);
+                           «hf|local_irq_disable»();
+                           «hf|lock»(&dev->event_lock);
+                           «hf|lock»(&f_owner->lock);
+  <Interrupt>
+    «hf|lock»(&dev->event_lock);
+
+«he|*** DEADLOCK ***»
+%%% end
+%%% CVE-2024-38539 kmemleak report: hex dump bytes stay plain
+unreferenced object 0xffff88855da53400 (size 192):
+  comm "rdma", pid 10630, jiffies 4296575922
+  hex dump (first 32 bytes):
+    37 00 00 00 00 00 00 00 c0 ff ff ff 1f 00 00 00  7...............
+    10 34 a5 5d 85 88 ff ff 10 34 a5 5d 85 88 ff ff  .4.].....4.]....
+  backtrace (crc 47f66721):
+    [<ffffffff911251bd>] kmalloc_trace+0x30d/0x3b0
+    [<ffffffffc2640ff7>] alloc_gid_entry+0x47/0x380 [ib_core]
+    [<ffffffffc2642206>] add_modify_gid+0x166/0x930 [ib_core]
+    [<ffffffffc2643468>] ib_cache_update.part.0+0x6d8/0x910 [ib_core]
+    [<ffffffffc2644e1a>] ib_cache_setup_one+0x24a/0x350 [ib_core]
+    [<ffffffffc263949e>] ib_register_device+0x9e/0x3a0 [ib_core]
+    [<ffffffffc2a3d389>] 0xffffffffc2a3d389
+    [<ffffffffc2688cd8>] nldev_newlink+0x2b8/0x520 [ib_core]
+    [<ffffffffc2645fe3>] rdma_nl_rcv_msg+0x2c3/0x520 [ib_core]
+    [<ffffffffc264648c>]
+rdma_nl_rcv_skb.constprop.0.isra.0+0x23c/0x3a0 [ib_core]
+    [<ffffffff9270e7b5>] netlink_unicast+0x445/0x710
+    [<ffffffff9270f1f1>] netlink_sendmsg+0x761/0xc40
+    [<ffffffff9249db29>] __sys_sendto+0x3a9/0x420
+    [<ffffffff9249dc8c>] __x64_sys_sendto+0xdc/0x1b0
+    [<ffffffff92db0ad3>] do_syscall_64+0x93/0x180
+    [<ffffffff92e00126>] entry_SYSCALL_64_after_hwframe+0x71/0x79
+%%% want
+kind: log
+«he|unreferenced object» «hn|0xffff88855da53400» (size 192):
+  comm "rdma", pid 10630, jiffies «hn|4296575922»
+  «hk|hex dump (first 32 bytes):»
+    37 00 00 00 00 00 00 00 c0 ff ff ff 1f 00 00 00  7...............
+    10 34 a5 5d 85 88 ff ff 10 34 a5 5d 85 88 ff ff  .4.].....4.]....
+  «hk|backtrace (crc 47f66721):»
+    «hm|[<ffffffff911251bd>]» «hf|kmalloc_trace»«hm|+0x30d/0x3b0»
+    «hm|[<ffffffffc2640ff7>]» «hf|alloc_gid_entry»«hm|+0x47/0x380 [ib_core]»
+    «hm|[<ffffffffc2642206>]» «hf|add_modify_gid»«hm|+0x166/0x930 [ib_core]»
+    «hm|[<ffffffffc2643468>]» «hf|ib_cache_update.part.0»«hm|+0x6d8/0x910 [ib_core]»
+    «hm|[<ffffffffc2644e1a>]» «hf|ib_cache_setup_one»«hm|+0x24a/0x350 [ib_core]»
+    «hm|[<ffffffffc263949e>]» «hf|ib_register_device»«hm|+0x9e/0x3a0 [ib_core]»
+    «hm|[<ffffffffc2a3d389>]» «hn|0xffffffffc2a3d389»
+    «hm|[<ffffffffc2688cd8>]» «hf|nldev_newlink»«hm|+0x2b8/0x520 [ib_core]»
+    «hm|[<ffffffffc2645fe3>]» «hf|rdma_nl_rcv_msg»«hm|+0x2c3/0x520 [ib_core]»
+    «hm|[<ffffffffc264648c>]»
+«hf|rdma_nl_rcv_skb.constprop.0.isra.0»«hm|+0x23c/0x3a0 [ib_core]»
+    «hm|[<ffffffff9270e7b5>]» «hf|netlink_unicast»«hm|+0x445/0x710»
+    «hm|[<ffffffff9270f1f1>]» «hf|netlink_sendmsg»«hm|+0x761/0xc40»
+    «hm|[<ffffffff9249db29>]» «hf|__sys_sendto»«hm|+0x3a9/0x420»
+    «hm|[<ffffffff9249dc8c>]» «hf|__x64_sys_sendto»«hm|+0xdc/0x1b0»
+    «hm|[<ffffffff92db0ad3>]» «hf|do_syscall_64»«hm|+0x93/0x180»
+    «hm|[<ffffffff92e00126>]» «hf|entry_SYSCALL_64_after_hwframe»«hm|+0x71/0x79»
+%%% end
+%%% CVE-2026-80776 two-column call flow T1/T2 with calls, NULL and a /* */ comment
+T1                                  T2
+
+futex_hash_allocate()
+  wait_var_event(mm, ...)
+    futex_pivot_pending(mm)
+      hash_new != NULL
+                                    futex_hash()
+                                      futex_ref_get(old) -> false
+                                      futex_pivot_hash(mm)
+                                        hash_new = NULL
+                                        __futex_pivot_hash(mm, new)
+                                          rcu_assign_pointer(hash, new)
+      fph = rcu_dereference(hash) /* new */
+      futex_ref_is_dead(fph) -> false
+    schedule()
+%%% want
+kind: src
+T1                                  T2
+
+«hf|futex_hash_allocate»()
+  «hf|wait_var_event»(mm, ...)
+    «hf|futex_pivot_pending»(mm)
+      hash_new != «hk|NULL»
+                                    «hf|futex_hash»()
+                                      «hf|futex_ref_get»(old) -> «hk|false»
+                                      «hf|futex_pivot_hash»(mm)
+                                        hash_new = «hk|NULL»
+                                        «hf|__futex_pivot_hash»(mm, new)
+                                          «hf|rcu_assign_pointer»(hash, new)
+      fph = «hf|rcu_dereference»(hash) «hc|/* new */»
+      «hf|futex_ref_is_dead»(fph) -> «hk|false»
+    «hf|schedule»()
+%%% end
+%%% CVE-2025-40357 two-column diagram with '|' separator: a // comment ends at the column gap
+             (CPU1)              |             (CPU2)
+---------------------------------|-------------------------------
+inet_create()                    |
+  // init clcsock to NULL        |
+  sk = sk_alloc()                |
+                                 |
+  // unexpectedly change clcsock |
+  inet_init_csk_locks()          |
+                                 |
+  // add sk to hash table        |
+  smc_inet_init_sock()           |
+    smc_sk_init()                |
+      smc_hash_sk()              |
+%%% want
+kind: src
+             (CPU1)              |             (CPU2)
+---------------------------------|-------------------------------
+«hf|inet_create»()                    |
+  «hc|// init clcsock to NULL»        |
+  sk = «hf|sk_alloc»()                |
+                                 |
+  «hc|// unexpectedly change clcsock |»
+  «hf|inet_init_csk_locks»()          |
+                                 |
+  «hc|// add sk to hash table»        |
+  «hf|smc_inet_init_sock»()           |
+    «hf|smc_sk_init»()                |
+      «hf|smc_hash_sk»()              |
+%%% end
+%%% CVE-2024-38588 two columns, each with its own call and // comment
+         CPU1                       |      CPU2
+register_kprobes() {                | delete_module() {
+  check_kprobe_address_safe() {     |
+    arch_check_ftrace_location() {  |
+      ftrace_location() {           |
+        lookup_rec() // USE!        |   ftrace_release_mod() // Free!
+%%% want
+kind: src
+         CPU1                       |      CPU2
+«hf|register_kprobes»() {                | «hf|delete_module»() {
+  «hf|check_kprobe_address_safe»() {     |
+    «hf|arch_check_ftrace_location»() {  |
+      «hf|ftrace_location»() {           |
+        «hf|lookup_rec»() «hc|// USE!»        |   «hf|ftrace_release_mod»() «hc|// Free!»
+%%% end
+%%% CVE-2026-64007 /* */ comment spanning lines in the right column (apostrophe inside)
+caller (ipv[46]_synproxy_hook)
+  th = skb_header_pointer(skb, ..., &_tcph)
+  synproxy_tstamp_adjust(skb, protoff, th, ...)
+    skb_ensure_writable(skb, optend)
+      pskb_expand_head()        /* kfree(old skb->head) */
+    ...
+    inet_proto_csum_replace4(&th->check, ...)
+                                /* writes into freed head, or
+                                   into the caller's stack copy
+                                   leaving the on-wire checksum
+                                   stale */
+%%% want
+kind: src
+caller (ipv[«hn|46»]_synproxy_hook)
+  th = «hf|skb_header_pointer»(skb, ..., &_tcph)
+  «hf|synproxy_tstamp_adjust»(skb, protoff, th, ...)
+    «hf|skb_ensure_writable»(skb, optend)
+      «hf|pskb_expand_head»()        «hc|/* kfree(old skb->head) */»
+    ...
+    «hf|inet_proto_csum_replace4»(&th->check, ...)
+                                «hc|/* writes into freed head, or»
+«hc|                                   into the caller's stack copy»
+«hc|                                   leaving the on-wire checksum»
+«hc|                                   stale */»
+%%% end
+%%% CVE-2025-71078 unclosed /* in a two-column diagram does not swallow the block
+CPU 0                                   CPU 1
+-----                                    -----
+Process P
+exec                                    swapper/1
+ load_elf_binary
+  begin_new_exc
+    activate_mm
+     switch_mm_irqs_off
+      switch_mmu_context
+       switch_slb
+       /*
+%%% want
+kind: plain
+CPU 0                                   CPU 1
+-----                                    -----
+Process P
+exec                                    swapper/1
+ load_elf_binary
+  begin_new_exc
+    activate_mm
+     switch_mm_irqs_off
+      switch_mmu_context
+       switch_slb
+       /*
+%%% end
+%%% CVE-2021-47375 apostrophe in a call argument is not a string
+  trace_note_tsk
+  (Iterate running_trace_list)
+			        relay_close_buf
+				  relay_destroy_buf
+				    kfree(buf)
+    trace_note(sdb's bt)
+      relay_reserve
+        buf->offset <- nullptr deference (use-after-free) !!!
+%%% want
+kind: src
+  trace_note_tsk
+  (Iterate running_trace_list)
+			        relay_close_buf
+				  relay_destroy_buf
+				    «hf|kfree»(buf)
+    «hf|trace_note»(sdb's bt)
+      relay_reserve
+        buf->offset <- nullptr deference (use-after-free) !!!
+%%% end
+%%% CVE-2026-99222 apostrophe in a diagram row
+KEYCTL_READ task                    Module unload and key GC
+----------------                   ------------------------
+lookup_user_key()
+permission / possession checks
+load key->type
+                                   af_rxrpc_exit()
+                                     unregister_key_type()
+                                       GC: down_write(key->sem)
+                                       GC: retype to key_type_dead
+                                       GC: up_write(key->sem)
+                                     unregister_key_type() returns
+                                   free_module()
+read saved type's read member
+%%% want
+kind: src
+KEYCTL_READ task                    Module unload and key GC
+----------------                   ------------------------
+«hf|lookup_user_key»()
+permission / possession checks
+load key->type
+                                   «hf|af_rxrpc_exit»()
+                                     «hf|unregister_key_type»()
+                                       GC: «hf|down_write»(key->sem)
+                                       GC: retype to key_type_dead
+                                       GC: «hf|up_write»(key->sem)
+                                     «hf|unregister_key_type»() returns
+                                   «hf|free_module»()
+read saved type's read member
+%%% end
+%%% CVE-2026-46129 '->' arrows before calls
+create_space_info()
+-> btrfs_sysfs_add_space_info_type()
+-> kobject_init_and_add()
+-> failure
+-> kobject_put(&space_info->kobj)
+-> space_info_release()
+-> kfree(space_info)
+%%% want
+kind: src
+«hf|create_space_info»()
+-> «hf|btrfs_sysfs_add_space_info_type»()
+-> «hf|kobject_init_and_add»()
+-> failure
+-> «hf|kobject_put»(&space_info->kobj)
+-> «hf|space_info_release»()
+-> «hf|kfree»(space_info)
+%%% end
+%%% CVE-2024-36899 '-->' and '<--' arrows; the text after '<--' is an annotation
+st54spi_gpio_dev_release()
+  --> gpio_free()
+    --> gpiod_free()
+      --> gpiod_free_commit()
+        --> gpiod_line_state_notify()
+          --> blocking_notifier_call_chain()
+            --> down_read(&nh->rwsem);                  <-- held rwsem
+            --> notifier_call_chain()
+              --> lineinfo_changed_notify()
+                --> test_bit(xxxx, cdev->watched_lines) <-- use after free
+%%% want
+kind: src
+«hf|st54spi_gpio_dev_release»()
+  --> «hf|gpio_free»()
+    --> «hf|gpiod_free»()
+      --> «hf|gpiod_free_commit»()
+        --> «hf|gpiod_line_state_notify»()
+          --> «hf|blocking_notifier_call_chain»()
+            --> «hf|down_read»(&nh->rwsem);                  <-- held rwsem
+            --> «hf|notifier_call_chain»()
+              --> «hf|lineinfo_changed_notify»()
+                --> «hf|test_bit»(xxxx, cdev->watched_lines) <-- use after free
+%%% end
+%%% CVE-2022-50743 '#' after a call in a diagram is not a comment and its words are not code
+z_erofs_readahead()
+  z_erofs_do_read_page() # for another page
+    z_erofs_collector_begin()
+      erofs_find_workgroup()
+        erofs_workgroup_get()
+%%% want
+kind: src
+«hf|z_erofs_readahead»()
+  «hf|z_erofs_do_read_page»() # for another page
+    «hf|z_erofs_collector_begin»()
+      «hf|erofs_find_workgroup»()
+        «hf|erofs_workgroup_get»()
+%%% end
+%%% CVE-2022-49271 C program: #include and #define are preprocessor keywords, not comments; '//srv/share' is a path
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+
+#define die(s) perror(s), exit(1)
+#define QUERY_INFO 0xc018cf07
+
+int main(int argc, char *argv[])
+{
+	int fd;
+
+	if (argc < 2)
+		exit(1);
+	fd = open(argv[1], O_RDONLY);
+	if (fd == -1)
+		die("open");
+	if (ioctl(fd, QUERY_INFO, (uint32_t[]) { 0, 0, 0, 4, 0, 0}) == -1)
+		die("ioctl");
+	close(fd);
+	return 0;
+}
+
+mount.cifs //srv/share /mnt -o ...
+gcc repro.c && ./a.out /mnt/f0
+
+[  114.138620] general protection fault, probably for non-canonical address 0xdffffc0000000000: 0000 [#1] PREEMPT SMP KASAN NOPTI
+[  114.139310] KASAN: null-ptr-deref in range [0x0000000000000000-0x0000000000000007]
+%%% want
+kind: src
+«hk|#include» «hs|<stdio.h>»
+«hk|#include» «hs|<stdlib.h>»
+«hk|#include» «hs|<stdint.h>»
+«hk|#include» «hs|<unistd.h>»
+«hk|#include» «hs|<fcntl.h>»
+«hk|#include» «hs|<sys/ioctl.h>»
+
+«hk|#define» «hf|die»(s) «hf|perror»(s), «hf|exit»(«hn|1»)
+«hk|#define» QUERY_INFO «hn|0xc018cf07»
+
+«hk|int» «hf|main»(«hk|int» argc, «hk|char» *argv[])
+{
+	«hk|int» fd;
+
+	«hk|if» (argc < «hn|2»)
+		«hf|exit»(«hn|1»);
+	fd = «hf|open»(argv[«hn|1»], O_RDONLY);
+	«hk|if» (fd == -«hn|1»)
+		«hf|die»(«hs|"open"»);
+	«hk|if» («hf|ioctl»(fd, QUERY_INFO, (uint32_t[]) { «hn|0», «hn|0», «hn|0», «hn|4», «hn|0», «hn|0»}) == -«hn|1»)
+		«hf|die»(«hs|"ioctl"»);
+	«hf|close»(fd);
+	«hk|return» «hn|0»;
+}
+
+mount.cifs //srv/share /mnt -o ...
+gcc repro.c && ./a.out /mnt/f0
+
+«hm|[  114.138620]» «he|general protection fault», probably for non-canonical address «hn|0xdffffc0000000000»: 0000 [#1] PREEMPT SMP KASAN NOPTI
+«hm|[  114.139310]» «he|KASAN:» null-ptr-deref in range [«hn|0x0000000000000000»-«hn|0x0000000000000007»]
+%%% end
+%%% CVE-2023-54137 C function: keywords, calls, numbers, sizeof
+static int vfio_iommu_migration_build_caps(struct vfio_iommu *iommu,
+                       struct vfio_info_cap *caps)
+{
+    struct vfio_iommu_type1_info_cap_migration cap_mig;
+
+    cap_mig.header.id = VFIO_IOMMU_TYPE1_INFO_CAP_MIGRATION;
+    cap_mig.header.version = 1;
+
+    cap_mig.flags = 0;
+    /* support minimum pgsize */
+    cap_mig.pgsize_bitmap = (size_t)1 << __ffs(iommu->pgsize_bitmap);
+    cap_mig.max_dirty_bitmap_size = DIRTY_BITMAP_SIZE_MAX;
+
+    return vfio_info_add_capability(caps, &cap_mig.header, sizeof(cap_mig));
+}
+%%% want
+kind: src
+«hk|static» «hk|int» «hf|vfio_iommu_migration_build_caps»(«hk|struct» vfio_iommu *iommu,
+                       «hk|struct» vfio_info_cap *caps)
+{
+    «hk|struct» vfio_iommu_type1_info_cap_migration cap_mig;
+
+    cap_mig.header.id = VFIO_IOMMU_TYPE1_INFO_CAP_MIGRATION;
+    cap_mig.header.version = «hn|1»;
+
+    cap_mig.flags = «hn|0»;
+    «hc|/* support minimum pgsize */»
+    cap_mig.pgsize_bitmap = (size_t)«hn|1» << «hf|__ffs»(iommu->pgsize_bitmap);
+    cap_mig.max_dirty_bitmap_size = DIRTY_BITMAP_SIZE_MAX;
+
+    «hk|return» «hf|vfio_info_add_capability»(caps, &cap_mig.header, «hk|sizeof»(cap_mig));
+}
+%%% end
+%%% CVE-2026-74580 arguments ('vq, addr, len') are not sentence words
+if (vhost_vq_meta_fetch(vq, addr, len, type))
+	return true;
+%%% want
+kind: src
+«hk|if» («hf|vhost_vq_meta_fetch»(vq, addr, len, type))
+	«hk|return» «hk|true»;
+%%% end
+%%% CVE-2025-38468 decimal fractions are one number
+0) + 13.635 us   |    netem_enqueue();
+0)   4.719 us    |    htb_activate_prios();
+%%% want
+kind: src
+«hn|0») + «hn|13.635» us   |    «hf|netem_enqueue»();
+«hn|0»)   «hn|4.719» us    |    «hf|htb_activate_prios»();
+%%% end
+%%% CVE-2026-74411 objdump lines inside source stay plain
+	for (i = 0; i < req->n_6ghz_params; i++) {
+   5fbc0:	83 c3 01             	add    $0x1,%ebx --> i++
+   5fbc3:	0f b6 c3             	movzbl %bl,%eax  --> get counter
+   fbc6:	41 3b 44 24 74       	cmp    0x74(%r12),%eax
+%%% want
+kind: src
+	«hk|for» (i = «hn|0»; i < req->n_6ghz_params; i++) {
+   5fbc0:	83 c3 01             	add    $0x1,%ebx --> i++
+   5fbc3:	0f b6 c3             	movzbl %bl,%eax  --> get counter
+   fbc6:	41 3b 44 24 74       	cmp    0x74(%r12),%eax
+%%% end
+%%% CVE-2025-68214 member named like a keyword (timer->function) is not a keyword
+CPU0					CPU1
+					<SOFTIRQ>
+					lock_timer_base()
+					expire_timers()
+					base->running_timer = timer;
+					unlock_timer_base()
+					[call_timer_fn enter]
+					mod_timer()
+					...
+timer_shutdown_sync()
+lock_timer_base()
+// For now, will not detach the timer but only clear its function to NULL
+if (base->running_timer != timer)
+	ret = detach_if_pending(timer, base, true);
+if (shutdown)
+	timer->function = NULL;
+unlock_timer_base()
+					[call_timer_fn exit]
+					lock_timer_base()
+					base->running_timer = NULL;
+					unlock_timer_base()
+					...
+%%% want
+kind: src
+CPU0					CPU1
+					«hm|<SOFTIRQ>»
+					«hf|lock_timer_base»()
+					«hf|expire_timers»()
+					base->running_timer = timer;
+					«hf|unlock_timer_base»()
+					[call_timer_fn enter]
+					«hf|mod_timer»()
+					...
+«hf|timer_shutdown_sync»()
+«hf|lock_timer_base»()
+«hc|// For now, will not detach the timer but only clear its function to NULL»
+«hk|if» (base->running_timer != timer)
+	ret = «hf|detach_if_pending»(timer, base, «hk|true»);
+«hk|if» (shutdown)
+	timer->function = «hk|NULL»;
+«hf|unlock_timer_base»()
+					[call_timer_fn exit]
+					«hf|lock_timer_base»()
+					base->running_timer = «hk|NULL»;
+					«hf|unlock_timer_base»()
+					...
+%%% end
+%%% CVE-2023-53419 two columns CPU1/CPU2 with prose rows
+           CPU1                                           CPU2
+rcu_preempt_deferred_qs_irqrestore                rcu_print_task_exp_stall
+  if (special.b.blocked)                            READ_ONCE(rnp->exp_tasks) != NULL
+    raw_spin_lock_rcu_node
+    np = rcu_next_node_entry(t, rnp)
+    if (&t->rcu_node_entry == rnp->exp_tasks)
+      WRITE_ONCE(rnp->exp_tasks, np)
+      ....
+      raw_spin_unlock_irqrestore_rcu_node
+                                                    raw_spin_lock_irqsave_rcu_node
+                                                    t = list_entry(rnp->exp_tasks->prev,
+                                                        struct task_struct, rcu_node_entry)
+                                                    (if rnp->exp_tasks is NULL, this
+                                                       will dereference a NULL pointer)
+%%% want
+kind: src
+           CPU1                                           CPU2
+rcu_preempt_deferred_qs_irqrestore                rcu_print_task_exp_stall
+  «hk|if» (special.b.blocked)                            «hf|READ_ONCE»(rnp->exp_tasks) != «hk|NULL»
+    raw_spin_lock_rcu_node
+    np = «hf|rcu_next_node_entry»(t, rnp)
+    «hk|if» (&t->rcu_node_entry == rnp->exp_tasks)
+      «hf|WRITE_ONCE»(rnp->exp_tasks, np)
+      ....
+      raw_spin_unlock_irqrestore_rcu_node
+                                                    raw_spin_lock_irqsave_rcu_node
+                                                    t = «hf|list_entry»(rnp->exp_tasks->prev,
+                                                        «hk|struct» task_struct, rcu_node_entry)
+                                                    (if rnp->exp_tasks is «hk|NULL», this
+                                                       will dereference a «hk|NULL» pointer)
+%%% end
+%%% CVE-2025-39980 root prompt '# cmd' is a prompt, not a comment
+# ip nexthop add id 1 via 192.0.2.1 fdb
+# ip nexthop add id 2 group 1
+%%% want
+kind: shell
+«hm|# »«hf|ip» nexthop add id 1 via 192.0.2.1 fdb
+«hm|# »«hf|ip» nexthop add id 2 group 1
+%%% end
+%%% CVE-2026-97902 script: '# ...' after a blank is a comment; a string holding $( ... "..." ) stays plain
+dmsetup create dut --table "0 $(blockdev --getsz "$DEV") linear $DEV 0"
+mkfs.ext4 /dev/mapper/dut
+mount /dev/mapper/dut /mnt
+fsfreeze --freeze /mnt      # freeze_ucount == 1
+dmsetup suspend dut         # bd_fsfreeze_count == 1, ucount == 2
+dmsetup resume dut          # ucount 2 -> 1, but thaw_super()
+                            # returns -EINVAL, so bdev_thaw()
+                            # keeps bd_fsfreeze_count at 1
+fsfreeze --unfreeze /mnt    # filesystem thaws fine
+umount /mnt
+mount /dev/mapper/dut /mnt  # EBUSY, forever
+%%% want
+kind: shell
+«hf|dmsetup» create dut --table "0 $(blockdev --getsz "$DEV") linear $DEV 0"
+«hf|mkfs.ext4» /dev/mapper/dut
+«hf|mount» /dev/mapper/dut /mnt
+«hf|fsfreeze» --freeze /mnt      «hc|# freeze_ucount == 1»
+«hf|dmsetup» suspend dut         «hc|# bd_fsfreeze_count == 1, ucount == 2»
+«hf|dmsetup» resume dut          «hc|# ucount 2 -> 1, but thaw_super()»
+                            «hc|# returns -EINVAL, so bdev_thaw()»
+                            «hc|# keeps bd_fsfreeze_count at 1»
+«hf|fsfreeze» --unfreeze /mnt    «hc|# filesystem thaws fine»
+«hf|umount» /mnt
+«hf|mount» /dev/mapper/dut /mnt  «hc|# EBUSY, forever»
+%%% end
+%%% CVE-2023-54070 script with for/do/done keywords and backticks
+#!/bin/sh
+for i in `seq 1 5`; do
+  modprobe -rv igb
+  modprobe -v igb max_vfs=1
+  sleep 1
+  modprobe -rv igb
+done
+%%% want
+kind: shell
+«hc|#!/bin/sh»
+«hk|for» i in `«hf|seq» 1 5`; «hk|do»
+  «hf|modprobe» -rv igb
+  «hf|modprobe» -v igb max_vfs=1
+  «hf|sleep» 1
+  «hf|modprobe» -rv igb
+«hk|done»
+%%% end
+%%% CVE-2022-50553 a quote left open across '\' continuations is not a string and holds no commands
+ # cd /sys/kernel/tracing/
+ # echo "my_synth_event int v1; int v2; int v3; int v4; int v5; int v6;\
+int v7; int v8; int v9; int v10; int v11; int v12; int v13; int v14;\
+int v15; int v16; int v17; int v18; int v19; int v20; int v21; int v22;\
+int v23; int v24; int v25; int v26; int v27; int v28; int v29; int v30;\
+int v31; int v32; int v33; int v34; int v35; int v36; int v37; int v38;\
+int v39; int v40; int v41; int v42; int v43; int v44; int v45; int v46;\
+int v47; int v48; int v49; int v50; int v51; int v52; int v53; int v54;\
+int v55; int v56; int v57; int v58; int v59; int v60; int v61; int v62;\
+int v63" >> synthetic_events
+ # echo 'hist:keys=pid:ts0=common_timestamp.usecs if comm=="bash"' >> \
+events/sched/sched_waking/trigger
+ # echo "hist:keys=next_pid:onmatch(sched.sched_waking).my_synth_event(\
+pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,\
+pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,\
+pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,\
+pid,pid,pid,pid,pid,pid,pid,pid,pid)" >> events/sched/sched_switch/trigger
+%%% want
+kind: shell
+ «hm|# »«hf|cd» /sys/kernel/tracing/
+ «hm|# »«hf|echo» "my_synth_event int v1; int v2; int v3; int v4; int v5; int v6;\
+int v7; int v8; int v9; int v10; int v11; int v12; int v13; int v14;\
+int v15; int v16; int v17; int v18; int v19; int v20; int v21; int v22;\
+int v23; int v24; int v25; int v26; int v27; int v28; int v29; int v30;\
+int v31; int v32; int v33; int v34; int v35; int v36; int v37; int v38;\
+int v39; int v40; int v41; int v42; int v43; int v44; int v45; int v46;\
+int v47; int v48; int v49; int v50; int v51; int v52; int v53; int v54;\
+int v55; int v56; int v57; int v58; int v59; int v60; int v61; int v62;\
+int v63" >> synthetic_events
+ «hm|# »«hf|echo» «hs|'hist:keys=pid:ts0=common_timestamp.usecs if comm=="bash"'» >> \
+events/sched/sched_waking/trigger
+ «hm|# »«hf|echo» "hist:keys=next_pid:onmatch(sched.sched_waking).my_synth_event(\
+pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,\
+pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,\
+pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,pid,\
+pid,pid,pid,pid,pid,pid,pid,pid,pid)" >> events/sched/sched_switch/trigger
+%%% end
+%%% CVE-2024-47745 transcript: the C program before the first prompt is source, output after it plain
+	size_t pagesz = sysconf(_SC_PAGE_SIZE);
+	int mfd = syscall(SYS_memfd_create, "test", 0);
+	const char *buf = mmap(NULL, 4 * pagesz, PROT_READ | PROT_WRITE,
+		MAP_SHARED, mfd, 0);
+	unsigned int old = syscall(SYS_personality, 0xffffffff);
+	syscall(SYS_personality, READ_IMPLIES_EXEC | old);
+	syscall(SYS_remap_file_pages, buf, pagesz, 0, 2, 0);
+	syscall(SYS_personality, old);
+	// show the RWX page exists even if W^X policy is enforced
+	int fd = open("/proc/self/maps", O_RDONLY);
+	unsigned char buf2[1024];
+	while (1) {
+		int ret = read(fd, buf2, 1024);
+		if (ret <= 0) break;
+		write(1, buf2, ret);
+	}
+	close(fd);
+}
+
+$ gcc test.c -o test
+$ ./test | grep rwx
+7f1836c34000-7f1836c35000 rwxs 00002000 00:01 2050 /memfd:test (deleted)
+%%% want
+kind: shell
+	size_t pagesz = «hf|sysconf»(_SC_PAGE_SIZE);
+	«hk|int» mfd = «hf|syscall»(SYS_memfd_create, «hs|"test"», «hn|0»);
+	«hk|const» «hk|char» *buf = «hf|mmap»(«hk|NULL», «hn|4» * pagesz, PROT_READ | PROT_WRITE,
+		MAP_SHARED, mfd, «hn|0»);
+	«hk|unsigned» «hk|int» old = «hf|syscall»(SYS_personality, «hn|0xffffffff»);
+	«hf|syscall»(SYS_personality, READ_IMPLIES_EXEC | old);
+	«hf|syscall»(SYS_remap_file_pages, buf, pagesz, «hn|0», «hn|2», «hn|0»);
+	«hf|syscall»(SYS_personality, old);
+	«hc|// show the RWX page exists even if W^X policy is enforced»
+	«hk|int» fd = «hf|open»(«hs|"/proc/self/maps"», O_RDONLY);
+	«hk|unsigned» «hk|char» buf2[«hn|1024»];
+	«hk|while» («hn|1») {
+		«hk|int» ret = «hf|read»(fd, buf2, «hn|1024»);
+		«hk|if» (ret <= «hn|0») «hk|break»;
+		«hf|write»(«hn|1», buf2, ret);
+	}
+	«hf|close»(fd);
+}
+
+«hm|$ »«hf|gcc» test.c -o test
+«hm|$ »«hf|./test» | «hf|grep» rwx
+7f1836c34000-7f1836c35000 rwxs 00002000 00:01 2050 /memfd:test (deleted)
+%%% end
+%%% CVE-2024-26868 python REPL prompt: source after '>>> ', output plain
+>>> prog.crashed_thread().stack_trace()[0]
+#0 at 0xffffffffa079657a (ff_layout_cancel_io+0x3a/0x84) in ff_layout_cancel_io at fs/nfs/flexfilelayout/flexfilelayout.c:2021:27
+>>> prog.crashed_thread().stack_trace()[0]['idx']
+(u32)1
+>>> prog.crashed_thread().stack_trace()[0]['flseg'].mirror_array[1].mirror_ds
+(struct nfs4_ff_layout_ds *)0xffffffffffffffed
+%%% want
+kind: shell
+«hm|>>> »prog.«hf|crashed_thread»().«hf|stack_trace»()[«hn|0»]
+#0 at 0xffffffffa079657a (ff_layout_cancel_io+0x3a/0x84) in ff_layout_cancel_io at fs/nfs/flexfilelayout/flexfilelayout.c:2021:27
+«hm|>>> »prog.«hf|crashed_thread»().«hf|stack_trace»()[«hn|0»][«hs|'idx'»]
+(u32)1
+«hm|>>> »prog.«hf|crashed_thread»().«hf|stack_trace»()[«hn|0»][«hs|'flseg'»].mirror_array[«hn|1»].mirror_ds
+(struct nfs4_ff_layout_ds *)0xffffffffffffffed
+%%% end
+%%% CVE-2024-26837 user@host prompt, table output plain
+root@infix-06-0b-00:~$ ip link del dev br0
+root@infix-06-0b-00:~$ mvls atu
+ADDRESS             FID  STATE      Q  F  0  1  2  3  4  5  6  7  8  9  a
+DEV:0 Marvell 88E6393X
+33:33:00:00:00:6a     1  static     -  -  0  .  .  .  .  .  .  .  .  .  .
+33:33:ff:87:e4:3f     1  static     -  -  0  .  .  .  .  .  .  .  .  .  .
+ff:ff:ff:ff:ff:ff     1  static     -  -  0  1  2  3  4  5  6  7  8  9  a
+root@infix-06-0b-00:~$
+%%% want
+kind: shell
+«hm|root@infix-06-0b-00:~$ »«hf|ip» link del dev br0
+«hm|root@infix-06-0b-00:~$ »«hf|mvls» atu
+ADDRESS             FID  STATE      Q  F  0  1  2  3  4  5  6  7  8  9  a
+DEV:0 Marvell 88E6393X
+33:33:00:00:00:6a     1  static     -  -  0  .  .  .  .  .  .  .  .  .  .
+33:33:ff:87:e4:3f     1  static     -  -  0  .  .  .  .  .  .  .  .  .  .
+ff:ff:ff:ff:ff:ff     1  static     -  -  0  1  2  3  4  5  6  7  8  9  a
+root@infix-06-0b-00:~$
+%%% end
+%%% CVE-2026-45710 URLs in a curl transcript: '//' is not a comment
+$ curl -s -b /tmp/fs-cookie2 "http://127.0.0.1:8081/EditAgente?code=1" \
+   | grep -oE 'widgetVarianteSelect[^<>]{1,200}' | head -3
+%%% want
+kind: shell
+«hm|$ »«hf|curl» -s -b /tmp/fs-cookie2 «hs|"http://127.0.0.1:8081/EditAgente?code=1"» \
+   | «hf|grep» -oE «hs|'widgetVarianteSelect[^<>]{1,200}'» | «hf|head» -3
+%%% end
+%%% CVE-2026-93235 unified diff with file headers, hunk and '//' in a path
+--- tests/generic/794.out   2026-06-12 08:46:32.766426241 +0800
++++ /share/git/fstests/results//generic/794.out.bad 2026-07-05 18:32:55.000000000 +0800
+@@ -1,4 +1,16 @@
+ QA output created by 794
+ append_write
++FAIL: non-zero data in gap [4080,4096) after shutdown+remount
++000000 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a  >ZZZZZZZZZZZZZZZZ<
++*
++001000
+ truncate_up
+...
+(Run 'diff -u /share/git/fstests/tests/generic/794.out /share/git/fstests/results//generic/794.out.bad'  to see the entire diff)
+%%% want
+kind: diff
+«hm|--- tests/generic/794.out   2026-06-12 08:46:32.766426241 +0800»
+«hm|+++ /share/git/fstests/results//generic/794.out.bad 2026-07-05 18:32:55.000000000 +0800»
+«hm|@@ -1,4 +1,16 @@»
+ QA output created by 794
+ append_write
+«ha|+FAIL: non-zero data in gap [4080,4096) after shutdown+remount»
+«ha|+000000 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a  >ZZZZZZZZZZZZZZZZ<»
+«ha|+*»
+«ha|+001000»
+ truncate_up
+...
+(Run 'diff -u /share/git/fstests/tests/generic/794.out /share/git/fstests/results//generic/794.out.bad'  to see the entire diff)
+%%% end
+%%% CVE-2026-8723 diff without headers: '-' and '+' lines
+- obj = utils.maybeMap(obj, encoder);
+
++ obj = utils.maybeMap(obj, function (v) {
+
++     return v == null ? v : encoder(v);
+
++ });
+%%% want
+kind: diff
+«hd|- obj = utils.maybeMap(obj, encoder);»
+
+«ha|+ obj = utils.maybeMap(obj, function (v) {»
+
+«ha|+     return v == null ? v : encoder(v);»
+
+«ha|+ });»
+%%% end
+%%% CVE-2025-50185 HTTP request: method, header names, JSON body
+POST /runners/load-reader HTTP/1.1
+Host: <REPLACE ME>
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:138.0) Gecko/20100101 Firefox/138.0
+Accept: */*
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate, br
+Referer: <REPLACE ME>
+Content-Type: application/json
+Authorization: Bearer <REPLACE ME>
+Content-Length: 127
+Origin: http://192.168.124.119:3000
+Connection: keep-alive
+Cookie: <REPLACE ME>
+Priority: u=0
+Cache-Control: max-age=0
+
+{"functionName":"reader@dbgate-plugin-csv","props":{"fileName":"/etc\/shadow","limitRows":100}}
+%%% want
+kind: http
+«hk|POST» /runners/load-reader HTTP/1.1
+«hf|Host»: <REPLACE ME>
+«hf|User-Agent»: Mozilla/5.0 (X11; Linux x86_64; rv:138.0) Gecko/20100101 Firefox/138.0
+«hf|Accept»: */*
+«hf|Accept-Language»: en-US,en;q=0.5
+«hf|Accept-Encoding»: gzip, deflate, br
+«hf|Referer»: <REPLACE ME>
+«hf|Content-Type»: application/json
+«hf|Authorization»: Bearer <REPLACE ME>
+«hf|Content-Length»: 127
+«hf|Origin»: http://192.168.124.119:3000
+«hf|Connection»: keep-alive
+«hf|Cookie»: <REPLACE ME>
+«hf|Priority»: u=0
+«hf|Cache-Control»: max-age=0
+
+{«hs|"functionName"»:«hs|"reader@dbgate-plugin-csv"»,«hs|"props"»:{«hs|"fileName"»:«hs|"/etc\/shadow"»,«hs|"limitRows"»:«hn|100»}}
+%%% end
+%%% CVE-2026-77433 HTTP response: status code; '//evil.com' is not a comment
+HTTP/1.1 302 Found
+Location: //evil.com/phishing
+%%% want
+kind: http
+HTTP/1.1 «hn|302» Found
+«hf|Location»: //evil.com/phishing
+%%% end
+%%% CVE-2026-89465 prose diagram: plain
+rt9455_remove()                   workqueue
+  cancel pwr_rdy_work
+  cancel max_charging_time_work
+                                    batt_presence_work queues
+                                      max_charging_time_work
+  cancel batt_presence_work
+  return
+  devres frees rt9455_info
+                                    max_charging_time_work dereferences
+                                      rt9455_info
+%%% want
+kind: plain
+rt9455_remove()                   workqueue
+  cancel pwr_rdy_work
+  cancel max_charging_time_work
+                                    batt_presence_work queues
+                                      max_charging_time_work
+  cancel batt_presence_work
+  return
+  devres frees rt9455_info
+                                    max_charging_time_work dereferences
+                                      rt9455_info
+%%% end
+%%% CVE-2023-53642 commit list with apostrophes: plain
+68674f94ffc9 ("x86: don't use REP_GOOD or ERMS for small memory copies")
+20f3337d350c ("x86: don't use REP_GOOD or ERMS for small memory clearing")
+adfcf4231b8c ("x86: don't use REP_GOOD or ERMS for user memory copies")
+%%% want
+kind: plain
+68674f94ffc9 ("x86: don't use REP_GOOD or ERMS for small memory copies")
+20f3337d350c ("x86: don't use REP_GOOD or ERMS for small memory clearing")
+adfcf4231b8c ("x86: don't use REP_GOOD or ERMS for user memory copies")
+%%% end
+%%% CVE-2026-45892 table: plain
+0  A      B  N
+[UUUUUUUUUUUU] on-disk extent      U: unwritten extent
+[UUUUUUUUUUUU] extent status tree
+[--DDDDDDDD--]                     D: valid data
+%%% want
+kind: plain
+0  A      B  N
+[UUUUUUUUUUUU] on-disk extent      U: unwritten extent
+[UUUUUUUUUUUU] extent status tree
+[--DDDDDDDD--]                     D: valid data
+%%% end

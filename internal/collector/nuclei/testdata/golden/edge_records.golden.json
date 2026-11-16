@@ -1,0 +1,127 @@
+{
+ "collector": "nuclei",
+ "input": "internal/collector/nuclei/testdata/edge_records.json",
+ "kind": "records",
+ "records": [
+  {
+   "content_hash": "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
+   "error": {
+    "fatal": false,
+    "message": "payload is not an object",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "x"
+  },
+  {
+   "content_hash": "454d134be64a81bef957219eafcaa94dd6892b45f952f9f4967baff0afa0c48c",
+   "error": {
+    "fatal": false,
+    "message": "ID None != source_key CVE-2020-1",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2020-1"
+  },
+  {
+   "content_hash": "f6258e2b7519045dedcf0145a0d3c17062977425b7d8cf0e41d99b37ebf116f5",
+   "error": {
+    "fatal": false,
+    "message": "CVE-2020-1111: missing Info or file_path",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2020-1111"
+  },
+  {
+   "content_hash": "5270609ffe85257e958bfc28662a92f4007ba26bd4b37a418f5eb2647db82a29",
+   "error": {
+    "fatal": false,
+    "message": "CVE-2020-1111: missing Info or file_path",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2020-1111"
+  },
+  {
+   "content_hash": "68d3db453f0e72ee08b486d55c3a78404189a7881e0d359090043ce219a97575",
+   "error": {
+    "fatal": false,
+    "message": "CVE-2020-11: no valid CVE id among ['CVE-2020-11']",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2020-11"
+  },
+  {
+   "content_hash": "d541a52ed11dffda375f0a9a83e5ab18ca64f19403ba1b369b4caaf49d6bbc59",
+   "error": {
+    "fatal": false,
+    "message": "tech: no valid CVE id among []",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "tech"
+  },
+  {
+   "content_hash": "0c1581e28219452ef8a06010fd333923f72e0ea634286261e371988f58c24a28",
+   "is_backfill": true,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-1111",
+      "dedupe_key": "CVE-2020-1111",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": 5,
+       "kind": "detection_template",
+       "severity": null,
+       "template_id": "CVE-2020-1111",
+       "template_path": "p/x.yaml",
+       "title": null,
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/p/x.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/p/x.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "CVE-2020-1111"
+  },
+  {
+   "content_hash": "5768996046127d91e64bdf905c0d9bdd22e71562fef2ec0e7d4b47f952ffd657",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-1111",
+      "dedupe_key": "cve-2020-1111",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": null,
+       "kind": "detection_template",
+       "severity": "low",
+       "template_id": "cve-2020-1111",
+       "template_path": "p",
+       "title": null,
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/p"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/p"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "cve-2020-1111"
+  }
+ ]
+}

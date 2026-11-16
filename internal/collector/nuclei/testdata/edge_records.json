@@ -1,0 +1,68 @@
+[
+ {
+  "source_key": "x",
+  "payload": 5
+ },
+ {
+  "source_key": "CVE-2020-1",
+  "payload": {
+   "ID": null
+  }
+ },
+ {
+  "source_key": "CVE-2020-1111",
+  "payload": {
+   "ID": "CVE-2020-1111",
+   "Info": null,
+   "file_path": "a"
+  }
+ },
+ {
+  "source_key": "CVE-2020-1111",
+  "payload": {
+   "ID": "CVE-2020-1111",
+   "Info": {},
+   "file_path": 5
+  }
+ },
+ {
+  "source_key": "CVE-2020-11",
+  "payload": {
+   "ID": "CVE-2020-11",
+   "Info": {},
+   "file_path": "a"
+  }
+ },
+ {
+  "source_key": "tech",
+  "payload": {
+   "ID": "tech",
+   "Info": {},
+   "file_path": "a"
+  }
+ },
+ {
+  "source_key": "CVE-2020-1111",
+  "payload": {
+   "ID": "CVE-2020-1111",
+   "Info": {
+    "Classification": {
+     "CVSSScore": 5
+    }
+   },
+   "file_path": " p/x.yaml "
+  },
+  "is_backfill": true
+ },
+ {
+  "source_key": "cve-2020-1111",
+  "payload": {
+   "ID": "cve-2020-1111",
+   "Info": {
+    "Name": "",
+    "Severity": " low "
+   },
+   "file_path": "p"
+  }
+ }
+]

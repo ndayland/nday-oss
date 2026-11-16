@@ -1,0 +1,17 @@
+{
+ "exploit_a": {"name": "A", "fullname": "exploit/a", "type": "exploit", "rank": 600, "references": ["CVE-2020-0001 ", "cve-2020-0002", "CVE-2020-01", 7, null], "path": "/modules/exploits/a.rb", "check": true, "disclosure_date": "2020-01-01", "mod_time": "2020-02-02 00:00:00 +0000"},
+ "exploit_b": {"name": "B", "fullname": "exploit/b", "type": "exploit", "rank": true, "references": ["CVE-2020-0003"], "path": "", "check": false},
+ "exploit_c": {"name": "C", "fullname": "exploit/c", "type": "exploit", "rank": false, "references": ["CVE-2020-0004"]},
+ "exploit_d": {"name": "D", "fullname": "exploit/d", "type": "auxiliary", "rank": 300.0, "references": ["CVE-2020-0005"], "path": "x\u0000y.rb"},
+ "exploit_e": {"name": "E", "fullname": "exploit/e", "type": "exploit", "rank": "600", "references": ["OSVDB-1"]},
+ "exploit_f": {"name": "F", "fullname": " exploit/f ", "type": "exploit", "rank": 123, "references": ["CVE-2020-0006"], "k\u0000ey": "v\u0000"},
+ "dup_f": {"name": "F2", "fullname": "exploit/f", "type": "exploit", "references": ["CVE-2020-0007"]},
+ "post_x": {"name": "P", "fullname": "post/x", "type": "post", "references": ["CVE-2020-0008"]},
+ "payload_y": {"fullname": "payload/y", "type": "payload"},
+ "no_fullname": {"name": "N", "type": "exploit", "references": ["CVE-2020-0009"]},
+ "blank_fullname": {"fullname": " \u001f ", "type": "exploit"},
+ "not_a_dict": "string module",
+ "exploit_g": {"name": "G", "fullname": "exploit/g", "type": "exploit", "references": "CVE-2020-0010"},
+ "exploit_h": {"name": "H\u00e9\ud83d\ude00", "fullname": "exploit/h", "type": "auxiliary", "rank": 99999999999999999999999, "references": ["CVE-2020-0011", "CVE-2019\u20139193"], "targets": [1.5, 1e-7, 1E+20, -0.0, 10]},
+ "exploit_a": {"name": "A-dup-key-last-wins", "fullname": "exploit/a", "type": "exploit", "rank": 500, "references": ["CVE-2020-0001"], "path": "modules/exploits/a.rb"}
+}

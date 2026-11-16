@@ -1,0 +1,54 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main" id="main">
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "search.h1_query" "query" .Query}}</h1>
+{{- if eq .Kind "too_short"}}
+<p class="lede">{{t "search.too_short" "min" 2}}</p>
+{{- end}}
+</div>
+<div class="flags">
+{{template "tagfilter" .}}
+</div>
+{{- if ne .Kind "too_short"}}
+<details class="apid">
+<summary>{{t "hot.api.summary"}}</summary>
+{{template "cmd" .Curl}}
+</details>
+{{- if .Rows}}
+<div class="tbl list">
+<div class="tbl-in">
+<div class="tr th"><div></div><div>{{t "search.col.stage"}}</div><div>{{t "search.col.vuln"}}</div><div class="r">{{t "search.col.last"}}</div></div>
+{{- range .Rows}}
+<div class="tr" data-row="" data-id="{{.CVE}}" data-href="{{.Href}}">
+<div class="cur" aria-hidden="true"></div>
+<div class="b {{.StageClass}}">{{.Stage}}</div>
+<div class="vul">
+<div class="l1"><a class="id" href="{{.Href}}">{{.CVE}}</a>{{if .Rejected}} <span class="tag">REJECTED</span>{{end}}<span class="ttl{{if .TitleMissing}} missing{{end}}" title="{{.Title}}"{{with .TitleLang}} lang="{{.}}"{{end}}>{{.Title}}</span></div>
+<div class="vend">{{template "tagrow" .Tags}}{{or .Vendor "—"}}</div>
+</div>
+<div class="r dim">{{.Last}}</div>
+</div>
+{{- end}}
+</div>
+</div>
+{{- if .Truncated}}
+<p class="note">{{t "search.truncated" "limit" .Limit}}</p>
+{{- else}}
+<p class="note">{{t "search.count" "n" (len .Rows)}}</p>
+{{- end}}
+{{- if not $.L.IsPrimary}}
+{{template "upstreamnote"}}
+{{- end}}
+{{- else}}
+<div class="empty">
+<p>{{t "search.none" "query" .Query}}</p>
+<p class="note">{{t "search.none_hint"}}</p>
+</div>
+{{- end}}
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}

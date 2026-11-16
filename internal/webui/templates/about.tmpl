@@ -1,0 +1,67 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main" id="main">
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "about.h1"}}</h1>
+</div>
+<div class="prose-block">
+<p>{{t "about.p1"}}</p>
+<p>{{t "about.p2" "src" (a (href "/src") "~/src")}}</p>
+<p>{{t "about.p3"}}</p>
+<p>{{t "about.nvd_notice"}}</p>
+<p>{{t "about.contact" "email" contact}}</p>
+<p>{{t "rules.about"}} <a href="{{href "/rules"}}">{{t "rules.title"}}</a></p>
+</div>
+
+{{- with .Rules}}
+<section class="sec" id="hot-rules" aria-labelledby="hot-rules-h">
+<h2 class="h2" id="hot-rules-h"><span class="h" aria-hidden="true"># </span>{{t "about.hot.h2"}}</h2>
+<div class="prose-block">
+<p>{{t "about.hot.order" "home" (a (href "/") "~/")}}</p>
+<p>{{t "about.hot.repeat"}}</p>
+<p>{{t "about.hot.window" "window" (code .Window) "stage" (stage .Stage) "since" (code "--since") "min_stage" (code "--min-stage") "rejected" (code "--include-rejected")}}</p>
+{{- if gt .PinMax 0}}
+<p>{{t "about.hot.pin" "max" .PinMax}}</p>
+<ul class="rules-l">
+<li>{{t "about.hot.pin_count" "n" .PinResearchers "window" (code .PinWindow)}}</li>
+<li>{{t "about.hot.pin_recent" "hours" .PinHours}}</li>
+<li>{{t "about.hot.pin_wave" "days" .PinDays}}</li>
+<li>{{t "about.hot.pin_filter"}}</li>
+</ul>
+<p>{{t "about.hot.pin_order"}}</p>
+<p class="note">{{t "about.hot.pin_settings"}}</p>
+{{- else}}
+<p>{{t "about.hot.pin_off"}}</p>
+{{- end}}
+</div>
+</section>
+{{- end}}
+
+<section class="sec" aria-labelledby="keys">
+<h2 class="h2" id="keys"><span class="h" aria-hidden="true"># </span>{{t "about.keys.h2"}}</h2>
+<dl class="keylist">
+{{- range .Keys}}
+<dt><b>{{.Key}}</b></dt><dd>{{.Text}}</dd>
+{{- end}}
+</dl>
+<p class="note">{{t "about.keys.note"}}</p>
+</section>
+
+<section class="sec" id="api" aria-labelledby="apih">
+<h2 class="h2" id="apih"><span class="h" aria-hidden="true"># </span>{{t "about.api.h2"}}</h2>
+<p class="note">{{t "about.api.note"}}</p>
+<div class="api">
+{{- range .Endpoints}}
+<div class="ep">
+<div><a href="{{.Path}}">{{.Name}}</a></div>
+<p class="d">{{.Desc}}</p>
+{{template "cmdsm" .Curl}}
+</div>
+{{- end}}
+</div>
+</section>
+</main>
+</div>
+</div>
+{{end}}{{end}}

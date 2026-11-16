@@ -1,0 +1,90 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- with .Body}}
+<p class="note">{{t "admin.xd.lede"}}</p>
+<p class="note">{{if .HasRun}}{{t "admin.xd.run" "time" .RunAt.HTML "created" .Created "candidates" .Cands "carried" .Carried "skipped_cap" .SkipCap "skipped_old" .SkipOld}}{{else}}{{t "admin.xd.run_never"}}{{end}}</p>
+{{- if .Deferred}}
+<p class="note">{{t "admin.xd.run_deferred" "time" .DeferAt.HTML}}</p>
+{{- end}}
+<section class="sec" id="pending" aria-labelledby="h-xdp">
+<h2 class="h2" id="h-xdp"><span class="h" aria-hidden="true"># </span>{{t "admin.xd.pending_h2" "n" .Total}}</h2>
+{{- if .Capped}}
+<p class="note">{{t "admin.xd.capped" "shown" (len .Pending) "total" .Total}}</p>
+{{- end}}
+{{- if .Pending}}
+<p class="note">{{t "admin.xd.open_note"}}</p>
+<div class="adm-list">
+{{- $max := .Max}}{{$link := .LinkCost}}
+{{- range .Pending}}
+<article class="cm adm-cm" id="d-{{.ID}}">
+<p class="cm-h"><span class="{{.CodeClass}} b">+{{.Code}}</span>
+{{if .CVEHref}}<a href="{{.CVEHref}}">{{.CVE}}</a>{{else}}<code>{{.CVE}}</code>{{end}}
+<span class="cm-time">{{t "admin.xd.created" "time" .Created.HTML}}</span></p>
+<form class="acct-form adm-xd" data-d="{{.ID}}" data-v="{{.Version}}" novalidate="">
+<label for="xd-body-{{.ID}}">{{t "admin.xd.body_label"}}</label>
+<textarea class="acct-in adm-ta" id="xd-body-{{.ID}}" name="body" rows="6" spellcheck="false" autocomplete="off" dir="ltr" lang="en" data-max="{{$max}}" data-link="{{$link}}">{{.Body}}</textarea>
+<p class="note"><span class="xd-len{{if .Over}} bad{{end}}" data-len="">{{t "admin.xd.length" "n" .Length "max" $max}}</span></p>
+<div class="acct-row">
+<button type="submit" class="btn sm">{{t "admin.xd.save"}}</button>
+{{- if and .Compose (not .Over)}}
+<a class="btn sm adm-lnk" data-compose="" href="{{.Compose}}" target="_blank" rel="noopener noreferrer">{{t "admin.xd.open"}}</a>
+{{- end}}
+<span class="bad" data-over=""{{if not .Over}} hidden=""{{end}}>{{t "admin.err.too_long"}}</span>
+<span class="dim" data-unsaved="" hidden="">{{t "admin.xd.save_first"}}</span>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+<form class="acct-form adm-xdpost" data-d="{{.ID}}" data-v="{{.Version}}" novalidate="">
+<div class="acct-row">
+<label for="xd-url-{{.ID}}">{{t "admin.xd.post_url"}}</label>
+<input class="acct-in" id="xd-url-{{.ID}}" type="url" name="post_url" maxlength="200" autocomplete="off" spellcheck="false" autocapitalize="none" inputmode="url" dir="ltr"/>
+<button type="submit" class="btn sm">{{t "admin.xd.mark_posted"}}</button>
+<button type="button" class="btn sm acct-del" data-act="xddiscard" data-d="{{.ID}}" data-v="{{.Version}}">{{t "admin.xd.discard"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</article>
+{{- end}}
+</div>
+{{- else}}
+<p class="note">{{t "admin.xd.empty"}}</p>
+{{- end}}
+</section>
+
+<section class="sec" id="history" aria-labelledby="h-xdh">
+<h2 class="h2" id="h-xdh"><span class="h" aria-hidden="true"># </span>{{t "admin.xd.history_h2"}}</h2>
+{{- if .History}}
+<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+<thead><tr><th scope="col">{{t "admin.xd.col" "c" "stage"}}</th><th scope="col">{{t "admin.xd.col" "c" "cve"}}</th><th scope="col">{{t "admin.xd.col" "c" "status"}}</th><th scope="col">{{t "admin.xd.col" "c" "decided"}}</th><th scope="col">{{t "admin.xd.col" "c" "by"}}</th><th scope="col">{{t "admin.xd.col" "c" "post"}}</th><th scope="col">{{t "admin.xd.col" "c" "actions"}}</th></tr></thead>
+<tbody>
+{{- range .History}}
+<tr id="d-{{.ID}}">
+<td><span class="{{.CodeClass}} b">+{{.Code}}</span></td>
+<td>{{if .CVEHref}}<a href="{{.CVEHref}}">{{.CVE}}</a>{{else}}<code>{{.CVE}}</code>{{end}}</td>
+<td><span class="adm-st {{if .Discarded}}suspended{{else}}active{{end}}">{{t "admin.xd.status" "s" .Status}}</span></td>
+<td>{{.Decided.HTML}}</td>
+<td>{{if .ByHref}}<a href="{{.ByHref}}">{{if .By}}<bdi>@{{.By}}</bdi>{{else}}{{t "admin.user.no_handle"}}{{end}}</a>{{else}}—{{end}}</td>
+<td>{{with .PostURL}}<a href="{{.}}" rel="noopener noreferrer nofollow">{{t "admin.x.on_x"}}</a>{{else}}—{{end}}</td>
+<td>{{if .Discarded}}<form class="acct-form" novalidate=""><div><button type="button" class="btn sm" data-act="xdrestore" data-d="{{.ID}}" data-v="{{.Version}}">{{t "admin.xd.restore"}}</button></div><p class="acct-st" role="status" aria-live="polite"></p></form>{{end}}</td>
+</tr>
+{{- end}}
+</tbody>
+</table>
+</div>
+{{- if gt .Pages 1}}
+<p class="pager">{{with .HistPrev}}<a href="{{.}}" rel="prev">{{t "admin.x.prev"}}</a>{{end}}<span>{{t "admin.x.page_of" "page" .Page "pages" .Pages}}</span>{{with .HistNext}}<a href="{{.}}" rel="next">{{t "admin.next"}}</a>{{end}}</p>
+{{- end}}
+{{- else}}
+<p class="note">{{t "admin.xd.history_empty"}}</p>
+{{- end}}
+</section>
+{{template "reauthpanel" .}}
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}

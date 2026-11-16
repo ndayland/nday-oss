@@ -1,0 +1,38 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main" id="main">
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "stats.h1"}}</h1>
+<p class="lede">{{if .AsOf}}{{t "stats.lede_at" "time" .AsOf}}{{else}}{{t "stats.lede"}}{{end}}</p>
+</div>
+<details class="apid">
+<summary>{{t "stats.api.summary"}}</summary>
+{{template "cmd" .Curl}}
+</details>
+<section class="sec" aria-labelledby="by">
+<h2 class="h2" id="by"><span class="h" aria-hidden="true"># </span>{{t "stats.by_stage.h2"}}</h2>
+<div class="bars wide">
+{{- range .Bars}}
+<span class="{{.Class}} b">{{.Code}}</span><span class="dim">{{.Name}}</span><svg viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true"><rect class="track" width="100" height="10"/><g class="{{.Class}}"><rect class="fill" width="{{.W}}" height="10"/></g></svg><span class="r">{{.Count}}</span>
+{{- end}}
+</div>
+</section>
+<section class="sec" aria-labelledby="tot">
+<h2 class="h2" id="tot"><span class="h" aria-hidden="true"># </span>{{t "stats.totals.h2"}}</h2>
+<dl class="totals">
+{{- range .Totals}}
+<div><dt>{{.Label}}</dt><dd{{with .Class}} class="{{.}}"{{end}}>{{.Value}}</dd></div>
+{{- end}}
+</dl>
+</section>
+<section class="sec" aria-labelledby="tte">
+<h2 class="h2" id="tte"><span class="h" aria-hidden="true"># </span>{{t "stats.tte.h2"}}</h2>
+<div class="prose-block">
+<p>{{t "stats.tte.p1"}}</p>
+</div>
+</section>
+</main>
+</div>
+</div>
+{{end}}{{end}}

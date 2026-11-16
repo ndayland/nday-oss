@@ -1,0 +1,20 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main rulespage" id="main">
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "rules.title"}}</h1>
+{{- with .Version}}
+<p class="note">{{t "rules.version" "version" .}}</p>
+{{- end}}
+</div>
+<ol class="rules">
+{{- range .Rules}}
+<li><p class="rt">{{t .Key}}</p><p>{{t .Text}}</p></li>
+{{- end}}
+</ol>
+<p class="note rules-contact">{{t "rules.contact" "email" contact}}</p>
+</main>
+</div>
+</div>
+{{end}}{{end}}

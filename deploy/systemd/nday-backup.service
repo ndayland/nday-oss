@@ -1,0 +1,30 @@
+[Unit]
+Description=nday daily database backup (pg_dump, verified, rotated)
+After=postgresql.service
+Wants=postgresql.service
+RequiresMountsFor=/data
+
+[Service]
+Type=oneshot
+User=nday
+Group=nday
+EnvironmentFile=/etc/nday/nday.env
+# Optional overrides (defaults: /data/backup, 14 daily, 8 weekly):
+#   NDAY_BACKUP_DIR, NDAY_BACKUP_KEEP_DAILY, NDAY_BACKUP_KEEP_WEEKLY
+EnvironmentFile=-/etc/nday/backup.env
+ExecStart=/opt/nday/bin/nday-backup
+TimeoutStartSec=2h
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/data/backup
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes

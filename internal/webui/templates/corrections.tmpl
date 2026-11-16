@@ -1,0 +1,62 @@
+{{define "corrections"}}
+{{- if .Log}}
+<section class="sec corr-log" id="revisions" aria-labelledby="corr-log-h">
+<div class="sec-head">
+<h2 class="h2" id="corr-log-h"><span class="h" aria-hidden="true"># </span>{{t "corr.log.h2"}}</h2>
+<span class="note">{{t "corr.log.count" "n" (len .Log)}}</span>
+</div>
+<p class="note">{{t "corr.log.note"}}</p>
+<ol class="corr-list">
+{{- range .Log}}
+<li class="corr-item">
+<p class="corr-h"><span>{{.At.HTML}}</span><span class="tag">{{t "corr.category" "category" .Category}}</span>{{if .Handle}}<span class="weak">{{t "corr.log.by" "handle" .Handle}}</span>{{else if .Deleted}}<span class="weak">{{t "corr.log.by_deleted"}}</span>{{end}}</p>
+<p class="corr-note" dir="auto">{{.Note}}</p>
+</li>
+{{- end}}
+</ol>
+</section>
+{{- end}}
+{{- if .Write}}
+<section class="sec corr" id="correction" aria-labelledby="corr-h" data-cve="{{.CVE}}" data-max="{{.MaxBody}}" data-max-url="{{.MaxURL}}">
+<h2 class="h2" id="corr-h" tabindex="-1"><span class="h" aria-hidden="true"># </span>{{t "corr.h2"}}</h2>
+<details class="corr-d" id="corr-d">
+<summary>{{t "corr.open"}}</summary>
+<p class="note">{{t "corr.lede"}}</p>
+<noscript><p class="note">{{t "corr.nojs"}}</p></noscript>
+<p class="note" id="corr-unknown" hidden="">{{t "corr.state_unknown"}}</p>
+<div class="disc-state" id="corr-out" hidden="">
+<a class="btn acct-btn" href="{{.Login}}">{{t "corr.signin"}}</a>
+</div>
+<div class="disc-state" id="corr-nohandle" hidden="">
+<p class="note">{{t "corr.no_handle"}}</p>
+<a class="btn acct-btn" href="{{.Account}}">{{t "corr.no_handle_link"}}</a>
+</div>
+<div class="disc-state" id="corr-terms" hidden="">
+<p class="note">{{t "corr.terms_needed"}}</p>
+<a class="btn acct-btn" href="{{.Account}}">{{t "corr.terms_link"}}</a> <a href="{{.Rules}}">{{t "rules.title"}}</a>
+</div>
+<p class="banner disc-susp" id="corr-susp" hidden="">{{t "corr.suspended"}}</p>
+<form class="acct-form corr-form" id="corr-form" hidden="" novalidate="">
+<label for="corr-cat">{{t "corr.form.category"}}</label>
+<select class="acct-in" id="corr-cat" data-f="category">
+{{- range .Categories}}
+<option value="{{.}}">{{t "corr.category" "category" .}}</option>
+{{- end}}
+</select>
+<label for="corr-body">{{t "corr.form.body"}}</label>
+<textarea class="disc-ta" id="corr-body" data-f="body" rows="5" spellcheck="true"></textarea>
+<p class="note">{{t "corr.form.limit" "max" .MaxBody}}</p>
+<label for="corr-url">{{t "corr.form.url"}}</label>
+<input class="acct-in" id="corr-url" type="url" data-f="url" maxlength="{{.MaxURL}}" autocomplete="off" inputmode="url"/>
+<p class="note">{{t "corr.form.private"}}</p>
+<div class="acct-row"><button type="submit" class="btn acct-btn">{{t "corr.form.submit"}}</button></div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</details>
+<div class="corr-mine" id="corr-mine" hidden="">
+<h3 class="corr-h3">{{t "corr.mine.h3"}}</h3>
+<ul class="corr-list" id="corr-mine-list"></ul>
+</div>
+</section>
+{{- end}}
+{{- end}}

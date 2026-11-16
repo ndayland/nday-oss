@@ -1,0 +1,118 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main" id="main">
+{{- with .Hot.Tag}}
+<div class="stack">
+<p class="note"><a href="{{.All}}">{{path "~/tags"}}</a> <span aria-hidden="true">/</span> {{t "tag.dim" "dim" .Dim}}</p>
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{tagname .Slug}}</h1>
+<p class="lede">{{tagdesc .Slug}}</p>
+<p class="note">{{t "tag.one.count" "n" .Count}}{{with .CountsAt}} {{t "tag.counts_at" "time" .}}{{end}}</p>
+{{- with .CWEs}}
+<p class="note">{{t "tag.one.cwes" "cwes" .}}</p>
+{{- end}}
+<p class="note">{{t "tag.one.derived"}}</p>
+</div>
+{{- else}}
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "hot.h1"}}</h1>
+<p class="lede hot-lede">{{t "hot.lede"}}</p>
+<p class="note"><a href="{{href "/about"}}#hot-rules">{{t "hot.rules_link"}}</a></p>
+</div>
+{{- end}}
+<details class="apid">
+<summary>{{t "hot.api.summary"}}</summary>
+{{template "cmd" .Hot.Curl}}
+</details>
+<details class="flt" open=""{{if .Hot.Custom}} data-keep=""{{end}}>
+<summary><span class="k">{{t "hot.filter.summary"}}</span>
+{{- range .Hot.Since}}{{if .Active}} <span class="sep" aria-hidden="true">·</span> {{.Label}}{{end}}{{end}}
+{{- range .Hot.Stage}}{{if .Active}} <span class="sep" aria-hidden="true">·</span> {{.Label}}{{end}}{{end}}
+{{- if .Hot.Rejected.Active}} <span class="sep" aria-hidden="true">·</span> {{.Hot.Rejected.Label}}{{end}}
+{{- range .Hot.Chips}} <span class="sep" aria-hidden="true">·</span> {{tagname .Slug}}{{end}}</summary>
+<div class="flags">
+<div class="flag">
+<span class="k">{{t "hot.filter.since"}}</span>
+<div class="seg">
+{{- range .Hot.Since}}
+<a href="{{.Href}}"{{if .Active}} aria-current="true"{{end}}>{{.Label}}</a>
+{{- end}}
+</div>
+</div>
+<div class="flag">
+<span class="k">{{t "hot.filter.stage"}}</span>
+<div class="seg">
+{{- range .Hot.Stage}}
+<a href="{{.Href}}"{{if .Active}} aria-current="true"{{end}}>{{.Label}}</a>
+{{- end}}
+</div>
+</div>
+{{- with .Hot.Rejected}}
+<a class="chk" href="{{.Href}}"{{if .Active}} aria-current="true"{{end}}><span class="box" aria-hidden="true">{{if .Active}}✓{{end}}</span>{{.Label}}</a>
+{{- end}}
+{{template "tagfilter" .Hot}}
+</div>
+</details>
+<div class="tbl">
+<div class="tbl-in" role="table"{{if $.Acct}} data-pin="{{ts "acct.follows.pinned"}}"{{with fallbacklang "acct.follows.pinned"}} data-pin-lang="{{.}}"{{end}}{{end}}>
+{{template "hothead"}}
+{{- range .Hot.Rows}}
+<div class="grp" role="rowgroup">
+{{- if .DateHeader}}
+{{template "dgroup" .DateHeader}}
+{{- end}}
+{{template "hotrow" .}}
+</div>
+{{- else}}
+<div class="empty" role="row">
+<p role="cell">{{t "hot.empty" "since" (ts "hot.filter.since") "min_stage" (ts "hot.filter.stage")}}</p>
+{{- if or .Hot.Chips .Hot.Tag}}
+<p class="note" role="cell">{{t "tag.filter.empty"}}</p>
+{{- end}}
+</div>
+{{- end}}
+</div>
+</div>
+{{- if or .Hot.NextHref .Hot.OnCursor}}
+<nav class="pager" aria-label="{{ts "pager.label"}}">
+{{- if .Hot.OnCursor}}
+<a href="{{.Hot.FirstHref}}">{{t "pager.first"}}</a>
+{{- end}}
+{{- if .Hot.NextHref}}
+<a href="{{.Hot.NextHref}}" rel="next">{{t "pager.next"}}</a>
+{{- else}}
+<span>{{t "pager.end"}}</span>
+{{- end}}
+</nav>
+{{- end}}
+<div class="legend">
+{{template "legend"}}
+{{- if not $.L.IsPrimary}}
+{{template "upstreamnote"}}
+{{- end}}
+</div>
+</main>
+<aside class="side" aria-label="{{ts "hot.side.label"}}">
+<section class="panel">
+<h2><span class="h" aria-hidden="true"># </span>{{t "hot.side.stages"}}</h2>
+<div class="bars">
+{{template "bars" .Bars}}
+</div>
+</section>
+<section class="panel">
+<h2><span class="h" aria-hidden="true"># </span>{{t "hot.side.collectors"}}</h2>
+<div class="coll">
+{{- range .Collectors}}
+<a class="u3" href="{{href "/src"}}#{{.Name}}">{{.Name}}</a><span class="t">{{.LastSuccess.HTML}}</span><span class="{{.StatusClass}}">{{.Status}}</span>
+{{- end}}
+</div>
+<p class="note">{{t "hot.side.collectors_note"}}</p>
+</section>
+<section class="panel boxed">
+<h2><span class="h" aria-hidden="true"># </span>{{t "hot.side.backlog"}}</h2>
+<p class="prose">{{t "hot.side.backlog_text" "n" .BacklogN}}</p>
+</section>
+</aside>
+</div>
+</div>
+{{end}}{{end}}

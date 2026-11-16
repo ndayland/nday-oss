@@ -1,0 +1,74 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main" id="main">
+<div class="stack">
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "src.h1"}}</h1>
+<p class="lede">{{t "src.lede"}}</p>
+</div>
+<details class="apid">
+<summary>{{t "hot.api.summary"}}</summary>
+{{template "cmd" .Curl}}
+</details>
+<div class="srcs">
+{{- range .Collectors}}
+<div class="srcrow" id="{{.Name}}">
+<div class="b">{{.Name}}</div>
+<div class="what">
+<span>{{.Info.What}}</span>
+<span class="n">{{t "src.produces" "events" .Info.Produces}}</span>
+{{- if .Info.Upstream.Href}}
+{{template "link" .Info.Upstream}}
+{{- end}}
+</div>
+<dl class="st">
+<dt>{{t "src.col.status"}}</dt><dd class="{{.StatusClass}}">{{.Status}}</dd>
+<dt>{{t "src.col.last_run"}}</dt><dd>{{.LastRun.HTML}}</dd>
+<dt>{{t "src.col.last_success"}}</dt><dd>{{.LastSuccess.HTML}}</dd>
+</dl>
+{{- with .Error}}
+<p class="err">{{t "src.last_error" "error" (upstream .)}}</p>
+{{- end}}
+</div>
+{{- end}}
+</div>
+
+<section class="sec" aria-labelledby="bf">
+<h2 class="h2" id="bf"><span class="h" aria-hidden="true"># </span>{{t "src.backfill.h2"}}</h2>
+<div class="prose-block">
+<p>{{t "src.backfill.p1" "n" .BacklogN}}</p>
+<p>{{t "src.backfill.p2"}}</p>
+{{- with .StateAt}}
+<p class="note">{{t "src.backfill.state_at" "time" .}}</p>
+{{- end}}
+{{- with .StateError}}
+<p class="note">{{t "src.backfill.state_error" "error" (upstream .)}}</p>
+{{- end}}
+</div>
+</section>
+
+<section class="sec" aria-labelledby="read">
+<h2 class="h2" id="read"><span class="h" aria-hidden="true"># </span>{{t "src.read.h2"}}</h2>
+<div class="conv">
+<span><span class="b st-dis">DIS</span> <span class="b st-pat">PAT</span> <span class="b st-ana">ANA</span></span><span class="d">{{t "src.read.codes1"}}</span>
+<span><span class="b st-poc">POC</span> <span class="b st-itw">ITW</span> <span class="b st-kev">KEV</span></span><span class="d">{{t "src.read.codes2"}}</span>
+<span class="mkrow">{{template "chip" (list3 "st-poc" "mk mk-known" "")}}</span><span class="d">{{t "src.read.mk_known"}}</span>
+<span class="mkrow">{{template "chip" (list3 "st-poc" "mk mk-hollow" "")}}</span><span class="d">{{t "src.read.mk_hollow"}}</span>
+<span class="mkrow">{{template "chip" (list3 "st-poc" "mk mk-known" "latest")}}</span><span class="d">{{t "src.read.mk_latest"}}</span>
+<span class="mkrow">{{template "chip" (list3 "st-poc" "mk mk-none" "")}}</span><span class="d">{{t "src.read.mk_none"}}</span>
+<span>2026-11-09T22:15Z</span><span class="d">{{t "src.read.exact"}}</span>
+<span>2026-11-09</span><span class="d">{{t "src.read.day"}}</span>
+<span>≤ 2026-11-09</span><span class="d">{{t "src.read.not_after"}}</span>
+<span>{{t "time.unknown"}}</span><span class="d">{{t "src.read.unknown"}}</span>
+<span><span class="b st-kev">+KEV</span> <span class="b st-poc">+POC</span></span><span class="d">{{t "src.read.plus"}}</span>
+<span><span class="b st-itw">~ITW</span></span><span class="d">{{t "src.read.tilde"}}</span>
+<span>T+8d</span><span class="d">{{t "src.read.tplus" "minus" (code "T-20d") "unknown" (code "T+?")}}</span>
+<span>2/3</span><span class="d">{{t "src.read.poc_count"}}</span>
+<span>{{t "src.read.live_label"}}</span><span class="d">{{t "src.read.live"}}</span>
+<span><span class="h"># </span>{{t "src.read.md_heading"}} <span class="h">## </span>{{t "src.read.md_group"}}</span><span class="d">{{t "src.read.md"}}</span>
+</div>
+</section>
+</main>
+</div>
+</div>
+{{end}}{{end}}

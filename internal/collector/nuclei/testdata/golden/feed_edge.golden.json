@@ -1,0 +1,246 @@
+{
+ "collector": "nuclei",
+ "cursor": {
+  "etag": null,
+  "feed": {
+   "bytes": 1052,
+   "items_in_scope": 10,
+   "items_nul_scrubbed": [
+    "CVE-2020-0004"
+   ],
+   "items_with_cve": 9,
+   "items_without_cve": 1,
+   "lines": 14,
+   "malformed_skipped": 4
+  },
+  "last_modified": null,
+  "last_run": {
+   "attempts": 1,
+   "bytes": 1052,
+   "http_status": 200,
+   "items_in_scope": 10,
+   "items_nul_scrubbed": [
+    "CVE-2020-0004"
+   ],
+   "items_with_cve": 9,
+   "items_without_cve": 1,
+   "lines": 14,
+   "malformed_skipped": 4
+  },
+  "url": "https://raw.githubusercontent.com/projectdiscovery/nuclei-templates/main/cves.json"
+ },
+ "input": "internal/collector/nuclei/testdata/feed_edge.jsonl",
+ "kind": "fetch",
+ "records": [
+  {
+   "content_hash": "2635ab797fab92f496b4a422b7d1eaeecf77461fc45b84ce5d7458b9c0ed3fbd",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0001",
+      "dedupe_key": "CVE-2020-0001",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": "9.8",
+       "kind": "detection_template",
+       "severity": "high",
+       "template_id": "CVE-2020-0001",
+       "template_path": "http/cves/2020/CVE-2020-0001.yaml",
+       "title": "A",
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2020/CVE-2020-0001.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2020/CVE-2020-0001.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "CVE-2020-0001"
+  },
+  {
+   "content_hash": "34ce35ceb70b8b0fda3506c1e61a3dbad933c732ce15f44c9e20eb0256a6c14d",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0002",
+      "dedupe_key": "CVE-2020-0002",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": 7.5,
+       "kind": "detection_template",
+       "severity": null,
+       "template_id": "CVE-2020-0002",
+       "template_path": "b.yaml",
+       "title": "B",
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/b.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/b.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "CVE-2020-0002"
+  },
+  {
+   "content_hash": "d1ca1d33d155ab6121cd54b19f598b238bada3a8a7144a893f0c388c0da83926",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0003",
+      "dedupe_key": "cve-2020-0003",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": null,
+       "kind": "detection_template",
+       "severity": null,
+       "template_id": "cve-2020-0003",
+       "template_path": "c.yaml",
+       "title": "C",
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/c.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/c.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "cve-2020-0003"
+  },
+  {
+   "content_hash": "60c59021fe34a9277931b72be8b3bf54274a4ce0c10f0fb24592d8b28b2655c9",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0004",
+      "dedupe_key": "CVE-2020-0004",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": null,
+       "kind": "detection_template",
+       "severity": null,
+       "template_id": "CVE-2020-0004",
+       "template_path": "d.yaml",
+       "title": "nul \\u0000 here",
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/d.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/d.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "CVE-2020-0004"
+  },
+  {
+   "content_hash": "4c5c29df31db8b6818ee8e661b27362c8b25ee78cd04d24c352b3aa53acfb2c1",
+   "error": {
+    "fatal": false,
+    "message": "CVE-2020-05: no valid CVE id among ['CVE-2020-05']",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2020-05"
+  },
+  {
+   "content_hash": "b2806efe009ed622b67d22eeb541834fe18ebb01dca0224c9332b55323387304",
+   "error": {
+    "fatal": false,
+    "message": "CVE-2020-0006: missing Info or file_path",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2020-0006"
+  },
+  {
+   "content_hash": "e37a94787ef2237f891c3a6efedbf292cb0589d0a07438795dd734a28ff71914",
+   "error": {
+    "fatal": false,
+    "message": "CVE-2020-0007: missing Info or file_path",
+    "type": "NormalizeError"
+   },
+   "is_backfill": false,
+   "source_key": "CVE-2020-0007"
+  },
+  {
+   "content_hash": "3467447906685a403d3747a4c6627c882604893f9c43316592910c0fdcadb88e",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0008",
+      "dedupe_key": "CVE-2020-0008",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": null,
+       "kind": "detection_template",
+       "severity": null,
+       "template_id": "CVE-2020-0008",
+       "template_path": "g.yaml",
+       "title": null,
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/g.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/g.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "CVE-2020-0008"
+  },
+  {
+   "content_hash": "0458bfb7816a48e5be76850fe9c156bc9ac26c9b95cdd7ae9200b48046717ba1",
+   "is_backfill": false,
+   "normalized": {
+    "affected": [],
+    "aliases": [],
+    "events": [
+     {
+      "cve_id": "CVE-2020-0009",
+      "dedupe_key": "CVE-2020-0009",
+      "detail": {
+       "confidence": "curated",
+       "cvss_score": null,
+       "kind": "detection_template",
+       "severity": null,
+       "template_id": "CVE-2020-0009",
+       "template_path": "h.yaml",
+       "title": null,
+       "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/h.yaml"
+      },
+      "occurred_at": null,
+      "source": "nuclei",
+      "type": "poc_published",
+      "url": "https://github.com/projectdiscovery/nuclei-templates/blob/main/h.yaml"
+     }
+    ],
+    "vulns": []
+   },
+   "source_key": "CVE-2020-0009"
+  }
+ ]
+}
