@@ -1,10 +1,22 @@
-# nday
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/wordmark-transparent.svg">
+    <img src="assets/brand/wordmark-on-light.svg" alt="nday" width="260">
+  </picture>
+</h1>
 
 **nday tracks what happens to a vulnerability after it's disclosed.** When did the patch ship? Is there a public PoC yet? Is it on CISA's exploited list? Every answer is a dated event from a public source, and the vulnerability's current stage is worked out from those events.
 
 This is the code behind [nday.land](https://www.nday.land): the collectors, the pipeline, the website and the JSON API.
 
 [Website](https://www.nday.land) · [API](https://api.nday.land/v1) · [Docs](docs/) · [Deploy guide](deploy/README.md)
+
+<a href="https://www.nday.land">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/home-dark.png">
+    <img src="assets/readme/home-light.png" alt="The nday.land home page: vulnerabilities that just reached a new stage, each with its six-slot timeline">
+  </picture>
+</a>
 
 ## Why
 
@@ -22,7 +34,7 @@ A vulnerability moves through up to six stages. Each one is an event with a sour
 | Patch released | `patch_released` | GitHub Security Advisories |
 | Analysis published | `analysis_published` | no source wired up yet |
 | Public PoC | `poc_published` | Exploit-DB, Metasploit, Nuclei templates |
-| Exploited in the wild | `exploited_in_wild` | no source wired up yet |
+| Exploited in the wild | `exploited_in_wild` | no source of its own yet; a KEV listing implies it |
 | Added to CISA KEV | `kev_added` | CISA KEV |
 
 On top of that, NVD supplies the classification (CWE, CVSS, affected products), and posts from an allow-list of security researchers on X are attached as discussion. Those aren't stages; they don't move a vulnerability along.

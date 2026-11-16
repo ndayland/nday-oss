@@ -14,6 +14,8 @@ OUT = Path(__file__).parent
 BG = "#0D1117"
 FG = "#E6EDF3"
 GREEN = "#7EE787"
+INK = "#1F2328"
+GREEN_ON_LIGHT = "#1A7F37"
 RED = "#F85149"
 
 CELL = 600
@@ -187,6 +189,8 @@ FILES = {
     "avatar.svg": icon(1024, 150, 120),
     "wordmark.svg": wordmark(0, XH),
     "wordmark-transparent.svg": wordmark(0, XH, bg=None),
+    # Dark ink for light pages (the README on GitHub's light theme).
+    "wordmark-on-light.svg": wordmark(0, XH, bg=None).replace(FG, INK).replace(GREEN, GREEN_ON_LIGHT),
     "og-diff.svg": og_diff(),
 }
 
