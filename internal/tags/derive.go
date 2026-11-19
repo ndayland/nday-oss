@@ -49,8 +49,9 @@ type Advisory struct {
 type Input struct {
 	CVEID string
 	// Rejected: the CVE record is REJECTED (latest cvelist disclosed event,
-	// as vuln_state says) or the classification layer's cvelist / nvd input
-	// marks it rejected. A rejected CVE gets no rule tags.
+	// as vuln_state says; for a GHSA-keyed vuln the advisory's disclosed
+	// event, REJECTED once withdrawn) or the classification layer's cvelist /
+	// nvd input marks it rejected. A rejected CVE gets no rule tags.
 	Rejected   bool
 	CWE        []classify.CWEEntry
 	CVSS       []classify.CVSSEntry // every stored vector; the best is chosen here

@@ -23,6 +23,7 @@ import (
 	"nday.land/nday/internal/site/sitetest"
 	"nday.land/nday/internal/testutil"
 	"nday.land/nday/internal/web"
+	"nday.land/nday/internal/web/webtest"
 )
 
 // counting wraps a ConnSource and counts WithConn calls (= query batches).
@@ -41,6 +42,7 @@ type env struct {
 	srv  *web.Server
 	src  *counting
 	logs *syncBuf
+	db   *testutil.TestDB // seeded with sitetest.Seed
 }
 
 type syncBuf struct {
@@ -74,19 +76,26 @@ func newEnvCfg(t *testing.T, wc web.Config, register func(*web.Server)) *env {
 	store := site.New(src).WithClock(func() time.Time { return sitetest.Now })
 	wc.Store, wc.Logger = store, slog.New(slog.NewTextHandler(logs, nil))
 	srv := web.New(wc)
+	srv.SetAPIAuth(webtest.BearerAuth{})
 	if register != nil {
 		register(srv)
 	}
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
-	return &env{ts: ts, srv: srv, src: src, logs: logs}
+	return &env{ts: ts, srv: srv, src: src, logs: logs, db: d}
 }
 
+// get sends the test API token unless hdr sets Authorization itself (an
+// empty value sends none).
 func (e *env) get(t *testing.T, path string, hdr ...string) (*http.Response, []byte) {
 	t.Helper()
 	req, _ := http.NewRequest(http.MethodGet, e.ts.URL+path, nil)
+	req.Header.Set("Authorization", "Bearer "+webtest.TestAPIToken)
 	for i := 0; i+1 < len(hdr); i += 2 {
 		req.Header.Set(hdr[i], hdr[i+1])
+		if hdr[i] == "Authorization" && hdr[i+1] == "" {
+			req.Header.Del("Authorization")
+		}
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -109,7 +118,8 @@ func decode(t *testing.T, b []byte) map[string]any {
 func TestHotEndpointAndCaching(t *testing.T) {
 	e := newEnv(t, nil)
 	resp, b := e.get(t, "/api/hot?since=30d&min_stage=patch&limit=2")
-	if resp.StatusCode != 200 || resp.Header.Get("Cache-Control") != "public, max-age=60" ||
+	if resp.StatusCode != 200 || resp.Header.Get("Cache-Control") != "private, max-age=60" ||
+		resp.Header.Get("Vary") != "Authorization" ||
 		resp.Header.Get("Content-Type") != "application/json; charset=utf-8" || resp.Header.Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatalf("%d %v %s", resp.StatusCode, resp.Header, b)
 	}
@@ -156,7 +166,9 @@ func TestBurstOfIdenticalRequestsHitsDatabaseOnce(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			resp, err := http.Get(e.ts.URL + "/api/hot?since=7d&min_stage=kev")
+			req, _ := http.NewRequest(http.MethodGet, e.ts.URL+"/api/hot?since=7d&min_stage=kev", nil)
+			req.Header.Set("Authorization", "Bearer "+webtest.TestAPIToken)
+			resp, err := http.DefaultClient.Do(req)
 			if err != nil || resp.StatusCode != 200 {
 				bad.Add(1)
 				return
@@ -206,7 +218,7 @@ func TestBadRequests(t *testing.T) {
 func TestVulnEndpoint(t *testing.T) {
 	e := newEnv(t, nil)
 	resp, b := e.get(t, "/api/vuln/cve-2026-102895")
-	if resp.StatusCode != 200 || resp.Header.Get("Cache-Control") != "public, max-age=60" {
+	if resp.StatusCode != 200 || resp.Header.Get("Cache-Control") != "private, max-age=60" {
 		t.Fatalf("%d %s", resp.StatusCode, b)
 	}
 	m := decode(t, b)
@@ -243,7 +255,7 @@ func TestOtherEndpoints(t *testing.T) {
 		if resp.StatusCode != 200 || !check(decode(t, b)) {
 			t.Errorf("%s: %d %s", path, resp.StatusCode, b)
 		}
-		want := "public, max-age=60"
+		want := "private, max-age=60"
 		if path == "/healthz" {
 			want = "no-store"
 		}
@@ -256,7 +268,7 @@ func TestOtherEndpoints(t *testing.T) {
 func TestRawEndpoint(t *testing.T) {
 	e := newEnv(t, nil)
 	resp, b := e.get(t, "/raw/kev/CVE-2026-102895.json")
-	if resp.StatusCode != 200 || resp.Header.Get("Cache-Control") != "public, max-age=3600" || resp.Header.Get("ETag") != `"h-kev-new"` ||
+	if resp.StatusCode != 200 || resp.Header.Get("Cache-Control") != "private, max-age=3600" || resp.Header.Get("ETag") != `"h-kev-new"` ||
 		resp.Header.Get("Last-Modified") == "" || !json.Valid(b) || !strings.Contains(string(b), `"v": 2`) {
 		t.Fatalf("%d %v %s", resp.StatusCode, resp.Header, b)
 	}
@@ -282,7 +294,7 @@ func TestMethodsNotFoundPanicAndLogging(t *testing.T) {
 		})
 	})
 	for _, m := range []string{http.MethodPost, http.MethodPut, http.MethodDelete} {
-		req, _ := http.NewRequest(m, e.ts.URL+"/api/hot", strings.NewReader("x"))
+		req, _ := http.NewRequest(m, e.ts.URL+"/api/hot", strings.NewReader("x")) // 405 before any authentication
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatal(err)
@@ -294,6 +306,7 @@ func TestMethodsNotFoundPanicAndLogging(t *testing.T) {
 		}
 	}
 	req, _ := http.NewRequest(http.MethodHead, e.ts.URL+"/api/stats", nil)
+	req.Header.Set("Authorization", "Bearer "+webtest.TestAPIToken)
 	if resp, err := http.DefaultClient.Do(req); err != nil || resp.StatusCode != 200 {
 		t.Errorf("HEAD %v", err)
 	}
@@ -412,5 +425,100 @@ func TestServeGracefulShutdown(t *testing.T) {
 	srv := web.NewHTTPServer(":0", h, slog.Default())
 	if srv.ReadHeaderTimeout == 0 || srv.ReadTimeout == 0 || srv.WriteTimeout == 0 || srv.IdleTimeout == 0 || srv.MaxHeaderBytes != 32<<10 {
 		t.Errorf("timeouts %+v", srv)
+	}
+}
+
+func TestVulnByGHSA(t *testing.T) {
+	e := newEnv(t, nil)
+	noFollow := func(path string) *http.Response {
+		req, _ := http.NewRequest(http.MethodGet, e.ts.URL+path, nil)
+		req.Header.Set("Authorization", "Bearer "+webtest.TestAPIToken)
+		resp, err := (&http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}).Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		return resp
+	}
+	resp := noFollow("/api/vuln/ghsa-GJ9M-f8ph-pmhr")
+	if resp.StatusCode != 307 || resp.Header.Get("Location") != "/api/vuln/"+sitetest.GPU ||
+		resp.Header.Get("Cache-Control") != "private, max-age=60" {
+		t.Errorf("one match: %d %v", resp.StatusCode, resp.Header)
+	}
+	resp, b := e.get(t, "/api/vuln/GHSA-2222-3333-4444")
+	if resp.StatusCode != 404 || decode(t, b)["error"].(map[string]any)["code"] != "not_found" {
+		t.Errorf("no match: %d %s", resp.StatusCode, b)
+	}
+	for _, bad := range []string{"GHSA-gj9m-f8ph", "GHSA-aaaa-bbbb-cccc"} {
+		resp, b = e.get(t, "/api/vuln/"+bad)
+		if resp.StatusCode != 400 || decode(t, b)["error"].(map[string]any)["param"] != "cve" {
+			t.Errorf("malformed %s: %d %s", bad, resp.StatusCode, b)
+		}
+	}
+	resp, _ = e.get(t, "/api/vuln/GHSA-gj9m-f8ph-pmhr?x=1")
+	if resp.StatusCode != 400 {
+		t.Errorf("unknown param: %d", resp.StatusCode)
+	}
+}
+
+// A vulnerability keyed by a GHSA id is served like a CVE (cve_id holds the
+// GHSA id); a GHSA id that became an alias still redirects; lists, cursors,
+// the year filter and the search treat the row like any other.
+func TestVulnKeyedByGHSA(t *testing.T) {
+	e := newEnv(t, nil)
+	sitetest.SeedGHSA(t, e.db.Conn)
+	for _, p := range []string{"/api/vuln/" + sitetest.GHSA, "/api/vuln/ghsa-GPWC-27cw-rh9r"} {
+		resp, b := e.get(t, p)
+		if resp.StatusCode != 200 || decode(t, b)["cve_id"] != sitetest.GHSA {
+			t.Errorf("%s: %d %.200s", p, resp.StatusCode, b)
+		}
+	}
+	req, _ := http.NewRequest(http.MethodGet, e.ts.URL+"/api/vuln/"+sitetest.GHSAAlias, nil)
+	req.Header.Set("Authorization", "Bearer "+webtest.TestAPIToken)
+	resp, err := (&http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != 307 || resp.Header.Get("Location") != "/api/vuln/CVE-2026-1004" {
+		t.Errorf("alias: %d %q", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	inRows := func(b []byte) bool {
+		rows, _ := decode(t, b)["rows"].([]any)
+		for _, r := range rows {
+			if r.(map[string]any)["cve_id"] == sitetest.GHSA {
+				return true
+			}
+		}
+		return false
+	}
+	if _, b := e.get(t, "/api/hot"); !inRows(b) {
+		t.Errorf("hot: %.300s", b)
+	}
+	if _, b := e.get(t, "/api/vulns?limit=200"); !inRows(b) {
+		t.Errorf("vulns: %.300s", b)
+	}
+	if resp, b := e.get(t, "/api/vulns?year=2026&limit=200"); resp.StatusCode != 200 || inRows(b) {
+		t.Errorf("vulns year: %d %.300s", resp.StatusCode, b)
+	}
+	resp, b := e.get(t, "/api/search?q=ghsa-gpwc-27cw-rh9r")
+	if m := decode(t, b); resp.StatusCode != 200 || m["kind"] != "alias" || m["query"] != sitetest.GHSA || !inRows(b) {
+		t.Errorf("search: %d %s", resp.StatusCode, b)
+	}
+	// a cursor ending on the GHSA row: the walk goes on past it
+	seen, next := false, "/api/hot?since=30d&limit=1"
+	for i := 0; next != "" && i < 50; i++ {
+		resp, b := e.get(t, next)
+		if resp.StatusCode != 200 {
+			t.Fatalf("%s: %d %s", next, resp.StatusCode, b)
+		}
+		seen = seen || inRows(b)
+		next = ""
+		if c, ok := decode(t, b)["next_cursor"].(string); ok {
+			next = "/api/hot?since=30d&limit=1&cursor=" + c
+		}
+	}
+	if !seen {
+		t.Error("hot walk never saw the GHSA row")
 	}
 }

@@ -23,7 +23,7 @@ const (
 )
 
 // advisoryHosts are vendor / CERT advisory hosts (after the "www." strip),
-// plus github.com/advisories/ (in Classify); the only place this list lives,
+// plus github.com/advisories/ and github.com/<owner>/<repo>/security/advisories (in Classify); the only place this list lives,
 // kept short on purpose. Exact host match: subdomains do not match.
 var advisoryHosts = map[string]bool{
 	"msrc.microsoft.com":            true,
@@ -55,7 +55,10 @@ var (
 	mediaTailRe  = regexp.MustCompile(`^/(?:photo|video)/[0-9]+/?$`)
 	// github.com/<owner>/<repo>/{commit,pull,compare}/...
 	ghPatchRe = regexp.MustCompile(`^/[^/]+/[^/]+/(?:commit|commits|pull|compare)/[^/]`)
-	ghRepoRe  = regexp.MustCompile(`^/[^/]+/[^/]+`)
+	// github.com/<owner>/<repo>/security/advisories[/...]: a repository's
+	// own security advisories (GHSA pages), not code
+	ghRepoAdvisoryRe = regexp.MustCompile(`^/[^/]+/[^/]+/security/advisories(?:/|$)`)
+	ghRepoRe         = regexp.MustCompile(`^/[^/]+/[^/]+`)
 )
 
 var xHosts = map[string]bool{"x.com": true, "twitter.com": true, "mobile.twitter.com": true, "mobile.x.com": true}
@@ -82,7 +85,7 @@ func Classify(finalURL, postID string) (host, kind string) {
 		}
 	case host == "github.com":
 		switch {
-		case strings.HasPrefix(p, "/advisories/"):
+		case strings.HasPrefix(p, "/advisories/"), ghRepoAdvisoryRe.MatchString(p):
 			return host, KindAdvisory
 		case ghPatchRe.MatchString(p):
 			return host, KindPatch

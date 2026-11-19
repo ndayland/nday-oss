@@ -12,7 +12,7 @@ import (
 func TestVulnsEndpointAndCaching(t *testing.T) {
 	e := newEnv(t, nil)
 	resp, b := e.get(t, "/api/vulns?limit=2")
-	if resp.StatusCode != 200 || resp.Header.Get("Cache-Control") != "public, max-age=60" ||
+	if resp.StatusCode != 200 || resp.Header.Get("Cache-Control") != "private, max-age=60" ||
 		resp.Header.Get("Content-Type") != "application/json; charset=utf-8" || resp.Header.Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatalf("%d %v %s", resp.StatusCode, resp.Header, b)
 	}
@@ -144,7 +144,7 @@ func TestVulnsTwoHosts(t *testing.T) {
 			t.Errorf("redirect %s: %d %q", old, resp.StatusCode, resp.Header.Get("Location"))
 		}
 	}
-	if r, b := do(t, e.two, "GET", apiHost, "/v1/vulns"); r.StatusCode != 200 || r.Header.Get("Cache-Control") != "public, max-age=60" ||
+	if r, b := do(t, e.two, "GET", apiHost, "/v1/vulns"); r.StatusCode != 200 || r.Header.Get("Cache-Control") != "private, max-age=60" ||
 		r.Header.Get("ETag") == "" || !strings.Contains(string(b), `"rows":[`) {
 		t.Errorf("v1: %d %v", r.StatusCode, r.Header)
 	}

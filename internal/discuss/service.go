@@ -410,9 +410,9 @@ func (s *Service) locale(tag string) string { return s.locales[strings.ToLower(t
 
 func pathCVE(w http.ResponseWriter, r *http.Request) (string, bool) {
 	seg := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")[2]
-	cve, ok := site.ParseCVEID(seg)
+	cve, ok := site.ParseVulnID(seg)
 	if !ok {
-		web.WriteError(w, http.StatusBadRequest, "bad_cve", "not a CVE id", "cve")
+		web.WriteError(w, http.StatusBadRequest, "bad_cve", "not a vulnerability id", "cve")
 	}
 	return cve, ok
 }

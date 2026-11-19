@@ -84,7 +84,7 @@
 <p class="note">{{if .BotShare}}{{t "admin.stats.bot_share" "pct" .BotShare "bots" .Bots "all" .Reqs}} {{end}}{{t "admin.stats.tops_note"}}</p>
 <div class="adm-tops">
 {{- range .Tables}}
-<section class="adm-top" aria-labelledby="{{.ID}}">
+<section class="adm-top" id="{{.Region}}" data-page-region="{{.Region}}" aria-labelledby="{{.ID}}">
 <h3 class="adm-h3" id="{{.ID}}">{{t "admin.stats.top" "table" .Key}}</h3>
 {{- if .Rows}}
 <div class="tbl-x"><table class="aff adm-tbl">
@@ -98,6 +98,7 @@
 {{- else}}
 <p class="note">{{t "admin.stats.none"}}</p>
 {{- end}}
+{{template "pager" .Pager}}
 </section>
 {{- end}}
 </div>

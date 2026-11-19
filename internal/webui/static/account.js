@@ -54,7 +54,7 @@
 
   // ---- status lines (aria-live)
   function stOf(node) {
-    const box = node && node.closest('form, .acct-panel, section');
+    const box = node && node.closest('form, .acct-form, section');
     return (box && box.querySelector('.acct-st')) || $('acct-status');
   }
   function say(el, key, vars, kind) {
@@ -77,7 +77,8 @@
   const known = new Set(['suspended', 'reauth_required', 'last_identity', 'last_usable_method', 'passkey_limit',
     'passkey_exists', 'display_name_reserved', 'invalid_handle', 'handle_reserved', 'handle_taken', 'signup_limit',
     'rate_limited', 'busy', 'csrf', 'ticket_invalid', 'cross_site', 'not_signed_in', 'ceremony_invalid',
-    'passkey_rejected', 'not_linked', 'not_found', 'terms_version_mismatch', 'invalid_follow', 'too_many_follows']);
+    'passkey_rejected', 'not_linked', 'not_found', 'terms_version_mismatch', 'invalid_follow', 'too_many_follows',
+    'token_limit']);
   function errMsg(e) {
     if (!e) return ['acct.err.generic', { code: '?' }];
     if (e instanceof Error || (typeof DOMException !== 'undefined' && e instanceof DOMException)) {
@@ -112,7 +113,7 @@
   function fail(node, e) {
     const [key, vars] = errMsg(e);
     say(stOf(node), key, vars, 'err');
-    if (e && e.code === 'reauth_required' && page === 'account') openReauth(node);
+    if (e && e.code === 'reauth_required' && page === 'account') openReauth(node, false);
     if (e && (e.code === 'not_signed_in' || e.status === 401 || e.code === 'not_found' || e.code === 'not_linked')) {
       refresh();
     }
@@ -131,6 +132,22 @@
     } catch (_) {
       throw { code: 'network' };
     }
+    return reply(r);
+  }
+  // apiGet reads a personal account endpoint (same origin; the CSRF header
+  // too, as the server asks for it on these reads).
+  async function apiGet(path) {
+    const headers = { Accept: 'application/json' };
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+    let r;
+    try {
+      r = await window.fetch(path, { method: 'GET', credentials: 'same-origin', cache: 'no-store', redirect: 'error', headers });
+    } catch (_) {
+      throw { code: 'network' };
+    }
+    return reply(r);
+  }
+  async function reply(r) {
     let j = null;
     try {
       j = await r.json();
@@ -303,20 +320,29 @@
     const s = me && me.session;
     return !!(s && s.recent_sign_in && Date.now() < Date.parse(s.recent_sign_in_until));
   };
-  let reauthFrom = null;
+  let reauth = null; // the re-verification dialog (app.js nday.reauthDialog)
   let recentTimer = 0;
 
   // The menu: one section at a time, chosen by the URL hash (#profile,
-  // #follows, ...). Any other id inside a section (#sec-terms, #h-delete,
-  // #in-handle ...) selects that section; an id outside the sections (#main,
-  // #reauth) keeps the current one; anything else shows the profile. A
-  // section marked data-na (terms without a terms version) is out of the menu.
+  // #follows, #security, #developer, #account). Any other id inside a
+  // section selects that section: the blocks keep the ids the sections had
+  // before they were grouped (#methods, #passkeys, #sessions, #api, #terms,
+  // #delete), and so do #h-delete, #in-handle ...; an id outside the
+  // sections (#main, #reauth) keeps the current one; anything else shows the
+  // profile. A section marked data-na is out of the menu.
   const panes = () => Array.from(d.querySelectorAll('#acct-pane > section[data-pane]'));
   let paneNow = '';
-  function paneWanted() {
+  let jump = true; // scroll to the block the URL names, once the page shows
+  function idWanted() {
     let h = '';
     try { h = decodeURIComponent(location.hash.slice(1)); } catch (e) { h = ''; }
+    if (!h) h = new URLSearchParams(location.search).get('pane') || ''; // back from a provider sign-in (returnHere)
     if (h === 'sec-follows') h = 'follows'; // the follows section's id before the menu
+    if (h === 'sec-terms') h = 'terms'; // the terms section's id before the grouping
+    return h;
+  }
+  function paneWanted() {
+    const h = idWanted();
     let s = panes().find((p) => p.dataset.pane === h);
     if (!s && h) {
       const el = $(h);
@@ -331,7 +357,21 @@
     if (!ws || ws.hasAttribute('data-na')) want = 'profile';
     paneNow = want;
     panes().forEach((s) => { s.hidden = s.dataset.pane !== want || s.hasAttribute('data-na'); });
-    d.querySelectorAll('.acct-menu a').forEach((a) => {
+    if (want === 'developer') apiLoad();
+    // a block inside the section named by the URL: bring it into view
+    if (jump && !name && !$('acct-in').hidden) {
+      jump = false;
+      const sec = panes().find((p) => p.dataset.pane === want);
+      const el = $(idWanted());
+      if (el && el !== sec && sec.contains(el) && !el.hidden) {
+        el.scrollIntoView({ block: 'start' });
+        if (el.classList.contains('acct-sub')) {
+          el.setAttribute('tabindex', '-1');
+          el.focus({ preventScroll: true });
+        }
+      }
+    }
+    d.querySelectorAll('.acct-menu a[href^="#"]').forEach((a) => {
       const n = a.getAttribute('href').slice(1);
       const s = panes().find((p) => p.dataset.pane === n);
       a.parentNode.hidden = !s || s.hasAttribute('data-na');
@@ -346,17 +386,15 @@
       const r = row.getBoundingClientRect();
       if (a.left < r.left || a.right > r.right) row.scrollLeft += (a.left - r.left) - (row.clientWidth - a.width) / 2;
     }
-    // an open re-verification panel left in a section that is now hidden
-    // goes back above the sections; its result is then said on the top line
-    const panel = $('reauth');
-    const box = $('acct-pane');
-    if (panel && box && panel.parentNode !== box && panel.closest('section[data-pane]').hidden) {
-      box.insertBefore(panel, box.querySelector('section[data-pane]'));
-      reauthFrom = null;
-    }
   }
   // reveal(el): select the section el is in (pushing its hash), so that
   // focus and scrolling reach it.
+  // A sign-in at a provider (linking, re-verifying) leaves the page and comes
+  // back to the return path, which cannot carry a fragment: the section goes
+  // in its query (?pane=), read by paneWanted when there is no fragment.
+  function returnHere() {
+    return /^[a-z]+$/.test(paneNow) && paneNow !== 'profile' ? accountPath + '?pane=' + paneNow : accountPath;
+  }
   function reveal(el) {
     const s = el && el.closest('section[data-pane]');
     if (!s || !s.hidden || s.hasAttribute('data-na')) return;
@@ -364,47 +402,31 @@
     showPane(s.dataset.pane);
   }
 
-  // The re-verification panel: offered before a sensitive action when the
+  // The re-verification dialog: offered before a sensitive action when the
   // session is no longer a recent sign-in (and after a 403 reauth_required).
-  // It never repeats the action itself.
-  function needReauth(from) {
+  // After a passkey sign-in the control that needed it runs again, once; a
+  // provider sign-in comes back to this page and the reader repeats it.
+  // again: false for controls that must be pressed again by hand (deleting
+  // the account; a new passkey, which needs a fresh click in some browsers).
+  function needReauth(from, again) {
     if (recent()) return false;
-    openReauth(from);
+    openReauth(from, again);
     return true;
   }
-  function openReauth(from) {
-    const panel = $('reauth');
-    if (!panel || !me || !me.user) return;
+  function openReauth(from, again) {
+    if (!reauth || !me || !me.user) return;
     reveal(from);
-    reauthFrom = from;
-    const sec = from && from.closest('section');
-    if (sec && panel.parentNode !== sec) sec.appendChild(panel);
-    const linked = new Set(me.user.identities.map((i) => i.provider));
-    const enabled = new Set(me.providers || []);
-    let any = false;
-    panel.querySelectorAll('[data-reauth]').forEach((b) => {
-      const p = b.dataset.reauth;
-      const ok = p === 'passkey'
-        ? webauthn && me.passkeys.enabled && me.user.passkeys.length > 0
-        : linked.has(p) && enabled.has(p);
-      b.parentNode.hidden = !ok;
-      any = any || ok;
+    reauth.open(me, from, () => {
+      // still not recent: say so instead of asking again
+      if (again !== false && from && from.isConnected && recent()) from.click();
+      else say(stOf(from), 'acct.reauth.done', null, 'ok');
     });
-    $('reauth-none').hidden = any;
-    say(panel.querySelector('.acct-st'), '');
-    panel.hidden = false;
-    $('reauth-h').focus();
-  }
-  function closeReauth() {
-    const panel = $('reauth');
-    if (panel) panel.hidden = true;
-    if (reauthFrom && reauthFrom.isConnected) reauthFrom.focus();
   }
 
   function accountPage() {
     $('acct-loading').hidden = false;
     showPane();
-    window.addEventListener('hashchange', () => showPane());
+    window.addEventListener('hashchange', () => { jump = true; showPane(); });
     window.addEventListener('popstate', () => showPane());
     nday.me.then(render);
     // profile: handle
@@ -427,7 +449,7 @@
       link.addEventListener('click', () => {
         if (link.disabled || needReauth(link)) return;
         run(link, async () => {
-          const j = await api('/auth/' + encodeURIComponent(p) + '/ticket', { intent: 'link', return: accountPath });
+          const j = await api('/auth/' + encodeURIComponent(p) + '/ticket', { intent: 'link', return: returnHere() });
           go(j.start_url);
         });
       });
@@ -443,7 +465,7 @@
       add.addEventListener('submit', (ev) => {
         ev.preventDefault();
         const btn = add.querySelector('button[type=submit]');
-        if (btn.disabled || !webauthn || needReauth(btn)) return;
+        if (btn.disabled || !webauthn || needReauth(btn, false)) return;
         run(btn, async (st) => {
           const name = $('in-pk-name').value.trim();
           const { publicKey } = await api('/auth/passkey/register/begin');
@@ -455,23 +477,45 @@
         });
       });
     }
-    // re-verification
-    const panel = $('reauth');
-    panel.querySelectorAll('[data-reauth]').forEach((b) => {
-      b.addEventListener('click', () => run(b, async () => {
-        const p = b.dataset.reauth;
-        if (p !== 'passkey') {
-          const j = await api('/auth/' + encodeURIComponent(p) + '/ticket', { intent: 'reauth', return: accountPath });
-          go(j.start_url);
-          return;
-        }
+    // API: tokens and the private feed address
+    const tf = $('f-tok');
+    tf.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const btn = tf.querySelector('button[type=submit]');
+      if (btn.disabled || needReauth(btn)) return;
+      run(btn, async () => {
+        const j = await api('/account/tokens', { name: $('in-tok-name').value.trim() });
+        $('in-tok-name').value = '';
+        showSecret(j.secret || '');
+        await loadTokens();
+      });
+    });
+    const fr = $('b-feed-reset');
+    fr.addEventListener('click', () => {
+      if (!nday.confirmStep(fr)) return; // first click arms, second click resets
+      run(fr, async (st) => {
+        showFeed(await api('/account/feed/rotate'));
+        say(st, 'acct.api.feed_reset_done', null, 'ok');
+      });
+    });
+    // re-verification (the requests stay here, with the CSRF token)
+    reauth = nday.reauthDialog ? nday.reauthDialog({
+      webauthn,
+      provider: async (p) => {
+        const j = await api('/auth/' + encodeURIComponent(p) + '/ticket', { intent: 'reauth', return: returnHere() });
+        go(j.start_url);
+      },
+      passkey: async () => {
         await passkeySignIn(); // another account's passkey: 409 signed_in_as_other, nothing changes
         await refresh();
-        closeReauth();
-        say(stOf(reauthFrom), 'acct.reauth.done', null, 'ok');
-      }));
-    });
-    $('reauth-close').addEventListener('click', closeReauth);
+      },
+      say,
+      fail: (st, e) => {
+        const [key, vars] = errMsg(e);
+        say(st, key, vars, 'err');
+      },
+      done: (from) => say(stOf(from), 'acct.reauth.done', null, 'ok'),
+    }) : null;
     // sessions
     $('b-signout').addEventListener('click', (ev) => run(ev.currentTarget, async () => {
       await api('/auth/signout');
@@ -496,7 +540,7 @@
     delIn.addEventListener('input', () => off(delBtn, delIn.value !== del.dataset.word));
     del.addEventListener('submit', (ev) => {
       ev.preventDefault();
-      if (delBtn.disabled || delIn.value !== del.dataset.word || needReauth(delBtn)) return;
+      if (delBtn.disabled || delIn.value !== del.dataset.word || needReauth(delBtn, false)) return;
       run(delBtn, async () => {
         await api('/account/delete', { confirm: true });
         delIn.value = '';
@@ -514,6 +558,7 @@
     const top = $('acct-status');
     if (!m) { // state unknown
       csrf = '';
+      apiClear();
       out.hidden = true;
       inn.hidden = true;
       say(top, 'acct.page.unknown', null, 'err');
@@ -521,6 +566,7 @@
     }
     if (m.disabled || !m.signed_in || !m.user) {
       csrf = '';
+      apiClear();
       out.hidden = false;
       inn.hidden = true;
       return;
@@ -530,6 +576,7 @@
     inn.hidden = false;
     const u = m.user;
     const active = u.status !== 'suspended';
+    apiOffs();
 
     // suspension
     const susp = $('acct-susp');
@@ -605,7 +652,7 @@
 
     // terms (only when the site has a terms version)
     const t = u.terms || {};
-    $('sec-terms').toggleAttribute('data-na', !t.current_version);
+    $('terms').hidden = !t.current_version;
     showPane();
     if (t.current_version) {
       const btn = $('b-terms');
@@ -635,6 +682,105 @@
     off(del.querySelector('button[type=submit]'), $('in-delete').value !== word);
   }
 
+  // ---- the API section. The token list and the feed address are loaded
+  // when the section is first shown. A new token's secret is shown once,
+  // from the create response, in this page view only (never stored, never
+  // in the URL); a reload or a sign-out drops it.
+  let apiLoaded = false;
+  let tokFull = false;
+  function apiLoad() {
+    if (apiLoaded || !csrf || !$('api')) return;
+    apiLoaded = true;
+    loadTokens();
+    apiGet('/account/feed').then(showFeed, (e) => fail($('b-feed-reset'), e));
+  }
+  function apiClear() {
+    apiLoaded = false;
+    if (!$('api')) return;
+    showSecret('');
+    showFeed({});
+    drawTokens([], 0);
+  }
+  function apiOffs() {
+    const active = !!(me && me.user && me.user.status !== 'suspended');
+    off($('in-tok-name'), tokFull || !active);
+    off($('f-tok').querySelector('button[type=submit]'), tokFull || !active);
+    off($('b-feed-reset'), !active);
+  }
+  async function loadTokens() {
+    try {
+      const j = await apiGet('/account/tokens');
+      drawTokens(j.tokens || [], j.max || 0);
+    } catch (e) {
+      fail($('f-tok'), e);
+    }
+  }
+  function drawTokens(ts, max) {
+    const rows = $('tok-rows');
+    while (rows.firstChild) rows.removeChild(rows.firstChild);
+    $('tok-table').hidden = ts.length === 0;
+    ts.forEach((t) => rows.appendChild(tokenRow(t)));
+    tokFull = max > 0 && ts.length >= max;
+    $('tok-full').hidden = !tokFull;
+    apiOffs();
+  }
+  // copyBox(box, text): the box's text and what its copy button copies
+  // (the button is app.js's: it reads data-copy when clicked).
+  function copyBox(box, text) {
+    box.querySelector('code').textContent = text;
+    box.querySelector('button[data-copy]').setAttribute('data-copy', text);
+  }
+  function showSecret(s) {
+    const box = $('tok-new');
+    copyBox(box, s);
+    box.hidden = !s;
+    if (s) box.querySelector('button[data-copy]').focus();
+  }
+  function showFeed(j) {
+    const box = $('feed-box');
+    const url = (j && typeof j.url === 'string') ? j.url : '';
+    copyBox(box, url);
+    box.hidden = !url;
+  }
+  function tokenRow(t) {
+    const tr = d.createElement('tr');
+    const cell = () => {
+      const td = d.createElement('td');
+      tr.appendChild(td);
+      return td;
+    };
+    cell().textContent = t.name;
+    stamp(cell(), t.created_at);
+    const used = cell();
+    stamp(used, t.last_used_at);
+    if (!t.last_used_at) put(used, 'acct.passkeys.never');
+    const box = d.createElement('span');
+    box.className = 'acct-acts';
+    box.classList.add('row-acts');
+    cell().appendChild(box);
+    const del = d.createElement('button');
+    del.type = 'button';
+    del.className = 'btn';
+    put(del, 'acct.passkeys.delete');
+    nday.confirmable(del);
+    box.appendChild(del);
+    del.addEventListener('click', () => {
+      if (!nday.confirmStep(del)) return; // first click arms, second click revokes
+      run(del, async (st) => {
+        try {
+          await api('/account/tokens/' + encodeURIComponent(t.id) + '/revoke');
+        } catch (e) {
+          if (e && e.code === 'not_found') loadTokens();
+          throw e;
+        }
+        await loadTokens();
+        say(st, 'acct.api.deleted', null, 'ok');
+        $('in-tok-name').focus();
+      });
+    });
+    return tr;
+  }
+
   // One followed term on the account page; remove saves the list without it.
   // The list to save is taken from the latest /api/me state at click time
   // (not from when the row was drawn), and one removal runs at a time: the
@@ -649,6 +795,7 @@
     name.textContent = f.label;
     const acts = d.createElement('span');
     acts.className = 'acct-acts';
+    acts.classList.add('row-acts');
     const b = d.createElement('button');
     b.type = 'button';
     b.className = 'btn';
@@ -947,6 +1094,9 @@
     nday.me.then(show);
   }
 
+  // One passkey: its row, and under it the rename row (app.js "row details":
+  // the rename button opens it, Escape or cancel closes it).
+  let renameN = 0;
   function passkeyRow(pk) {
     const tr = d.createElement('tr');
     const cell = (text) => {
@@ -955,7 +1105,7 @@
       tr.appendChild(td);
       return td;
     };
-    const nameTd = cell(pk.name);
+    cell(pk.name);
     stamp(cell(''), pk.created_at);
     const used = cell('');
     stamp(used, pk.last_used_at);
@@ -965,6 +1115,7 @@
     const acts = d.createElement('td');
     const box = d.createElement('span');
     box.className = 'acct-acts';
+    box.classList.add('row-acts');
     acts.appendChild(box);
     tr.appendChild(acts);
     const button = (key) => {
@@ -977,58 +1128,56 @@
     };
     const path = '/account/passkeys/' + encodeURIComponent(pk.id) + '/';
     const ren = button('acct.passkeys.rename');
-    const del = button('acct.passkeys.delete');
+    const del = nday.confirmable(button('acct.passkeys.delete'));
+    // rename: input + save + cancel in the detail row under this one
+    const input = d.createElement('input');
+    input.type = 'text';
+    input.className = 'acct-in';
+    input.maxLength = 64;
+    input.value = pk.name;
+    input.setAttribute('aria-label', msg('acct.passkeys.rename_label'));
+    const save = d.createElement('button');
+    save.type = 'button';
+    save.className = 'btn';
+    put(save, 'acct.save');
+    const cancel = d.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'btn';
+    cancel.setAttribute('data-rowx-close', '');
+    put(cancel, 'acct.cancel');
+    const row = d.createElement('div');
+    row.className = 'acct-row';
+    row.append(input, save, cancel);
+    const dbox = d.createElement('div');
+    dbox.className = 'row-dbox';
+    dbox.appendChild(row);
+    const dtd = d.createElement('td');
+    dtd.colSpan = 5;
+    dtd.appendChild(dbox);
+    const det = d.createElement('tr');
+    det.className = 'row-detail';
+    det.id = 'pk-ren-' + (++renameN);
+    det.hidden = true;
+    det.appendChild(dtd);
+    ren.setAttribute('data-rowx', '');
+    ren.setAttribute('aria-expanded', 'false');
+    ren.setAttribute('aria-controls', det.id);
     ren.addEventListener('click', () => {
-      // inline rename: input + save + cancel in the name cell
-      const input = d.createElement('input');
-      input.type = 'text';
-      input.className = 'acct-in';
-      input.maxLength = 64;
-      input.value = pk.name;
-      input.setAttribute('aria-label', msg('acct.passkeys.rename_label'));
-      const save = d.createElement('button');
-      save.type = 'button';
-      save.className = 'btn';
-      put(save, 'acct.save');
-      const cancel = d.createElement('button');
-      cancel.type = 'button';
-      cancel.className = 'btn';
-      put(cancel, 'acct.cancel');
-      const row = d.createElement('div');
-      row.className = 'acct-row';
-      row.append(input, save, cancel);
-      nameTd.textContent = '';
-      nameTd.appendChild(row);
-      ren.hidden = true;
-      input.focus();
-      const restore = () => {
-        nameTd.textContent = pk.name;
-        ren.hidden = false;
-        ren.focus();
-      };
-      cancel.addEventListener('click', restore);
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') save.click();
-      });
-      save.addEventListener('click', () => run(save, async (st) => {
-        await api(path + 'rename', { name: input.value.trim() });
-        await refresh();
-        say(st, 'acct.passkeys.renamed', null, 'ok');
-        const n = $('in-pk-name');
-        if (n) n.focus();
-      }));
+      // runs before app.js opens the row: each opening starts from the saved name
+      if (ren.getAttribute('aria-expanded') !== 'true') input.value = pk.name;
     });
-    let armed = 0;
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') save.click();
+    });
+    save.addEventListener('click', () => run(save, async (st) => {
+      await api(path + 'rename', { name: input.value.trim() });
+      await refresh();
+      say(st, 'acct.passkeys.renamed', null, 'ok');
+      const n = $('in-pk-name');
+      if (n) n.focus();
+    }));
     del.addEventListener('click', () => {
-      if (!armed) { // first click arms, second click deletes
-        put(del, 'acct.passkeys.delete_confirm');
-        armed = setTimeout(() => {
-          armed = 0;
-          put(del, 'acct.passkeys.delete');
-        }, 5000);
-        return;
-      }
-      clearTimeout(armed);
+      if (!nday.confirmStep(del)) return; // first click arms, second click deletes
       run(del, async (st) => {
         await api(path + 'delete');
         await refresh();
@@ -1037,7 +1186,9 @@
         if (n) n.focus();
       });
     });
-    return tr;
+    const both = d.createDocumentFragment();
+    both.append(tr, det);
+    return both;
   }
 
   if (page === 'login') loginPage();

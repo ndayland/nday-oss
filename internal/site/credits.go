@@ -72,9 +72,22 @@ type Credit struct {
 	Key string `json:"key"`
 }
 
+// ghsaLatestSQL: (source_key, payload) of the latest version of each GHSA
+// advisory that belongs to vulnerability $1 and is not withdrawn: one whose
+// latest version names $1 as its CVE (as internal/classify identifies them),
+// or, when $1 is itself a GHSA id, that advisory while it names no CVE (once
+// it does, the vulnerability moves under the CVE).
+const ghsaLatestSQL = `SELECT * FROM (
+          SELECT DISTINCT ON (r.source_key) r.source_key, r.payload FROM raw_record r
+          WHERE r.source = 'ghsa' AND r.source_key IN (
+              SELECT source_key FROM raw_record WHERE source = 'ghsa' AND payload->>'cve_id' = $1
+              UNION SELECT $1::text)
+          ORDER BY r.source_key, r.fetched_at DESC, r.id DESC) l
+      WHERE (l.payload->>'cve_id' = $1 OR (l.source_key = $1 AND coalesce(l.payload->>'cve_id', '') = ''))
+        AND coalesce(l.payload->>'withdrawn_at', '') = ''`
+
 // creditsSQL: credits of the latest cvelist record of the CVE, then those of
-// the latest version of each GHSA advisory whose latest version names the
-// CVE and is not withdrawn (as internal/classify identifies them), by
+// the latest version of each GHSA advisory of the vulnerability (ghsaLatestSQL), by
 // advisory id (buildCredits sorts). Both legs are index scans (raw_record_latest_idx,
 // raw_record_ghsa_cve_idx). GHSA credits are projected to {type, login}.
 // Both sources are public (public.go).
@@ -88,12 +101,7 @@ SELECT 'ghsa', g.source_key, coalesce((
          FROM jsonb_array_elements(CASE WHEN jsonb_typeof(g.payload->'credits') = 'array'
                                         THEN g.payload->'credits' ELSE '[]' END) WITH ORDINALITY AS e(x, o)
        ), 'null')::text
-FROM (SELECT * FROM (
-          SELECT DISTINCT ON (r.source_key) r.source_key, r.payload FROM raw_record r
-          WHERE r.source = 'ghsa' AND r.source_key IN (
-              SELECT source_key FROM raw_record WHERE source = 'ghsa' AND payload->>'cve_id' = $1)
-          ORDER BY r.source_key, r.fetched_at DESC, r.id DESC) l
-      WHERE l.payload->>'cve_id' = $1 AND coalesce(l.payload->>'withdrawn_at', '') = '') g`
+FROM (` + ghsaLatestSQL + `) g`
 
 // creditRecord is one row of creditsSQL.
 type creditRecord struct {

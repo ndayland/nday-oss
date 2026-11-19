@@ -198,14 +198,23 @@ def test_normalize_unpatched_advisory_no_event():
     assert [v.title for v in n.vulns] == [UNPATCHED["summary"]]
 
 
-def test_normalize_no_cve_emits_nothing():
+def test_normalize_no_cve_keyed_by_ghsa():
     n = norm(NO_CVE)
-    assert (n.vulns, n.aliases, n.affected, n.events) == ([], [], [], [])
+    gid = NO_CVE["ghsa_id"]
+    assert (n.aliases, n.affected) == ([], [])
+    assert [(v.cve_id, v.title, v.authoritative, v.published_at, v.modified_at) for v in n.vulns] == [
+        (gid, NO_CVE["summary"], True, parse_ts(NO_CVE["published_at"]), parse_ts(NO_CVE["updated_at"]))]
+    disc, patch = n.events
+    assert (disc.cve_id, disc.type, disc.source, disc.occurred_at, disc.dedupe_key, disc.url) == (
+        gid, "disclosed", "ghsa", parse_ts(NO_CVE["published_at"]), gid, NO_CVE["html_url"])
+    assert disc.detail == {"ghsa_id": gid, "state": "PUBLISHED", "withdrawn_at": None}
+    assert (patch.cve_id, patch.type, patch.occurred_at, patch.dedupe_key) == (gid, "patch_released", None, gid)
 
 
-def test_normalize_withdrawn_alias_only():
+def test_normalize_withdrawn():
     n0 = norm(WITHDRAWN_NO_CVE)
-    assert (n0.vulns, n0.aliases, n0.events) == ([], [], [])
+    assert (n0.vulns, n0.aliases) == ([], [])
+    assert [(e.type, e.detail["state"]) for e in n0.events] == [("disclosed", "REJECTED")]
     n = norm(WITHDRAWN)
     assert n.aliases == [Alias(WITHDRAWN["cve_id"], WITHDRAWN["ghsa_id"], "ghsa")]
     assert (n.vulns, n.events, n.affected) == ([], [], [])
@@ -306,12 +315,20 @@ def test_first_run_window_pagination_and_headers(conn):
     assert stats.is_backfill is True
     assert stats.fetched == stats.raw_new == len(SAMPLE) and stats.normalize_errors == 0
     with_cve = [a for a in SAMPLE if a["cve_id"]]
-    patched_live = [a for a in SAMPLE if a["cve_id"] and not a["withdrawn_at"] and _patched(a)]
+    patched_live = [a for a in SAMPLE if not a["withdrawn_at"] and _patched(a)]
+    no_cve_live = [a for a in SAMPLE if not a["cve_id"] and not a["withdrawn_at"]]
+    assert no_cve_live
     assert conn.execute("SELECT count(*) FROM raw_record WHERE source='ghsa'").fetchone() == (len(SAMPLE),)
     assert conn.execute("SELECT count(*) FROM vuln_alias").fetchone() == (len(with_cve),)
+    # patch_released (no time) per live patched advisory; a disclosed event only
+    # for the live ones without a CVE (keyed by the GHSA id); the withdrawn one
+    # without a CVE stores nothing
     assert conn.execute(
-        "SELECT count(*), bool_and(is_backfill), bool_and(occurred_at IS NULL) FROM event"
-    ).fetchone() == (len(patched_live), True, True)
+        """SELECT count(*) FILTER (WHERE type = 'patch_released' AND occurred_at IS NULL),
+                  count(*) FILTER (WHERE type = 'disclosed' AND cve_id LIKE 'GHSA-%'),
+                  count(*), bool_and(is_backfill) FROM event"""
+    ).fetchone() == (len(patched_live), len(no_cve_live), len(patched_live) + len(no_cve_live), True)
+    assert conn.execute("SELECT count(*) FROM vuln WHERE cve_id LIKE 'GHSA-%'").fetchone() == (len(no_cve_live),)
     cur = cursor(conn)
     assert cur["since"] == NEWEST.strftime("%Y-%m-%dT%H:%M:%SZ")
     assert cur["pending"] is None and cur["gaps"] == []

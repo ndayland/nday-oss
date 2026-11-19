@@ -42,7 +42,7 @@ Decisions where the requirements left room:
 | Column | Description |
 |---|---|
 | `id uuid` | Primary key, `gen_random_uuid()` (same as 0004) |
-| `cve_id text NOT NULL REFERENCES vuln` | The vulnerability it belongs to (canonical uppercase form) |
+| `cve_id text NOT NULL REFERENCES vuln` | The vulnerability it belongs to: its id in canonical form (a CVE id in upper case, or, for an advisory without a CVE, the GHSA id as `GHSA-` plus lower case; see `docs/api.md`, "Vulnerability IDs") |
 | `parent_id uuid` / `is_reply bool` / `parent_is_reply bool DEFAULT false CHECK (=false)` | Composite foreign key `(parent_id, cve_id, parent_is_reply) → comments (id, cve_id, is_reply)`: **the database itself** rejects replies to replies and cross-vulnerability replies (the same approach as `handle_ns_kind` in 0004). `CHECK (is_reply = (parent_id IS NOT NULL))` |
 | `author_id uuid REFERENCES users ON DELETE SET NULL` | After the account is deleted, the comment stays and the author is null |
 | `body text` | Markdown source, 1–10000 characters (after normalization, see §3.2) |
@@ -87,7 +87,7 @@ Anonymous requests are allowed. **When guest reading is allowed** (`NDAY_DISCUSS
 **When it's off**, only the outline is returned (§4.1: `comments` is `[]`, `next_cursor` is `null`, there's an extra `outline`, and all content parameters such as `cursor`/`thread`/`c`/`limit` are ignored).
 After sign-in you get the full content plus fields that depend on the caller. It's rate-limited per client address (default burst 120, then 1 every 0.5 seconds). When the request is signed out and guest reading is allowed, each request also takes one token from a "guest read" bucket (per client address, default burst 60, then 1 every 2 seconds, `NDAY_DISCUSS_GUEST_READ_BURST` / `_EVERY`). Going over gives `429 rate_limited` (with `Retry-After`). Signed-out reads all use the site's read-only pool.
 
-- `{cve}`: a CVE id in any case (`cve-2026-1234` works too). A bad format gives `400 bad_cve`; a vulnerability that doesn't exist gives `404 not_found` (`param: "cve"`).
+- `{cve}`: the vulnerability's id in any case (`cve-2026-1234` works too): a CVE id, or the GHSA id of an advisory without a CVE (`GHSA-gpwc-27cw-rh9r`). A bad format gives `400 bad_cve`; a vulnerability that doesn't exist gives `404 not_found` (`param: "cve"`). A GHSA id that is only an alias of a CVE (for example after the advisory got a CVE and its vulnerability, comments included, moved there) has no vulnerability of its own: `404 not_found` for reading and for posting, so a page left open from before the move gets a clean error and nothing is written under the alias.
 - `locale`: the page's locale tag (such as `zh-Hans`). CVE links in the body get a prefix based on it (`/zh-hans/vuln/CVE-…`). If it's missing or not enabled, the primary language is used (`/vuln/CVE-…`).
 - `limit`: top-level comments per page, 1–200, default 50 (otherwise `400 bad_request`, `param: "limit"`). A page also ends early once it has more than 500 comments (top-level plus replies), though it always includes at least one thread.
 - `cursor`: the `next_cursor` of the previous page (invalid → `400 bad_cursor`).
@@ -305,7 +305,7 @@ Except for `NDAY_DISCUSS_DB_POOL_SIZE`, the variables in the table can also be s
 
 ## 6. Markdown subset (`internal/discuss/md`)
 
-The output consists **only** of these elements: `<p> <br> <pre><code> <code> <blockquote> <ul> <ol> <li> <em> <strong> <a>`. None of them have attributes except `<a>`, which has only `href` and a fixed `rel="nofollow ugc noopener noreferrer"`, and no `target`. Everything else is escaped text (`& < > " '` → `&amp; &lt; &gt; &#34; &#39;`). The output is always closed and properly nested.
+The output consists **only** of these elements: `<p> <br> <pre><code> <code> <blockquote> <ul> <ol> <li> <em> <strong> <a>`. None of them have attributes except `<a>`, which has only `href` and a fixed `rel="nofollow ugc noopener noreferrer"`, and no `target` (`body_html` never has one; the moderation page passes `Options.NewTab`, which adds `target="_blank"` to off-site absolute links, and `static/discuss.js` sets it on the links it builds to other hosts). Everything else is escaped text (`& < > " '` → `&amp; &lt; &gt; &#34; &#39;`). The output is always closed and properly nested.
 
 Supported syntax:
 
@@ -321,6 +321,7 @@ Supported syntax:
 | `[text](https://…)` | A link (the text may contain emphasis and code, but no other link; the URL ends at the first whitespace or `)`; titles and URLs with parentheses aren't supported) |
 | A bare `http://…` / `https://…` (not directly preceded by a letter, digit or URL character) | An autolink. It ends at whitespace, `< > " \` ``, or any non-ASCII character (such as CJK punctuation); trailing `. , : ; ! ? ' *` and an unpaired `)` are stripped |
 | `CVE-YYYY-NNNN…` (case-insensitive, a 4–19 digit sequence number, not directly preceded or followed by a letter or digit) | A link to this site's vulnerability page (`/zh-hans/vuln/CVE-…`, with the prefix following `locale`); the link text keeps the original spelling; **at most 30 per comment** (`md.MaxCVELinks`), and the rest are plain text |
+| `GHSA-xxxx-xxxx-xxxx` (case-insensitive, three groups of four from GitHub's alphabet `23456789cfghjmpqrvwx`, same boundaries as a CVE id; since 2026-11-16) | The same kind of link, to `/vuln/GHSA-…` in canonical form (the page itself redirects to the CVE when the advisory has one); counts toward the same cap of 30 |
 | `\` + ASCII punctuation | The literal punctuation character |
 
 **Link URLs** must start with `http://` or `https://`, be ≤2048 bytes, contain only printable ASCII (no spaces and no `" < > \ \``), be parseable by `net/url`, have a host, and have no user info (`https://user@host` isn't allowed). The scheme is lowercased in the output. Anything else (`javascript:`, `data:`, `vbscript:`, relative paths, `//host`, non-ASCII URLs) is shown as text. The path of a CVE link is generated by the server and must match `/[A-Za-z0-9._~/-]+` (not starting with `//`, no `.`/`..` segments, ≤128 bytes), otherwise it's shown as text.

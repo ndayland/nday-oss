@@ -480,3 +480,60 @@ func TestDeriveErrorKeepsRows(t *testing.T) {
 		t.Errorf("%s", b)
 	}
 }
+
+// An advisory without a CVE is classified under its GHSA id (the vuln is
+// keyed by it, docs/ghsa.md); once it names a CVE and the pipeline moved
+// the vuln there, the rows follow and are re-derived under the CVE.
+func TestGHSAKeyedVuln(t *testing.T) {
+	e := newEnv(t)
+	const gid, cve = "GHSA-2cm2-m3w5-gp2f", "CVE-2026-0009"
+	noCVE := []byte(fmt.Sprintf(`{"ghsa_id":%q,"cve_id":null,"withdrawn_at":null,"cwes":[{"cwe_id":"CWE-94","name":"n"}],
+	  "cvss_severities":{"cvss_v3":{"score":9.8,"vector_string":%q}}}`, gid, v31b))
+	e.raw("ghsa", gid, noCVE, t0) // queues the GHSA id (migration 0027)
+	if n := e.count(`SELECT count(*) FROM classify_queue WHERE cve_id = $1`, gid); n != 1 {
+		t.Fatalf("queued %d", n)
+	}
+	e.pending() // no vuln row yet: skipped
+	e.vuln(gid) // the pipeline's insert queues it again
+	e.pending()
+	got := e.rows(gid)
+	for _, w := range []string{"cwe CWE-94 ghsa/" + gid, "cvss 3.1 ghsa/" + gid + " " + v31b, "input ghsa " + gid + " rejected=false"} {
+		if !has(got, w) {
+			t.Errorf("%s: missing %q in %v", gid, w, got)
+		}
+	}
+	// the advisory names a CVE: new raw version + the pipeline's merge, in
+	// one transaction like a collector run
+	tx, err := e.conn.Begin(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, _ := pyjson.Decode(ghsaRec(gid, cve, "CWE-94"))
+	rec := model.RawRecord{Source: "ghsa", SourceKey: gid, Payload: v}
+	h, _ := rec.ContentHash()
+	if _, err := pipeline.StoreRaw(e.ctx, tx, rec, h, t0.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pipeline.MergeVulnID(e.ctx, tx, gid, cve, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.pending()
+	if n := e.count(`SELECT count(*) FROM vuln_cwe WHERE cve_id = $1`, gid) + e.count(`SELECT count(*) FROM vuln_classify_input WHERE cve_id = $1`, gid); n != 0 {
+		t.Errorf("rows left under the GHSA id: %d", n)
+	}
+	got = e.rows(cve)
+	for _, w := range []string{"cwe CWE-94 ghsa/" + gid, "input ghsa " + gid + " rejected=false",
+		"cvss 3.1 ghsa/" + gid + " CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"} {
+		if !has(got, w) {
+			t.Errorf("%s: missing %q in %v", cve, w, got)
+		}
+	}
+	// re-deriving by source finds the GHSA-keyed advisories too, and changes nothing
+	st, err := BySource(e.ctx, e.conn, FamGHSA, Options{Wait: true})
+	if err != nil || st.Changed != 0 {
+		t.Errorf("%+v %v", st, err)
+	}
+}

@@ -1,6 +1,6 @@
 # xposts: vulnerability discussion on X (Go only)
 
-This collector uses **only the official X API v2 recent search** (app-only Bearer token) to collect posts from allowlisted accounts that mention a CVE id.
+This collector uses **only the official X API v2 recent search** (app-only Bearer token) to collect posts from allowlisted accounts that mention a CVE id or a GHSA id (the CVE id is the main id, the GHSA id the second one).
 It doesn't scrape web pages and doesn't automate a browser. The only other API call is the **user lookup** used when you add an account to the allowlist (`GET /2/users/by`, see "Adding accounts by handle" below),
 which runs only when an admin adds or imports accounts. Collection itself doesn't use it. Code: `internal/collector/xposts` (collector),
 `internal/xconfig` (database config), `internal/xlookup` (user lookup), `internal/cli/xposts.go` (commands), `migrations/0008_xposts.sql`,
@@ -8,7 +8,7 @@ which runs only when an admin adds or imports accounts. Collection itself doesn'
 
 ## Events
 
-One `event` per (post, CVE id that appears in the post text):
+One `event` per (post, CVE id that appears in the post text), and one per (post, GHSA id that appears in it):
 
 | column | value |
 |---|---|
@@ -17,9 +17,13 @@ One `event` per (post, CVE id that appears in the post text):
 | `occurred_at` | the post's `created_at` |
 | `url` | `https://x.com/<handle>/status/<id>` (`https://x.com/i/web/status/<id>` when the author object is missing) |
 | `dedupe_key` | the post id |
-| `detail` | `post_id`, `author_id`, `author_handle`, `text`, `lang`, `cves` (all CVE ids in the post) |
+| `detail` | `post_id`, `author_id`, `author_handle`, `text`, `lang`, `cves` (all CVE ids in the post), `ghsas` (all GHSA ids; the key is there only when the post has one) |
 
 CVE ids: `CVE-YYYY-NNNN…` in the text (case-insensitive, ASCII word boundaries), uppercased and de-duplicated. For long posts (note posts) it reads `note_tweet.text` (the full text), otherwise `text`.
+GHSA ids: `GHSA-xxxx-xxxx-xxxx` in the same text (also inside a `github.com/advisories/...` URL), case-insensitive in, canonical out (`GHSA-` upper case, the groups lower case), only when the groups use GitHub's alphabet (`model.IsGHSAID`; anything else is not an id), de-duplicated.
+There is no cap on the number of ids per post, for CVE or GHSA ids. The GHSA event is keyed by the GHSA id (`event.cve_id` is the vuln id); the pipeline (`docs/ghsa.md`) then handles it: a GHSA id that is an alias of a CVE
+moves the event to that CVE, a GHSA id that has its own vuln row keeps the event on it (it moves to the CVE when the alias arrives), and for a GHSA id with no vuln row **nothing is written** (no event, no stub vuln; silently, not counted, the run does not fail).
+A post that names both a CVE and its GHSA id gets two events with the same `detail` and the same `dedupe_key`; after the redirect they are the same `(cve_id, type, source, dedupe_key)` row, so it is stored once.
 It does **not** read posts that are quoted or replied to. `detail.text` is still the original `text` field (for a long post, that's the truncated first half).
 Posts whose author isn't in the enabled allowlist are dropped before raw is stored (counted in `cursor.last_run.dropped_author`).
 **All** other posts by allowlisted authors are stored as raw, whether or not the text has a CVE id.
@@ -28,9 +32,11 @@ When a post doesn't quote or reply to another post, there's no `referenced`. Old
 
 ### Posts without a CVE id (`x_post_no_cve`, migration `0015_xposts_no_cve.sql`)
 
-The query itself requires the word "CVE" in the text, so the API also returns (and bills for) allowlisted researchers' posts like "id not out yet", "CVE pending", or ones where the id is written as
+The query itself requires the word "CVE" or "GHSA" in the text, so the API also returns (and bills for) allowlisted researchers' posts like "id not out yet", "CVE pending", or ones where the id is written as
 `CVE-2026-XXXX`. These posts are stored as raw like any other (see above). Normalize produces no `event` and no stub `vuln`, and instead writes one `x_post_no_cve` row per post,
 kept for a future "early warning" feature (researchers discuss first, the id comes later).
+A post that names a GHSA id but no CVE id is also stored here, in addition to its GHSA-keyed event: Normalize cannot tell whether the GHSA id resolves (the pipeline skips an unknown one), and the table means "not attached to a vulnerability yet",
+so the row is kept in every case and nothing is lost. If the GHSA id did resolve, the post is a normal linked post (it has its event) and also has this row; the row does no harm and the link table can say which vuln it belongs to.
 **No page, admin list or API reads these two tables yet**; the admin page `/admin/x` shows only the per-run counts.
 
 | column | value |
@@ -54,8 +60,12 @@ After linking, the post stays in `x_post_no_cve` (the text really has no id) and
 Retention and deletion: the existing `social_post` posts have no retention period, cleanup job or compliance deletion (see "Not handled"), and neither does this table; posts deleted upstream aren't re-checked either.
 Disabling an account doesn't affect rows already stored (same as events; events are filtered by whether the account is enabled only at display time).
 
-No extra cost: the query (`(from:… OR …) CVE -is:retweet`), the number of requests, and the meaning of `max_posts`/`max_requests` are all unchanged.
-This only keeps posts that the query already returns (and bills for).
+Keeping these posts costs nothing extra: it only stores posts that the query already returns (and bills for).
+Cost note: since GHSA ids were added the query is `(from:… OR …) (CVE OR GHSA) -is:retweet`, so it also matches (and bills) posts that mention only GHSA. The number of requests per run and the meaning of `max_posts`/`max_requests` are unchanged,
+but the same cap now covers more posts. The longer query tail (28 characters, was 17) leaves fewer accounts per batch under `max_query_length` (default 512), so a large allowlist may need one more request per run. Whether the keyword `GHSA` also matches an id inside a URL
+is unverified (X matches the text; what it does with expanded URLs is not documented here).
+
+Existing rows: posts stored before GHSA support keep their raw record, so `nday renormalize xposts` re-reads them and writes the GHSA events (and updates `detail` of events whose post also names a GHSA id); nothing else is needed, and nothing writes `x_post_no_cve_link` yet.
 
 ## Configuration
 
@@ -90,11 +100,13 @@ nday collect xposts
 
 ### Admin UI
 
-The admin page `/admin/x` (`docs/admin.md` §2.1) shows: the status of the last run (from `cursor.last_run`: billed post count `posts`, stored count `kept` (with a CVE id) and `kept_no_cve` (no id, stored in `x_post_no_cve`; older run records have `dropped_no_cve` instead, and the page no longer shows that field), dropped count `dropped_author`, request count, the reason it was skipped or stopped early, `since_id`),
+The admin page `/admin/x` (`docs/admin.md` §2.1) shows: the status of the last run (from `cursor.last_run`: billed post count `posts`, stored count `kept` (with a CVE id) and `kept_no_cve` (no CVE id, stored in `x_post_no_cve`; the run record also has `kept_ghsa_only`, the part of them that names a GHSA id, which the page does not show; older run records have `dropped_no_cve` instead, and the page no longer shows that field), dropped count `dropped_author`, request count, the reason it was skipped or stopped early, `since_id`),
 cost at $0.005 per post (the actual cost of the last run, plus the worst case per run, per day and per 30 days at the current `max_posts`/`max_requests`), the settings form, the allowlist (add, edit, enable, disable, bulk import with a preview),
 and a review list of collected posts. Reads and writes go only through functions in `internal/xconfig` (all of which take `*pgx.Conn` / `pgx.Tx`), and every change writes an audit record in the same transaction (`x.settings.update`, `x.account.*`, `x.accounts.import`).
 The `x-accounts-import`, `x-accounts-enable|disable` and `x-settings` commands above also write audit records when they change something (the actor is the command line). The page never shows, returns or accepts the token (you enter the token in `/admin/settings`, which also shows only whether it's set and its last few characters; see `docs/settings.md`).
 When the web process has a token, it uses it only for the user lookup below, and the page just shows "lookup on / off".
+
+Linked GitHub accounts (migration 0036, `docs/github.md` "Trusted accounts"): a trusted GitHub account may be linked to one allowlisted X account of the same researcher (`github_trusted_owner.x_user_id`, `ON DELETE SET NULL`). The allowlist table shows the linked GitHub logins as small tags after the handle. The link is descriptive only: disabling (or removing) the X account does not untrust the GitHub account, and disabling the GitHub account does not touch the X account. It stays on admin pages; no public page, API response, feed or event carries it.
 
 ### Adding accounts by handle (user lookup, `internal/xlookup`)
 
@@ -150,7 +162,7 @@ Added to the CISA KEV catalog (known exploited).
 
 Line 1: the CVE id, the site's stage-change notation (`+POC`/`+ITW`/`+KEV`), and `T+Nd` when the site's rule (`site.CalendarDays`: UTC calendar days from first disclosure to the first time of that stage) can give one.
 Line 2: the affected vendors/products (de-duplicated the same way as the share card: "X / X" → "X", "X / X Foo" → "X / Foo", at most 3 pairs, the rest as "+N"; placeholders such as `n/a` are removed).
-Line 3: the upstream English title (truncated). The last sentence says what happened (for a PoC it names the source: Exploit-DB entry / Metasploit module / nuclei template).
+Line 3: the upstream English title (truncated). The last sentence says what happened (for a PoC it names the source: Exploit-DB entry / Metasploit module / nuclei template / GitHub repository).
 Upstream text (title, vendor, product names; text an admin has edited isn't processed) is always treated as untrusted (`xdraft.Clean`): NFC; control and format characters (including bidi controls, zero-width joiners and tag characters) and emoji modifiers (U+FE0E/U+FE0F, skin tones U+1F3FB–1F3FF, U+20E3) are removed; whitespace is collapsed; links with a scheme (`…://…`) are removed; `@` and `＠` become `[at]`;
 `#` and `＃` are removed when followed by a letter, digit, combining mark or `_` (`#1day` → `1day`); `$` and `＄` are removed when followed by a letter, combining mark or `_` (`$5` stays);
 **every** dot (`.`, and `。` U+3002, `．` U+FF0E, `｡` U+FF61) whose previous character is a letter, digit or combining mark and whose next character is a letter or combining mark becomes `[.]`, whatever precedes the hostname (`中evil.com`, `x_y.evil.com`, `exämple.com` and `evil.рф` are all handled).
@@ -158,13 +170,36 @@ A dot followed by a digit is kept (`2.4.1`, `v1.2`): top-level domains start wit
 The text **contains no link** (the collector's environment has no `NDAY_PUBLIC_URL`); the page appends the newline and the detail-page URL only when it builds the compose link.
 
 **Length**: it uses X's weighted length (twitter-text v3: limit 280; code points 0–4351, 8192–8205, 8208–8223 and 8242–8247 count 1, everything else counts 2, an emoji sequence counts 2, a link counts 23). `xdraft.WeightedLength` computes an **upper bound** and never undercounts:
-text + newline + link (23) ≤ 280, that is, text ≤ 256. When generating, it first truncates the title, then drops the title, then truncates the product line. When an admin saves edited text, the server runs the same check (`400 too_long`).
+text + newline + link (23) ≤ 280, that is, text ≤ 256. When generating, it first truncates the title, then drops the title, then truncates the product line. When an admin saves edited text, the server allows up to 280 (the whole post, for the image forms below; `400 too_long` above that); a text over 256 then has no link-form compose link, and marking it posted in the link form is refused (`400 link_too_long`). The generator still writes at most 256.
 Each code point is counted on its own (emoji sequences aren't merged; © and ® count 2). Only a "definite link" counts 23: one at the start or after ASCII whitespace, with a lowercase `http(s)://` and an ASCII hostname whose top-level domain is on the list, a path limited to a conservative ASCII character set, and trailing punctuation removed (X will turn at least that part into a link).
 Anything else X might recognize as a link is covered by a surcharge: each dot that could end a domain (letter/digit/combining mark before, letter/combining mark after) adds 19 (a link counts 23, and the shortest link, `a.co`, itself counts at least 4).
 So emoji sequences, oddly placed links and things like `e.g` get overcounted, which only makes the limit stricter.
 
 Command: `nday x-drafts [--dry-run]` (a manual run; `--dry-run` prints the JSON of the drafts it would generate and writes nothing, not even the watermark). The same step runs automatically after every successful `nday collect <source>` (one log line, `x draft pass`);
 a failure is only logged and doesn't affect the collection result.
+
+### Forms (migration `0034_xdraft_form.sql`)
+
+To find out whether X holds back posts that carry an outside link, each pending draft on `/admin/x/drafts` offers three ways to post it (radio buttons on the row; `link` is the default):
+
+| form | compose window | what the admin does by hand |
+|---|---|---|
+| `link` | text + newline + the English detail-page link (`xdraft.ComposeURL`, as before) | nothing |
+| `image` | the text alone: no link in the text and no `url` parameter (`xdraft.ComposeTextURL`) | attaches the address card ("copy image" or "download image") |
+| `image_reply` | as `image` | as `image`, then replies to their own post with the link ("copy link") |
+
+The text-only post may use the whole 280 (`xdraft.FitsAlone`), and saving accepts up to 280. The budget with the link (`xdraft.BodyBudget` = 256) is unchanged: the generator and `xdraft.Share` still write at most 256; a saved text of 257–280 shows as over in the link form (no compose link there, server-rendered and in the script), and "mark posted" with form `link` refuses it (`400 link_too_long`), so the recorded form can't be wrong.
+The chosen form is kept per draft in the browser (`localStorage`, key `nday.xdform.<id>`; it survives the reload after a save, is dropped when the draft is posted or discarded, shows up in the history, or is two weeks old; without storage the choice resets to `link` on reload).
+The **address card** is the share card with the page's address printed in place of the brand at the top left (`nday.land/vuln/CVE-…`; `ogcard.Card.Address`, which changes the card's key, so caches never mix the two): `GET /og/vuln/{id}.png?addr=1`, the same route, caching and headers as the plain card (without `?v=` it's cached for 5 minutes).
+"copy image" fetches that same-origin PNG and puts it on the clipboard as an `image/png` `ClipboardItem`; it only shows where the browser supports that. The server still never posts and never calls X.
+
+"mark posted" sends the form used (`{"form": "link" | "image" | "image_reply"}`; absent or `null` means `link`, anything else is `400 bad_form`). It's stored in `x_draft.form` (nullable; a CHECK allows only these three values and only on posted drafts; drafts posted before 0034 stay `NULL`), recorded in the audit row's details (`form`), and shown in the history's "form" column.
+
+### Share control on public pages
+
+Every vulnerability page has a small "share" menu next to the id's copy button: "post on X" (a plain link to the compose window, new tab) and "copy text" (script only; hidden without it, like the copy button).
+The text is `xdraft.Share`: the draft body for the vulnerability's most advanced stage reached (KEV > ITW > POC, with the source of that stage's first event and its `T+Nd`, exactly as a draft would have it), or the same body without the stage when none was reached; English on every locale, upstream text through `xdraft.Clean`, at most 256 so that the link fits.
+The link is the page's canonical URL in the page's language (`https://www.nday.land/zh-hans/vuln/CVE-…`; English has no prefix). It's built from public data only (the record and its events, never X posts), so the page stays the same for every visitor (`TestPostsNotPublic` compares it with posts stored and without).
 
 ## Fetch strategy
 
@@ -173,7 +208,7 @@ a failure is only logged and doesn't affect the collection result.
   (a real request confirmed the API accepts these parameters, HTTP 200). `includes.tweets` holds the quoted/replied-to posts, and `includes.users` holds their authors and the mentioned users.
   **Billing is unverified**: X's docs don't say whether these extra fields and the expanded quoted posts (`includes.tweets`) are billed per post on top; go by actual usage in the developer console.
 
-- Enabled accounts are sorted by numeric id and packed into as few queries as possible: `(from:h1 OR from:h2 …) CVE -is:retweet`,
+- Enabled accounts are sorted by numeric id and packed into as few queries as possible: `(from:h1 OR from:h2 …) (CVE OR GHSA) -is:retweet` (the two keywords are grouped so the implicit AND with the `from:` group and `-is:retweet` keeps its meaning),
   with length ≤ `max_query_length`. Each batch is one query, paged with `pagination_token`, with `max_results` ≤ 100 per page
   (and no more than the remaining `max_posts`; it stops when fewer than 10 remain, so the number of posts returned never exceeds `max_posts`).
 - `from:` uses the handle: the official docs only show the `from:<username>` form and don't say whether a numeric id works.
@@ -218,6 +253,7 @@ and calls `webpages.Enqueue(url, "xposts")` for each (de-duplicated by `pagefetc
 After handling each row, whether it was enqueued, was already in the queue (another spelling of the same key) or was rejected, it sets `page_queued_url` to the `final_url` at that moment, so later scans don't re-read these rows unless the final address changes.
 It also backfills existing rows, via the manual command `nday x-links-enqueue`. After every successful `nday collect xposts` the steps run in order: t.co resolution → enqueue (log `x link enqueue`) → one round of page fetching (`webpages.FetchPending`, log `web page fetch pass`; enqueue and fetch share a 2-minute limit and at most 25 addresses),
 and each step's failure is only logged and doesn't affect the collection result. When tests or `tools/replay` inject a Transport, the fetch step is skipped (so arbitrary hosts are never reached through an injected Transport). Manual fetch: `nday pages-fetch [--limit N]`.
+Then the GitHub repository step (`docs/github.md`): repository links (`kind = 'code'` on github.com) are queued (log `github enqueue`) and one pass fetches their metadata from `https://api.github.com` (log `github fetch pass`; its own 2-minute limit, at most 25 repositories, stops quietly at the rate limit). Manual: `nday github-enqueue`, `nday github-fetch [--limit N]`.
 
 **Candidate accounts** (`x_account_candidate`, `x_account_candidate_ref`): for each stored post, each user it quotes (`quoted`), replies to (`replied_to`) or @-mentions (`mentioned`, including in a long post's `note_tweet`) gets one ref
 (primary key `(user_id, post_id, kind)`; `referrer_id` is the post's author, that is, an allowlisted account). The author themselves and items without a numeric id are skipped. A quoted post's author id comes from `author_id` in `includes.tweets`.
@@ -268,7 +304,7 @@ The rules live in `internal/site/public.go` (the comment at the top of the file 
 | Ranking CVEs by that number (ties go to the one with the newer latest post, then by CVE id ascending; the post time itself isn't returned) | `/discussed`, `GET /v1/discussed` |
 | **Pinning** on the first page of the hot list: CVEs with ≥ 2 researchers, a latest post within 72 hours, and a current wave of discussion that began within 7 days are placed first and marked "Pinned". If fewer than 10 (the default `NDAY_HOT_PIN_MAX`) qualify, the top of the discussed ranking (the same counts as `/discussed`) fills the rest, and filled rows are also marked "Pinned", with `pin_reason: "discussed"` in the API. Rules: `internal/site/pin.go` and `pinned` under `/api/hot` in `docs/api.md`. All this reveals is "someone posted in the last few days", which doesn't go beyond the posting dates the outline already makes public; the post time itself isn't returned | the "Pinned" badge on each row of `/hot` (and tag pages), `pinned` on each row of `GET /v1/hot`, and `pin_reason` on pinned rows |
 | The **outline** in the researcher section of the vulnerability page (author names are public): lists a few entries (at most 50, newest first), each with the **author @username** (the handle stored with the post, which must pass `xconfig.ValidHandle`; otherwise the neutral name "researcher" is shown, unlinked) and a link to their X profile, the UTC date of the post, and a rough length bucket (`s` ≤ 80 characters, `m` ≤ 200, `l` longer) | the page HTML (everyone sees the same thing), and `GET /api/posts/{cve}` when signed out |
-| The **Resources** section of the vulnerability page: the links in that CVE's researcher posts (`x_post_link`, `status = 'ok'`, `kind` not `media`/`quote`, `final_url` an absolute http/https address with no user info and at most 2048 characters), de-duplicated by final address (scheme and host are case-insensitive, fragment and trailing `/` on the path are dropped, and the first spelling seen is kept), at most 30. Each entry has **only** the address, host, kind, the number of **distinct** researchers who posted it, and the link page's **title**: the link title the X API gave for that address (`x_post_link.title`) when non-empty, otherwise the title the web page module fetched (`web_page.title`, `status = 'ok'`, matched on `url_key`), both cleaned with `pagefetch.CleanTitle`. A title is third-party text and **appears only in this panel**. Sorted by kind (`poc`, `patch`, `advisory`, `code`, `other`), then researcher count descending, then earliest post first. **Who posted which link, post ids, post text and post times are not public.** The rules are in `site.Store.Resources` / `site.ResourcesFor` | the page HTML (everyone sees the same thing; the "Resources" panel under "Raw records" in the sidebar, which doesn't appear when there are no links) |
+| The **Resources** section of the vulnerability page: the links in that CVE's researcher posts (`x_post_link`, `status = 'ok'`, `kind` not `media`/`quote`, `final_url` an absolute http/https address with no user info and at most 2048 characters), de-duplicated by final address (scheme and host are case-insensitive, fragment and trailing `/` on the path are dropped, and the first spelling seen is kept), at most 30. Each entry has **only** the address, host, kind, the number of **distinct** researchers who posted it, and the link page's **title**: the link title the X API gave for that address (`x_post_link.title`) when non-empty, otherwise the title the web page module fetched (`web_page.title`, `status = 'ok'`, matched on `url_key`), both cleaned with `pagefetch.CleanTitle`. A title is third-party text and **appears only in this panel**. Sorted by kind (`poc`, `patch`, `advisory`, `code`, `other`), then researcher count descending, then earliest post first. **Who posted which link, post ids, post text and post times are not public.** The rules are in `site.Store.Resources` / `site.ResourcesFor`. A `code` link to a repository root on github.com, under the repository's current name, whose repository was fetched and is `ok` (`docs/github.md`) also shows only that repository's full name, star count and creation day, and is listed under `poc` when the repository's name, description or topics name the page's CVE | the page HTML (everyone sees the same thing; the "Resources" panel under "Raw records" in the sidebar, which doesn't appear when there are no links) |
 
 So **which researcher posted on which day mentioning which CVE is public**, and therefore **anyone who has posted about a CVE in the database has their identity on nday's allowlist made public too**.
 Author names appear only in the researcher section of the vulnerability page and in `/api/posts` when signed out (the Resources section carries no authors): `/hot`, `/discussed` and their JSON, the feed, the sitemap, share cards and `/v1/vuln` carry only counts, or nothing.
@@ -287,7 +323,7 @@ Posts (and their links) still do **not** change the stage, `event_count` or tags
 **Display (signed-in users, `static/discuss.js`)**: newest first, 10 entries shown at first, with "show N more" expanding the rest (at most 50). Each entry has:
 the `@handle` (linked to `https://x.com/<handle>` only if the handle passes `xconfig.ValidHandle`), the post time in the local time zone, the text (`textContent`,
 `dir="auto"`, unchanged), and "view on X" (only `https://x.com/<handle|i/web>/status/<numeric id>` is accepted; otherwise it's rebuilt from the post id in the `i/web` form,
-and if that fails there's no link); all external links get `rel="noopener noreferrer nofollow"`.
+and if that fails there's no link); all external links get `target="_blank" rel="noopener noreferrer nofollow"`.
 t.co short links in the text: each post from `/api/posts` carries `links` (the resolved links, in order); each complete occurrence of a `short_url` in the text
 is replaced with a link whose text is the final address without the scheme (truncated with `…` past 48 characters), whose `href` is the final address and whose `title` is the full address. This happens only when the final address parses as an http/https address
 with no user info; otherwise, and for short links with no resolved row, the original text stays. The rest of the text is unchanged, and everything is built with text nodes and `createElement`, never `innerHTML`
@@ -295,7 +331,7 @@ with no user info; otherwise, and for short links with no resolved row, the orig
 
 **Display (Resources, everyone, `resources` in `templates/vuln.tmpl`)**: a panel in the sidebar under "Raw records", titled "Resources", grouped by kind (PoC / exploit code, Patches, Advisories, Code repositories, Articles and other links).
 When there's a title, the link text is the page title followed by the hostname in a lighter color; with no title it's the host plus path (scheme removed, truncated past 48 characters); the link's `title` attribute is the full address;
-when more than one researcher posted it, "N researchers" follows; `href` can only be http/https, `rel="noopener noreferrer nofollow ugc"`, and the title, text and address are all escaped by the template engine.
+when more than one researcher posted it, "N researchers" follows; `href` can only be http/https, `target="_blank" rel="noopener noreferrer nofollow ugc"`, and the title, text and address are all escaped by the template engine.
 Signed-in users still see the address, not the title, in links inside post text. The result is cached in the page cache per CVE (like the researcher section).
 
 ### X developer terms (checked 2026-11-14)

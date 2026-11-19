@@ -346,6 +346,55 @@
           "kind": "title"
         },
         {
+          "key": "title.composed",
+          "where": "hot list, /discussed, search rows, the feed and the vulnerability page heading, for a vulnerability whose CVE record has no title: the title nday composed from structured data (docs/titles.md)",
+          "intent": "A short title made of the affected product, the weakness type and, when the record names one, the component. It reads like an ordinary vulnerability title; a small marker after it says it is nday's (title.origin_composed).",
+          "kind": "pattern",
+          "select": {
+            "var": "form",
+            "values": [
+              "full",
+              "weakness",
+              "component"
+            ]
+          },
+          "placeholders": {
+            "product": {
+              "kind": "upstream",
+              "meaning": "the affected product as the record or nday's product tag names it (English)",
+              "example": "Java SE"
+            },
+            "weakness": {
+              "kind": "text",
+              "meaning": "the weakness type: the tag name of tag.name (full and weakness only)",
+              "example": "buffer overflow / out-of-bounds write",
+              "optional": true
+            },
+            "component": {
+              "kind": "upstream",
+              "meaning": "the component the record's description names (English; full and component only)",
+              "example": "Compiler",
+              "optional": true
+            }
+          },
+          "constraints": [
+            "full: product, weakness and component; weakness: product and weakness; component: product and component (no weakness known: say 'vulnerability')",
+            "no final punctuation"
+          ]
+        },
+        {
+          "key": "title.origin_composed",
+          "where": "tooltip and accessible name of the small marker after a title nday composed (lists and the vulnerability page)",
+          "intent": "This title was composed by nday because the CVE record has none.",
+          "kind": "sentence"
+        },
+        {
+          "key": "title.origin_staff",
+          "where": "tooltip and accessible name of the small marker after a title nday's staff set by hand (lists and the vulnerability page)",
+          "intent": "This title was set by nday's staff (not the CVE record's own).",
+          "kind": "sentence"
+        },
+        {
           "key": "note.upstream_original",
           "where": "hot list, search results and vulnerability summary — only in locales other than English",
           "intent": "Titles and descriptions are the upstream originals, in their original language (English). Say it once, briefly.",
@@ -513,13 +562,13 @@
         {
           "key": "legend.poc_count",
           "where": "legend under the hot list",
-          "intent": "Explains the POC n/3 column: how many of the three curated PoC sources list it.",
+          "intent": "Explains the POC n/4 column: how many of the four PoC sources list it.",
           "kind": "label",
           "placeholders": {
             "token": {
               "kind": "html",
               "meaning": "the column token",
-              "example": "POC n/3"
+              "example": "POC n/4"
             }
           },
           "max_cols": 40
@@ -628,6 +677,13 @@
           "where": "accessible name of the main navigation (screen readers)",
           "intent": "Name of the main site navigation.",
           "kind": "label"
+        },
+        {
+          "key": "nav.menu",
+          "where": "search page (/vuln with nothing searched) on phones: accessible name of the small \">\" toggle next to the logo that opens the header links (screen readers only; not shown)",
+          "intent": "Name of the button that shows or hides the site menu (page links, sources, about, language, theme, sign in).",
+          "kind": "label",
+          "max_cols": 16
         },
         {
           "key": "skip.main",
@@ -957,13 +1013,6 @@
           "max_cols": 48
         },
         {
-          "key": "help.r",
-          "where": "keyboard help overlay, next to a key",
-          "intent": "What the key does.",
-          "kind": "label",
-          "max_cols": 48
-        },
-        {
           "key": "help.o",
           "where": "keyboard help overlay, next to a key",
           "intent": "What the key does.",
@@ -1019,6 +1068,48 @@
           "max_cols": 12
         },
         {
+          "key": "share.label",
+          "where": "vulnerability page, next to the CVE ID copy button: opens a small menu with two share actions",
+          "intent": "Share this page. One word.",
+          "kind": "label",
+          "constraints": [
+            "button label"
+          ],
+          "max_cols": 12
+        },
+        {
+          "key": "share.x",
+          "where": "vulnerability page, share menu, link (new tab) to X's compose window with a short text and the page's link filled in",
+          "intent": "Write a post on X about this page. X is the network's name; keep it as is.",
+          "kind": "label",
+          "constraints": [
+            "link label",
+            "keep \"X\" as is"
+          ],
+          "max_cols": 20
+        },
+        {
+          "key": "share.copy",
+          "where": "vulnerability page, share menu, button (script only)",
+          "intent": "Copy the same short text and the page's link to the clipboard.",
+          "kind": "label",
+          "constraints": [
+            "button label"
+          ],
+          "max_cols": 20
+        },
+        {
+          "key": "btn.confirm",
+          "where": "a button whose action needs a second click (back office actions, deleting a passkey, an API token or a comment, resetting the private feed address), shown in place of its label after the first click",
+          "intent": "Click again to do it. One word: the button keeps the width of the wider of its label and this word.",
+          "kind": "label",
+          "constraints": [
+            "button label",
+            "one short word"
+          ],
+          "max_cols": 10
+        },
+        {
           "key": "js.copied",
           "where": "button label for ~1s after a successful copy",
           "intent": "Confirms the copy.",
@@ -1054,24 +1145,98 @@
         },
         {
           "key": "pager.first",
-          "where": "pager under the hot list",
-          "intent": "Back to the first page (arrow included).",
+          "where": "pager under every paginated list (hot list, catalogue, discussed; also the back office), a button; drawn disabled on the first page",
+          "intent": "Go to the first page. No arrow: the page draws the glyph («) itself.",
+          "kind": "label",
+          "max_cols": 16
+        },
+        {
+          "key": "pager.prev",
+          "where": "pager under every paginated list, a button between first and next; drawn disabled on the first page",
+          "intent": "Go to the previous page. No arrow: the page draws the glyph (‹) itself.",
           "kind": "label",
           "max_cols": 16
         },
         {
           "key": "pager.next",
-          "where": "pager under the hot list",
-          "intent": "Next page (arrow included).",
+          "where": "pager under every paginated list, the last button; drawn disabled on the last page",
+          "intent": "Go to the next page. No arrow: the page draws the glyph (›) itself.",
           "kind": "label",
           "max_cols": 16
         },
         {
-          "key": "pager.end",
-          "where": "pager under the hot list",
-          "intent": "There is no next page.",
+          "key": "pager.page",
+          "where": "pager under a paginated list, left of the buttons, when the number of pages is not known (a catalogue filtered by one of the broadest tags)",
+          "intent": "Which page of the list this is.",
           "kind": "label",
+          "placeholders": {
+            "n": {
+              "kind": "number",
+              "meaning": "the page number, 1-based",
+              "example": "3"
+            }
+          },
           "max_cols": 16
+        },
+        {
+          "key": "pager.page_of",
+          "where": "pager under every paginated list (hot list, catalogue, discussed; also the back office), left of the buttons",
+          "intent": "Which page of the list this is and how many pages the list has.",
+          "kind": "label",
+          "placeholders": {
+            "n": {
+              "kind": "number",
+              "meaning": "the page number, 1-based",
+              "example": "3"
+            },
+            "pages": {
+              "kind": "number",
+              "meaning": "the number of pages of the whole list",
+              "example": "12"
+            }
+          },
+          "max_cols": 24
+        },
+        {
+          "key": "pager.range",
+          "where": "pager under a paginated list, after the page number, when the length of the whole list is not known",
+          "intent": "The positions in the list of the first and last rows shown.",
+          "kind": "label",
+          "placeholders": {
+            "from": {
+              "kind": "number",
+              "meaning": "position of the first row shown, 1-based",
+              "example": "101"
+            },
+            "to": {
+              "kind": "number",
+              "meaning": "position of the last row shown",
+              "example": "150"
+            }
+          }
+        },
+        {
+          "key": "pager.range_total",
+          "where": "pager under a paginated list, after the page number, when the length of the whole list is known",
+          "intent": "The positions of the first and last rows shown, out of how many rows the whole list has.",
+          "kind": "label",
+          "placeholders": {
+            "from": {
+              "kind": "number",
+              "meaning": "position of the first row shown, 1-based",
+              "example": "101"
+            },
+            "to": {
+              "kind": "number",
+              "meaning": "position of the last row shown",
+              "example": "150"
+            },
+            "total": {
+              "kind": "number",
+              "meaning": "rows in the whole list",
+              "example": "426342"
+            }
+          }
         },
         {
           "key": "page.hot.title",
@@ -1354,16 +1519,6 @@
           ]
         },
         {
-          "key": "hot.api.summary",
-          "where": "home page, tag pages, search results, /discussed, the tag list (/tags) and the sources page (/src): the collapsed disclosure that holds the curl command of the same list",
-          "intent": "Open this to see the command that fetches this exact list from the JSON API.",
-          "kind": "label",
-          "constraints": [
-            "a short clickable label; the command itself stays English"
-          ],
-          "max_cols": 36
-        },
-        {
           "key": "hot.filter.summary",
           "where": "home page and tag pages, on phones only: the line that opens the folded list filters, followed by the current selection (time range, stage, tags)",
           "intent": "One word naming the list filters; the current values follow it on the same line.",
@@ -1535,6 +1690,26 @@
           }
         },
         {
+          "key": "vuln.withdrawn.banner",
+          "where": "banner on a withdrawn GitHub advisory (a vulnerability whose id is a GHSA id; after the REJECTED badge)",
+          "intent": "GitHub withdrew this advisory, so it is not a valid vulnerability.",
+          "kind": "sentence",
+          "neighbors": "the REJECTED badge (state token, as for a rejected CVE)"
+        },
+        {
+          "key": "vuln.withdrawn.banner_at",
+          "where": "banner on a withdrawn GitHub advisory with a date",
+          "intent": "As vuln.withdrawn.banner, with when GitHub withdrew it.",
+          "kind": "sentence",
+          "placeholders": {
+            "date": {
+              "kind": "token",
+              "meaning": "ISO 8601 UTC minute",
+              "example": "2026-11-05T15:22Z"
+            }
+          }
+        },
+        {
           "key": "vuln.rejected.reason",
           "where": "rejected banner",
           "intent": "The rejection reason, quoted verbatim from the record (English).",
@@ -1572,16 +1747,6 @@
           "where": "next to the lifecycle heading",
           "intent": "How to read the chart, as compactly as possible: x axis is UTC; dot = exact minute; wide (full-day) bar = date only; hollow = unknown or inferred.",
           "kind": "sentence"
-        },
-        {
-          "key": "vuln.api.summary",
-          "where": "vulnerability page, under the tags: the collapsed disclosure that holds the curl command of this record",
-          "intent": "Open this to see the command that fetches this vulnerability's record from the JSON API.",
-          "kind": "label",
-          "constraints": [
-            "a short clickable label; the command itself stays English"
-          ],
-          "max_cols": 36
         },
         {
           "key": "chart.col.unknown",
@@ -2413,6 +2578,12 @@
           "neighbors": "REJECTED is the CVE state token"
         },
         {
+          "key": "status.withdrawn",
+          "where": "first sentence for a withdrawn GitHub advisory (a vulnerability whose id is a GHSA id)",
+          "intent": "GitHub withdrew this advisory, so it is not a valid vulnerability (the GHSA counterpart of status.rejected).",
+          "kind": "sentence"
+        },
+        {
           "key": "status.no_record",
           "where": "lead when no CVE record has been fetched",
           "intent": "nday has not fetched the official CVE record, so the disclosure time is unknown.",
@@ -2686,19 +2857,19 @@
         {
           "key": "status.poc.none",
           "where": "PoC sentence",
-          "intent": "None of the three curated PoC sources (Exploit-DB, Metasploit, nuclei) lists it.",
+          "intent": "None of the four PoC sources (Exploit-DB, Metasploit, nuclei, trusted GitHub repositories) lists it.",
           "kind": "sentence"
         },
         {
           "key": "status.poc.all",
           "where": "PoC sentence",
-          "intent": "All three curated PoC sources list it.",
+          "intent": "All four PoC sources list it.",
           "kind": "sentence"
         },
         {
           "key": "status.poc.some",
           "where": "PoC sentence",
-          "intent": "Some of the three PoC sources list it: which ones, and n of total.",
+          "intent": "Some of the four PoC sources list it: which ones, and n of total.",
           "kind": "sentence",
           "placeholders": {
             "sources": {
@@ -2714,11 +2885,11 @@
             "total": {
               "kind": "number",
               "meaning": "all PoC sources",
-              "example": "3"
+              "example": "4"
             }
           },
           "plural": "n",
-          "neighbors": "source names are tokens: exploitdb, metasploit, nuclei"
+          "neighbors": "source names are tokens: exploitdb, metasploit, nuclei, github"
         }
       ]
     },
@@ -3030,6 +3201,25 @@
           "kind": "sentence"
         },
         {
+          "key": "ev.github.repo",
+          "where": "GitHub PoC event (a trusted repository)",
+          "intent": "A trusted GitHub repository holds a public PoC for it; names the repository.",
+          "kind": "sentence",
+          "placeholders": {
+            "repo": {
+              "kind": "token",
+              "meaning": "repository full name, owner/name",
+              "example": "acme/CVE-2026-1-poc"
+            }
+          }
+        },
+        {
+          "key": "ev.github.created",
+          "where": "GitHub PoC event (a trusted repository)",
+          "intent": "The event's date is the day the repository was created on GitHub, not when the code appeared.",
+          "kind": "sentence"
+        },
+        {
           "key": "ev.generic",
           "where": "fallback for events of other sources",
           "intent": "Source X reported an event of this stage; claim nothing more.",
@@ -3252,6 +3442,13 @@
           "where": "catalogue empty state, after cat.empty",
           "intent": "Link that removes every filter.",
           "kind": "label"
+        },
+        {
+          "key": "cat.browse",
+          "where": "catalogue landing page (only the search box): small link under the examples line to the full list",
+          "intent": "Link to the complete list of vulnerabilities. Two or three words, lower case is fine.",
+          "kind": "label",
+          "max_cols": 20
         }
       ]
     },
@@ -3613,8 +3810,8 @@
         },
         {
           "key": "src.read.poc_count",
-          "where": "notation legend, next to 2/3",
-          "intent": "How many of exploitdb, metasploit, nuclei list it.",
+          "where": "notation legend, next to 2/4",
+          "intent": "How many of exploitdb, metasploit, nuclei, github list it.",
           "kind": "sentence"
         },
         {
@@ -3685,16 +3882,6 @@
               "example": "2026-11-13T01:05Z"
             }
           }
-        },
-        {
-          "key": "stats.api.summary",
-          "where": "stats page, under the heading: the collapsed disclosure that holds the curl command of these counts",
-          "intent": "Open this to see the command that fetches these statistics from the JSON API.",
-          "kind": "label",
-          "constraints": [
-            "a short clickable label; the command itself stays English"
-          ],
-          "max_cols": 36
         },
         {
           "key": "stats.by_stage.h2",
@@ -4012,12 +4199,6 @@
           "kind": "phrase"
         },
         {
-          "key": "about.key.r",
-          "where": "about page key list, next to the key",
-          "intent": "What the key does (fuller than the status-bar hint).",
-          "kind": "phrase"
-        },
-        {
           "key": "about.key.o",
           "where": "about page key list, next to the key",
           "intent": "What the key does (fuller than the status-bar hint).",
@@ -4036,72 +4217,51 @@
           "kind": "phrase"
         },
         {
-          "key": "about.api.h2",
-          "where": "section heading",
-          "intent": "Heading of the JSON API section.",
-          "kind": "title",
-          "max_cols": 24
-        },
-        {
-          "key": "about.api.note",
-          "where": "under the API heading",
-          "intent": "Read-only, no auth; snake_case fields; RFC 3339 UTC times; explicit nulls; unknown parameters → 400.",
-          "kind": "sentence",
-          "neighbors": "tokens snake_case, RFC 3339, null, 400"
-        },
-        {
           "key": "api.hot",
-          "where": "about page, API endpoint 'hot'",
+          "where": "account page, API section, endpoint 'hot'",
           "intent": "What the endpoint returns. Parameter names, field names and limits are tokens: keep them exactly.",
           "kind": "sentence",
           "neighbors": "parameter names (since, min_stage, q, limit, cursor…) are tokens"
         },
         {
           "key": "api.vuln",
-          "where": "about page, API endpoint 'vuln'",
+          "where": "account page, API section, endpoint 'vuln'",
           "intent": "What the endpoint returns. Parameter names, field names and limits are tokens: keep them exactly.",
           "kind": "sentence",
           "neighbors": "parameter names (since, min_stage, q, limit, cursor…) are tokens"
         },
         {
           "key": "api.search",
-          "where": "about page, API endpoint 'search'",
+          "where": "account page, API section, endpoint 'search'",
           "intent": "What the endpoint returns. Parameter names, field names and limits are tokens: keep them exactly.",
           "kind": "sentence",
           "neighbors": "parameter names (since, min_stage, q, limit, cursor…) are tokens"
         },
         {
           "key": "api.sources",
-          "where": "about page, API endpoint 'sources'",
+          "where": "account page, API section, endpoint 'sources'",
           "intent": "What the endpoint returns. Parameter names, field names and limits are tokens: keep them exactly.",
           "kind": "sentence",
           "neighbors": "parameter names (since, min_stage, q, limit, cursor…) are tokens"
         },
         {
           "key": "api.stats",
-          "where": "about page, API endpoint 'stats'",
+          "where": "account page, API section, endpoint 'stats'",
           "intent": "What the endpoint returns. Parameter names, field names and limits are tokens: keep them exactly.",
           "kind": "sentence",
           "neighbors": "parameter names (since, min_stage, q, limit, cursor…) are tokens"
         },
         {
           "key": "api.raw",
-          "where": "about page, API endpoint 'raw'",
-          "intent": "What the endpoint returns. Parameter names, field names and limits are tokens: keep them exactly.",
-          "kind": "sentence",
-          "neighbors": "parameter names (since, min_stage, q, limit, cursor…) are tokens"
-        },
-        {
-          "key": "api.healthz",
-          "where": "about page, API endpoint 'healthz'",
+          "where": "account page, API section, endpoint 'raw'",
           "intent": "What the endpoint returns. Parameter names, field names and limits are tokens: keep them exactly.",
           "kind": "sentence",
           "neighbors": "parameter names (since, min_stage, q, limit, cursor…) are tokens"
         },
         {
           "key": "api.feed",
-          "where": "about page, API endpoint 'feed'",
-          "intent": "What the endpoint returns. Parameter names, field names and limits are tokens: keep them exactly.",
+          "where": "account page, API section, endpoint 'feed'",
+          "intent": "What the endpoint returns; then that a feed reader should use the reader's private feed address shown above it on the same page (it needs no token). Parameter names, field names and limits are tokens: keep them exactly.",
           "kind": "sentence",
           "neighbors": "parameter names (since, min_stage, q, limit, cursor…) are tokens"
         }
@@ -5103,7 +5263,7 @@
         },
         {
           "key": "tag.api",
-          "where": "about page, API endpoint 'tags'",
+          "where": "account page, API section, endpoint 'tags'",
           "intent": "What the endpoint returns: the vocabulary with slug, dimension, English label, rule and number of CVEs; hot and search take the parameter tag (repeatable, AND). Parameter and field names are tokens.",
           "kind": "sentence",
           "neighbors": "parameter names (tag, q) are tokens"
@@ -5179,6 +5339,13 @@
           "intent": "Link to the visitor's own account page.",
           "kind": "label",
           "max_cols": 12
+        },
+        {
+          "key": "acct.menu.signout",
+          "where": "top bar account menu (opened from the @handle), last item",
+          "intent": "Signs out of this browser.",
+          "kind": "label",
+          "max_cols": 16
         },
         {
           "key": "acct.role.badge",
@@ -5490,9 +5657,30 @@
         },
         {
           "key": "acct.profile.h2",
-          "where": "account page, section heading",
+          "where": "account page, menu item and section heading; also an item of the top bar account menu",
           "intent": "Section: public profile.",
           "kind": "title"
+        },
+        {
+          "key": "acct.security.h2",
+          "where": "account page, menu item and section heading; also an item of the top bar account menu",
+          "intent": "Section: how the user signs in (sign-in methods, passkeys) and their sessions.",
+          "kind": "title",
+          "max_cols": 16
+        },
+        {
+          "key": "acct.developer.h2",
+          "where": "account page, menu item and section heading; also an item of the top bar account menu",
+          "intent": "Section for programmatic access: API tokens, the private feed address and the API endpoints.",
+          "kind": "title",
+          "max_cols": 16
+        },
+        {
+          "key": "acct.account.h2",
+          "where": "account page, menu item and section heading (last section)",
+          "intent": "Section: the account itself (accepting the community rules, deleting the account).",
+          "kind": "title",
+          "max_cols": 16
         },
         {
           "key": "acct.profile.handle",
@@ -5647,21 +5835,21 @@
         },
         {
           "key": "acct.passkeys.name",
-          "where": "account page, passkey table column",
+          "where": "account page, passkey table column; also the API token table (and, for name, the label of the new token field)",
           "intent": "The passkey's name.",
           "kind": "label",
           "max_cols": 12
         },
         {
           "key": "acct.passkeys.created",
-          "where": "account page, passkey table column",
+          "where": "account page, passkey table column; also the API token table (and, for name, the label of the new token field)",
           "intent": "When the passkey was added.",
           "kind": "label",
           "max_cols": 12
         },
         {
           "key": "acct.passkeys.last_used",
-          "where": "account page, passkey table column",
+          "where": "account page, passkey table column; also the API token table (and, for name, the label of the new token field)",
           "intent": "When it was last used to sign in.",
           "kind": "label",
           "max_cols": 12
@@ -5675,7 +5863,7 @@
         },
         {
           "key": "acct.passkeys.never",
-          "where": "account page, passkey 'last used' value",
+          "where": "account page, passkey 'last used' value; also the API token table (and, for name, the label of the new token field)",
           "intent": "Never used yet.",
           "kind": "label",
           "max_cols": 12
@@ -5722,17 +5910,10 @@
         },
         {
           "key": "acct.passkeys.delete",
-          "where": "account page, button of a passkey row",
+          "where": "account page, button of a passkey row; also the API token table (and, for name, the label of the new token field)",
           "intent": "Delete this passkey (asks again).",
           "kind": "label",
           "max_cols": 12
-        },
-        {
-          "key": "acct.passkeys.delete_confirm",
-          "where": "account page, the delete button after the first click",
-          "intent": "Second click deletes for good.",
-          "kind": "label",
-          "max_cols": 16
         },
         {
           "key": "acct.passkeys.deleted",
@@ -5960,19 +6141,13 @@
         },
         {
           "key": "acct.reauth.h2",
-          "where": "account page, inline panel before a sensitive action",
-          "intent": "Panel heading: prove it's you.",
+          "where": "re-verification dialog (account page and admin pages) before a sensitive action",
+          "intent": "Dialog heading: prove it's you.",
           "kind": "title"
         },
         {
-          "key": "acct.reauth.lede",
-          "where": "account page, re-verification panel",
-          "intent": "The action needs a recent sign-in; sign in again with one of the methods, come back here, then repeat the action (it is not repeated automatically).",
-          "kind": "sentence"
-        },
-        {
           "key": "acct.reauth.provider",
-          "where": "re-verification panel, one button per linked provider",
+          "where": "re-verification dialog, one button per linked provider",
           "intent": "Sign in again at that provider.",
           "kind": "label",
           "placeholders": {
@@ -5986,21 +6161,21 @@
         },
         {
           "key": "acct.reauth.passkey",
-          "where": "re-verification panel, button",
+          "where": "re-verification dialog, button",
           "intent": "Confirm with one of the account's passkeys.",
           "kind": "label",
           "max_cols": 20
         },
         {
           "key": "acct.reauth.none",
-          "where": "re-verification panel when no listed method can be used here",
+          "where": "re-verification dialog when no listed method can be used here",
           "intent": "No method can be used for re-verification in this browser; signing out and in again also works.",
           "kind": "sentence"
         },
         {
           "key": "acct.reauth.done",
-          "where": "status after a successful passkey re-verification",
-          "intent": "Confirmed; the visitor repeats the action themselves.",
+          "where": "status after a successful passkey re-verification when the action is not continued automatically",
+          "intent": "Confirmed; the visitor can repeat the action now.",
           "kind": "sentence"
         },
         {
@@ -6172,6 +6347,68 @@
               "example": "internal"
             }
           }
+        },
+        {
+          "key": "acct.api.tokens_h3",
+          "where": "account page, API section, sub-heading",
+          "intent": "API tokens of this account (list, create).",
+          "kind": "title"
+        },
+        {
+          "key": "acct.api.create",
+          "where": "account page, API section, button next to the name field",
+          "intent": "Create a new API token with that name.",
+          "kind": "label",
+          "max_cols": 20
+        },
+        {
+          "key": "acct.api.once",
+          "where": "account page, API section, under the new token's secret",
+          "intent": "The secret is shown only this once (gone on reload); copy it now.",
+          "kind": "sentence"
+        },
+        {
+          "key": "acct.api.deleted",
+          "where": "account page, API section, status",
+          "intent": "Confirmation: the token was deleted (revoked); programs using it stop working.",
+          "kind": "sentence"
+        },
+        {
+          "key": "acct.err.token_limit",
+          "where": "account page, API section: note under the token form when the limit is reached, and the status line when creating fails for that reason",
+          "intent": "The account has the maximum number of API tokens; delete one first.",
+          "kind": "sentence"
+        },
+        {
+          "key": "acct.api.feed_h3",
+          "where": "account page, API section, sub-heading",
+          "intent": "The reader's private Atom feed address (a URL with a secret key, for feed readers).",
+          "kind": "title"
+        },
+        {
+          "key": "acct.api.feed_reset",
+          "where": "account page, API section, button under the private feed address",
+          "intent": "Replace the private feed address by a new one (asks again).",
+          "kind": "label",
+          "max_cols": 20
+        },
+        {
+          "key": "acct.api.feed_reset_confirm",
+          "where": "account page, API section, tooltip (title) of the reset button",
+          "intent": "Resetting makes the old address stop working.",
+          "kind": "sentence"
+        },
+        {
+          "key": "acct.api.feed_reset_done",
+          "where": "account page, API section, status",
+          "intent": "Confirmation: a new address is shown; the old one no longer works.",
+          "kind": "sentence"
+        },
+        {
+          "key": "acct.api.ref_h3",
+          "where": "account page, API section, sub-heading",
+          "intent": "The list of data API endpoints with example commands.",
+          "kind": "title"
         }
       ]
     },
@@ -6433,7 +6670,7 @@
         },
         {
           "key": "acct.follows.h2",
-          "where": "account page, section heading",
+          "where": "account page, menu item and section heading; also an item of the top bar account menu",
           "intent": "Section: followed vendors and products.",
           "kind": "title"
         },
@@ -6922,7 +7159,7 @@
         },
         {
           "key": "disc.delete_confirm",
-          "where": "browser confirmation dialog before deleting (script)",
+          "where": "discussion section, tooltip (title) of a comment's delete button after the first click (script)",
           "intent": "Last check before deleting one's own comment.",
           "kind": "sentence"
         },
@@ -7872,6 +8109,27 @@
           "max_cols": 24
         },
         {
+          "key": "rsch.res.unverified",
+          "where": "vulnerability page, resources section (public), code repositories group: small marker after a GitHub repository's creation date",
+          "intent": "Marks a repository nobody has checked yet: found automatically on GitHub (or not yet confirmed by nday), so it may be fake or harmful. One word or a very short phrase, like a status tag.",
+          "kind": "label",
+          "max_cols": 16
+        },
+        {
+          "key": "rsch.res.unreviewed",
+          "where": "vulnerability page, resources section (public): heading of a collapsed group under \"PoC / exploit code\" (click to open)",
+          "intent": "GitHub repositories found for this CVE that nobody has reviewed, or that otherwise do not count as a PoC (so the lifecycle stage ignores them). The number is how many. Short, like a group heading; no sentence.",
+          "kind": "label",
+          "placeholders": {
+            "n": {
+              "kind": "number",
+              "meaning": "repositories in the group",
+              "example": "5"
+            }
+          },
+          "max_cols": 40
+        },
+        {
           "key": "veil.comments",
           "where": "vulnerability page, discussion section, shown to signed-out visitors",
           "intent": "Signed-out visitors see unreadable placeholders instead of the comments; they must sign in to read them. Also read by screen readers instead of the placeholders.",
@@ -8117,12 +8375,9 @@
       "keys": [
         {
           "key": "admin.slot",
-          "where": "top bar, right after the @handle of a moderator or administrator (added by the page script)",
+          "where": "top bar account menu (opened from the @handle) of a moderator or administrator (added by the page script)",
           "intent": "Link to the staff back office.",
           "kind": "label",
-          "constraints": [
-            "lower-case UI label like the other top-bar links (rss, api, about)"
-          ],
           "max_cols": 12
         },
         {
@@ -8183,23 +8438,14 @@
               "settings",
               "x",
               "xdrafts",
+              "github",
               "audit",
-              "corrections"
+              "corrections",
+              "titles",
+              "xgh"
             ]
           },
           "max_cols": 16
-        },
-        {
-          "key": "admin.first",
-          "where": "back office (staff only), pager link",
-          "intent": "Back to the first page of a list.",
-          "kind": "label"
-        },
-        {
-          "key": "admin.next",
-          "where": "back office (staff only), pager link",
-          "intent": "The next page of a list.",
-          "kind": "label"
         },
         {
           "key": "admin.none",
@@ -9195,6 +9441,7 @@
               "x_account_enable",
               "x_account_disable",
               "x_accounts_import",
+              "x_account_profiles",
               "x_candidate_dismiss",
               "x_candidate_restore",
               "x_draft_save",
@@ -9206,7 +9453,18 @@
               "settings_secret_set",
               "settings_secret_clear",
               "correction_accept",
-              "correction_reject"
+              "correction_reject",
+              "github_repo_trust",
+              "github_repo_reject",
+              "github_repo_reset",
+              "github_owner_add",
+              "github_owner_update",
+              "github_owner_enable",
+              "github_owner_disable",
+              "github_owner_link",
+              "github_owner_unlink",
+              "vuln_title_set",
+              "vuln_title_clear"
             ]
           }
         },
@@ -9225,7 +9483,10 @@
               "x_account",
               "x_draft",
               "setting",
-              "correction"
+              "correction",
+              "github_repo",
+              "github_owner",
+              "vuln"
             ]
           }
         },
@@ -9256,7 +9517,9 @@
               "message",
               "pool",
               "in_use",
-              "idle"
+              "idle",
+              "job",
+              "backlog"
             ]
           }
         },
@@ -9458,6 +9721,86 @@
           "where": "back office (staff only), system page, next to a collector",
           "intent": "This collector's data is never shown on the public site.",
           "kind": "label"
+        },
+        {
+          "key": "admin.sys.jobs_h2",
+          "where": "back office (staff only), system page, heading right under the collectors",
+          "intent": "Background jobs that are not collectors (GitHub, web pages, site icons).",
+          "kind": "title"
+        },
+        {
+          "key": "admin.sys.job",
+          "where": "back office (staff only), system page, jobs table, first column",
+          "intent": "Name of a background job.",
+          "kind": "label",
+          "select": {
+            "var": "job",
+            "values": [
+              "github_discover",
+              "github_poc",
+              "github_fetch",
+              "pages_fetch",
+              "site_icons"
+            ],
+            "meaning": {
+              "github_discover": "finds PoC repositories with the GitHub search API",
+              "github_poc": "repairs the PoC events trusted repositories give",
+              "github_fetch": "fetches and checks queued GitHub repositories",
+              "pages_fetch": "fetches linked web pages for their title and publication time",
+              "site_icons": "fetches the icons of linked sites"
+            }
+          }
+        },
+        {
+          "key": "admin.sys.job_status",
+          "where": "back office (staff only), system page, jobs table, status column",
+          "intent": "State of a job's last run.",
+          "kind": "label",
+          "select": {
+            "var": "status",
+            "values": [
+              "ok",
+              "limited",
+              "error",
+              "stale",
+              "running",
+              "unfinished",
+              "none"
+            ],
+            "meaning": {
+              "ok": "the last run succeeded",
+              "error": "the last run failed",
+              "stale": "no run for longer than the job's schedule allows",
+              "running": "a run started recently and has not ended",
+              "unfinished": "a run started long ago and never recorded an end",
+              "none": "no run recorded yet (neutral)",
+              "limited": "the last run finished without error but the remote (GitHub) told it to stop: rate limited"
+            }
+          }
+        },
+        {
+          "key": "admin.sys.backlog",
+          "where": "back office (staff only), system page, jobs table, backlog column",
+          "intent": "How much work waits for a job.",
+          "kind": "phrase",
+          "select": {
+            "var": "kind",
+            "values": [
+              "pending",
+              "due"
+            ],
+            "meaning": {
+              "pending": "items queued and not fetched yet",
+              "due": "known items due to be fetched again"
+            }
+          },
+          "placeholders": {
+            "n": {
+              "kind": "number",
+              "meaning": "items",
+              "example": "12"
+            }
+          }
         },
         {
           "key": "admin.x.lede",
@@ -9825,33 +10168,9 @@
           }
         },
         {
-          "key": "admin.x.prev",
-          "where": "back office (staff only), pager link under a paged table: the allowlist on the X posts collector page, the decided drafts on the drafts page",
-          "intent": "The previous page of the list.",
-          "kind": "label"
-        },
-        {
-          "key": "admin.x.page_of",
-          "where": "back office (staff only), pager under a paged table (the allowlist on the X posts collector page, the decided drafts on the drafts page), between the previous and next links",
-          "intent": "Which page this is and how many pages there are.",
-          "kind": "label",
-          "placeholders": {
-            "page": {
-              "kind": "number",
-              "meaning": "current page",
-              "example": "2"
-            },
-            "pages": {
-              "kind": "number",
-              "meaning": "number of pages",
-              "example": "4"
-            }
-          }
-        },
-        {
           "key": "admin.x.col",
           "where": "back office (staff only), X posts collector page, column headers and field names",
-          "intent": "Column of an account or post table.",
+          "intent": "Column of an account or post table (name and bio: the account's display name and profile description on X).",
           "kind": "label",
           "select": {
             "var": "c",
@@ -9864,7 +10183,9 @@
               "created",
               "updated",
               "actions",
-              "cve"
+              "cve",
+              "name",
+              "bio"
             ]
           }
         },
@@ -9880,6 +10201,12 @@
               "off"
             ]
           }
+        },
+        {
+          "key": "admin.x.gh_linked",
+          "where": "back office (staff only), X posts collector page, screen-reader prefix of a GitHub login next to a handle",
+          "intent": "The trusted GitHub account linked to this X account.",
+          "kind": "label"
         },
         {
           "key": "admin.x.enable",
@@ -9898,6 +10225,107 @@
           "where": "back office (staff only), X posts collector page, toggle",
           "intent": "Edit the handle and note.",
           "kind": "label"
+        },
+        {
+          "key": "admin.x.profiles",
+          "where": "back office (staff only), X posts collector page, button under the allowlist",
+          "intent": "Look the listed accounts up on X (a bounded batch) to fill in their display names and bios.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.x.profiles_done",
+          "where": "back office (staff only), X posts collector page, status line after the refresh button (script)",
+          "intent": "How many accounts got their name and bio, out of those looked up, and how many were never looked up yet.",
+          "kind": "sentence",
+          "placeholders": {
+            "updated": {
+              "kind": "number",
+              "meaning": "accounts updated",
+              "example": "37"
+            },
+            "looked_up": {
+              "kind": "number",
+              "meaning": "accounts looked up",
+              "example": "40"
+            },
+            "missing": {
+              "kind": "number",
+              "meaning": "accounts never looked up yet",
+              "example": "0"
+            }
+          }
+        },
+        {
+          "key": "admin.row.more",
+          "where": "back office (staff only), button in a table row and its column header",
+          "intent": "Show the row's full text and details under it.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.bulk.select_all",
+          "where": "back office (staff only), checkbox in the header of a review list (accessible name)",
+          "intent": "Select every row on this page of the list.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.bulk.selected",
+          "where": "back office (staff only), bar over a review list with rows selected (script)",
+          "intent": "How many rows are selected.",
+          "kind": "phrase",
+          "placeholders": {
+            "n": {
+              "kind": "number",
+              "meaning": "rows selected",
+              "example": "3"
+            }
+          }
+        },
+        {
+          "key": "admin.bulk.clear",
+          "where": "back office (staff only), bar over a review list with rows selected",
+          "intent": "Unselect every row.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.bulk.result",
+          "where": "back office (staff only), status line after a decision on the selected rows (script)",
+          "intent": "How many rows were decided, and how many had changed since the page was loaded (left alone).",
+          "kind": "sentence",
+          "placeholders": {
+            "done": {
+              "kind": "number",
+              "meaning": "rows decided",
+              "example": "8"
+            },
+            "changed": {
+              "kind": "number",
+              "meaning": "rows left alone because they changed",
+              "example": "2"
+            }
+          }
+        },
+        {
+          "key": "admin.bulk.result_failed",
+          "where": "back office (staff only), status line after a decision on the selected rows (script)",
+          "intent": "As admin.bulk.result, plus how many rows failed.",
+          "kind": "sentence",
+          "placeholders": {
+            "done": {
+              "kind": "number",
+              "meaning": "rows decided",
+              "example": "7"
+            },
+            "changed": {
+              "kind": "number",
+              "meaning": "rows left alone because they changed",
+              "example": "2"
+            },
+            "failed": {
+              "kind": "number",
+              "meaning": "rows that failed",
+              "example": "1"
+            }
+          }
         },
         {
           "key": "admin.x.add_h3",
@@ -10164,21 +10592,149 @@
           }
         },
         {
-          "key": "admin.x.cand_first",
-          "where": "back office (staff only), X posts collector page, above a candidates table when it is cut",
-          "intent": "Only the first candidates are listed out of a larger total.",
+          "key": "admin.gh.list",
+          "where": "back office (staff only), GitHub repositories page, heading of a list (unverified) or toggle that shows it (trusted, rejected)",
+          "intent": "The repositories with one review status, with their number: nobody vouched for them yet, trusted (by an administrator or because an allow-listed researcher linked them), rejected by an administrator.",
           "kind": "phrase",
           "placeholders": {
-            "shown": {
+            "n": {
               "kind": "number",
-              "meaning": "candidates listed",
-              "example": "50"
-            },
-            "total": {
-              "kind": "number",
-              "meaning": "all candidates",
-              "example": "73"
+              "meaning": "number of repositories with that status",
+              "example": "12"
             }
+          },
+          "select": {
+            "var": "s",
+            "values": [
+              "unverified",
+              "trusted",
+              "rejected"
+            ]
+          }
+        },
+        {
+          "key": "admin.gh.col",
+          "where": "back office (staff only), GitHub repositories page, table column headers",
+          "intent": "Column of the repositories table: the repository (owner/name, with its description), its GitHub stars, when it was created on GitHub, the CVEs it is associated with, short flags, how nday found it, the buttons.",
+          "kind": "label",
+          "select": {
+            "var": "c",
+            "values": [
+              "repo",
+              "stars",
+              "created",
+              "cves",
+              "flags",
+              "source",
+              "actions"
+            ]
+          }
+        },
+        {
+          "key": "admin.gh.more",
+          "where": "back office (staff only), GitHub repositories page, after the CVEs listed in a row",
+          "intent": "How many more associated CVEs are not listed.",
+          "kind": "phrase",
+          "placeholders": {
+            "n": {
+              "kind": "number",
+              "meaning": "CVEs not listed",
+              "example": "7"
+            }
+          }
+        },
+        {
+          "key": "admin.gh.flag",
+          "where": "back office (staff only), GitHub repositories page, flags of a repository",
+          "intent": "A short flag: the repository is a fork; it is archived; it names many CVEs (a collection, not one PoC); it was created before the CVE was published. Or: trusted automatically because its owner is on the list of trusted accounts.",
+          "kind": "label",
+          "select": {
+            "var": "f",
+            "values": [
+              "fork",
+              "archived",
+              "collection",
+              "predates",
+              "owner"
+            ]
+          }
+        },
+        {
+          "key": "admin.gh.source",
+          "where": "back office (staff only), GitHub repositories page, how the repository was found",
+          "intent": "How nday found the repository: through the GitHub search, or linked from an allow-listed researcher's post on X.",
+          "kind": "label",
+          "select": {
+            "var": "s",
+            "values": [
+              "search",
+              "xposts"
+            ]
+          }
+        },
+        {
+          "key": "admin.gh.act",
+          "where": "back office (staff only), GitHub repositories page, buttons of a row",
+          "intent": "Mark the repository trusted (shown as a PoC), rejected (never shown), or put it back to unverified. Or (owner): put the repository's owner on the list of trusted accounts, whose repositories need no review.",
+          "kind": "label",
+          "select": {
+            "var": "a",
+            "values": [
+              "trust",
+              "reject",
+              "reset",
+              "owner"
+            ]
+          }
+        },
+        {
+          "key": "admin.gh.owner",
+          "where": "back office (staff only), GitHub repositories page, small tag in a row's actions",
+          "intent": "The repository's owner is on the list of trusted accounts (on), or on it but disabled (off).",
+          "kind": "label",
+          "select": {
+            "var": "s",
+            "values": [
+              "on",
+              "off"
+            ]
+          }
+        },
+        {
+          "key": "admin.gho.h2",
+          "where": "back office (staff only), GitHub repositories page, heading of the trusted accounts",
+          "intent": "GitHub accounts whose repositories are trusted without review, with their number.",
+          "kind": "title",
+          "placeholders": {
+            "n": {
+              "kind": "number",
+              "meaning": "number of listed accounts",
+              "example": "3"
+            }
+          }
+        },
+        {
+          "key": "admin.gho.pending",
+          "where": "back office (staff only), GitHub repositories page, trusted accounts table, tag next to the state",
+          "intent": "The account's numeric GitHub id is not known yet (the lookup failed); it trusts no repository until it is resolved.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.gho.col",
+          "where": "back office (staff only), GitHub repositories page, trusted accounts table header and form placeholders",
+          "intent": "Column names: the GitHub login, the staff note, the allow-listed X account of the same researcher, trusted repositories out of all fetched ones, enabled or not, when added, buttons.",
+          "kind": "label",
+          "select": {
+            "var": "c",
+            "values": [
+              "login",
+              "note",
+              "x",
+              "repos",
+              "state",
+              "added",
+              "actions"
+            ]
           }
         },
         {
@@ -10258,24 +10814,6 @@
           }
         },
         {
-          "key": "admin.xd.capped",
-          "where": "back office (staff only), X drafts page, pending section, when there are more drafts than shown",
-          "intent": "Only the newest drafts are listed.",
-          "kind": "sentence",
-          "placeholders": {
-            "shown": {
-              "kind": "number",
-              "meaning": "drafts listed",
-              "example": "50"
-            },
-            "total": {
-              "kind": "number",
-              "meaning": "pending drafts",
-              "example": "73"
-            }
-          }
-        },
-        {
           "key": "admin.xd.open_note",
           "where": "back office (staff only), X drafts page, pending section",
           "intent": "How to publish: open X's compose window (new tab, text and link filled in), press Post there, then mark the draft posted here.",
@@ -10307,6 +10845,12 @@
           "kind": "label"
         },
         {
+          "key": "admin.xd.body_label_alone",
+          "where": "back office (staff only), X drafts page, label of the text box while an image form is chosen (script)",
+          "intent": "The text of the post (posted without a link).",
+          "kind": "label"
+        },
+        {
           "key": "admin.xd.length",
           "where": "back office (staff only), X drafts page, under the text box (also updated by the script)",
           "intent": "X's weighted length of the post with the link, against the maximum.",
@@ -10323,6 +10867,12 @@
               "example": "280"
             }
           }
+        },
+        {
+          "key": "admin.xd.over_link",
+          "where": "back office (staff only), X drafts page, next to the buttons when the text does not fit next to the link (link form)",
+          "intent": "The text is too long for the link form; shorten it or choose an image form (which posts no link).",
+          "kind": "sentence"
         },
         {
           "key": "admin.xd.save",
@@ -10392,6 +10942,7 @@
               "decided",
               "by",
               "post",
+              "form",
               "actions"
             ]
           }
@@ -10408,6 +10959,74 @@
               "discarded"
             ]
           }
+        },
+        {
+          "key": "admin.xd.form_label",
+          "where": "back office (staff only), X drafts page, accessible name of the choice of posting form (aria-label of the radio group)",
+          "intent": "How the draft is going to be posted.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.xd.form",
+          "where": "back office (staff only), X drafts page, the three posting forms (radio labels) and the form of a posted draft in the history",
+          "intent": "link: text and link in the compose window; image: text only, the share card attached by hand; image_reply: as image, then a reply to the post with the link.",
+          "kind": "label",
+          "select": {
+            "var": "f",
+            "values": [
+              "link",
+              "image",
+              "image_reply"
+            ]
+          }
+        },
+        {
+          "key": "admin.xd.length_alone",
+          "where": "back office (staff only), X drafts page, length line while an image form is chosen (script)",
+          "intent": "Weighted length of the text alone against X's limit (no link in the post).",
+          "kind": "phrase",
+          "placeholders": {
+            "n": {
+              "kind": "token",
+              "meaning": "weighted length of the text",
+              "example": "212"
+            },
+            "max": {
+              "kind": "token",
+              "meaning": "X's limit",
+              "example": "280"
+            }
+          }
+        },
+        {
+          "key": "admin.xd.copy_image",
+          "where": "back office (staff only), X drafts page, button (image forms; only where the browser can copy images)",
+          "intent": "Copy the share card image to the clipboard.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.xd.download_image",
+          "where": "back office (staff only), X drafts page, link (image forms)",
+          "intent": "Save the share card image.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.xd.copy_link",
+          "where": "back office (staff only), X drafts page, button (image + reply link form)",
+          "intent": "Copy the page's link, for the reply to one's own post.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.xd.copied",
+          "where": "back office (staff only), X drafts page, status line after a copy (script)",
+          "intent": "The copy worked.",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.xd.copy_failed",
+          "where": "back office (staff only), X drafts page, status line after a failed copy (script)",
+          "intent": "The copy did not work.",
+          "kind": "sentence"
         },
         {
           "key": "admin.set.lede",
@@ -10783,12 +11402,6 @@
           "kind": "sentence"
         },
         {
-          "key": "admin.msg.confirm",
-          "where": "back office (staff only), status line next to an action (script), button text after a first click",
-          "intent": "Click the same button again to confirm.",
-          "kind": "label"
-        },
-        {
           "key": "admin.msg.reason_needed",
           "where": "back office (staff only), status line next to an action (script)",
           "intent": "A reason must be typed first.",
@@ -10903,6 +11516,18 @@
           "kind": "sentence"
         },
         {
+          "key": "admin.err.too_many",
+          "where": "back office (staff only), status line next to an action (script)",
+          "intent": "More rows were sent at once than one page holds.",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.err.duplicate",
+          "where": "back office (staff only), status line next to an action (script)",
+          "intent": "The same row was sent twice in one request.",
+          "kind": "sentence"
+        },
+        {
           "key": "admin.err.bad_user_id",
           "where": "back office (staff only), status line next to an action (script)",
           "intent": "Not a numeric X user id.",
@@ -10957,9 +11582,156 @@
           "kind": "sentence"
         },
         {
+          "key": "admin.err.bad_title",
+          "where": "back office (staff only), status line next to an action (script)",
+          "intent": "The staff title is empty, too long, more than one line or contains control or bidi characters.",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.ti.h2",
+          "where": "back office (staff only), titles page, heading of the queue",
+          "intent": "The vulnerabilities researchers discuss (last 7 days) shown in the queue, with their number.",
+          "kind": "title",
+          "placeholders": {
+            "n": {
+              "kind": "number",
+              "meaning": "vulnerabilities in the queue (with the current filter)",
+              "example": "36"
+            }
+          }
+        },
+        {
+          "key": "admin.ti.lookup",
+          "where": "back office (staff only), titles page, the box to look up one vulnerability (accessible name and placeholder)",
+          "intent": "Where to type a CVE or GHSA id.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.ti.find",
+          "where": "back office (staff only), titles page, button of the lookup box",
+          "intent": "Show the vulnerability typed in the box.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.ti.not_found",
+          "where": "back office (staff only), titles page, after a lookup",
+          "intent": "No vulnerability has this id.",
+          "kind": "sentence",
+          "placeholders": {
+            "id": {
+              "kind": "text",
+              "meaning": "the id as typed",
+              "example": "CVE-2026-1"
+            }
+          }
+        },
+        {
+          "key": "admin.ti.filter_label",
+          "where": "back office (staff only), titles page, accessible name of the filter links",
+          "intent": "Which vulnerabilities the queue lists.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.ti.filter",
+          "where": "back office (staff only), titles page, filter links",
+          "intent": "untitled: only those whose CVE record has no title (the default); all: every discussed vulnerability.",
+          "kind": "label",
+          "select": {
+            "var": "f",
+            "values": [
+              "untitled",
+              "all"
+            ]
+          }
+        },
+        {
+          "key": "admin.ti.col",
+          "where": "back office (staff only), titles page, column headers",
+          "intent": "Columns: the id, the title shown on the public pages, researchers and posts of the last 7 days, the stage, the actions.",
+          "kind": "label",
+          "select": {
+            "var": "c",
+            "values": [
+              "cve",
+              "title",
+              "researchers",
+              "stage",
+              "actions"
+            ]
+          }
+        },
+        {
+          "key": "admin.ti.counts",
+          "where": "back office (staff only), titles page, the researchers / posts column",
+          "intent": "Researchers who posted about it, then their posts, in the last 7 days.",
+          "kind": "pattern",
+          "placeholders": {
+            "researchers": {
+              "kind": "number",
+              "meaning": "distinct researchers",
+              "example": "5"
+            },
+            "posts": {
+              "kind": "number",
+              "meaning": "their posts",
+              "example": "12"
+            }
+          }
+        },
+        {
+          "key": "admin.ti.edit",
+          "where": "back office (staff only), titles page, row action that opens the edit form",
+          "intent": "Edit the title of this vulnerability.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.ti.ref",
+          "where": "back office (staff only), titles page, edit form, the texts shown for reference (each followed by the text)",
+          "intent": "composed: the title nday composed; record: the CVE record's own title; description: the start of the record's description.",
+          "kind": "label",
+          "select": {
+            "var": "r",
+            "values": [
+              "composed",
+              "record",
+              "description"
+            ]
+          }
+        },
+        {
+          "key": "admin.ti.staff_label",
+          "where": "back office (staff only), titles page, edit form, the input (accessible name and placeholder)",
+          "intent": "The title staff set by hand (shown instead of the record's or the composed one).",
+          "kind": "label"
+        },
+        {
+          "key": "admin.ti.save",
+          "where": "back office (staff only), titles page, edit form, button",
+          "intent": "Save the staff title.",
+          "kind": "label"
+        },
+        {
+          "key": "admin.ti.clear",
+          "where": "back office (staff only), titles page, edit form, button (two-step confirm)",
+          "intent": "Remove the staff title; the record's or the composed title shows again.",
+          "kind": "label"
+        },
+        {
           "key": "admin.err.bad_post_url",
           "where": "back office (staff only), status line next to an action (script)",
           "intent": "The post URL is not the URL of a post on X.",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.err.bad_form",
+          "where": "back office (staff only), X drafts page, error after mark posted",
+          "intent": "The posting form sent is not one of link, image, image + reply link.",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.err.link_too_long",
+          "where": "back office (staff only), X drafts page, error after mark posted with the link form",
+          "intent": "The text is too long to fit next to the link, so it cannot have been posted in the link form; choose the image form actually used.",
           "kind": "sentence"
         },
         {
@@ -10972,6 +11744,36 @@
           "key": "admin.err.x_not_found",
           "where": "back office (staff only), status line next to an action (script)",
           "intent": "No X account has the handle.",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.err.bad_login",
+          "where": "back office (staff only), status line next to an action (script)",
+          "intent": "The GitHub login is not valid.",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.err.no_owner",
+          "where": "back office (staff only), status line next to an action (script)",
+          "intent": "The repository's owner is not known, so it cannot be listed.",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.err.x_not_listed",
+          "where": "back office (staff only), status line next to an action (script)",
+          "intent": "No allow-listed X account has the handle typed.",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.err.owner_exists",
+          "where": "back office (staff only), status line next to an action (script)",
+          "intent": "The GitHub account is already on the list of trusted accounts.",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.err.github_not_found",
+          "where": "back office (staff only), status line next to an action (script)",
+          "intent": "GitHub says no account has the login typed.",
           "kind": "sentence"
         },
         {

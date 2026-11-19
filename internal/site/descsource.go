@@ -11,7 +11,9 @@ import "strings"
 //   - cvelist: every value of containers.cna.descriptions[] of the latest
 //     CVE record (the collector keeps the English one);
 //   - ghsa: description of the latest version of every GitHub advisory whose
-//     latest version names this CVE and is not withdrawn (as creditsSQL);
+//     latest version names this CVE and is not withdrawn, or, for a
+//     vulnerability keyed by a GHSA id, of that advisory while it names no
+//     CVE (ghsaLatestSQL, as creditsSQL);
 //   - kev: shortDescription of the latest KEV entry.
 //
 // A text matches when it equals Description after trimming surrounding
@@ -36,12 +38,7 @@ FROM (SELECT source_key, payload FROM raw_record WHERE source = 'cvelist' AND so
 WHERE jsonb_typeof(d) = 'object' AND jsonb_typeof(d->'value') = 'string'
 UNION ALL
 SELECT 'ghsa', g.source_key, g.payload->>'description'
-FROM (SELECT * FROM (
-          SELECT DISTINCT ON (r.source_key) r.source_key, r.payload FROM raw_record r
-          WHERE r.source = 'ghsa' AND r.source_key IN (
-              SELECT source_key FROM raw_record WHERE source = 'ghsa' AND payload->>'cve_id' = $1)
-          ORDER BY r.source_key, r.fetched_at DESC, r.id DESC) l
-      WHERE l.payload->>'cve_id' = $1 AND coalesce(l.payload->>'withdrawn_at', '') = '') g
+FROM (` + ghsaLatestSQL + `) g
 WHERE jsonb_typeof(g.payload->'description') = 'string'
 UNION ALL
 SELECT 'kev', k.source_key, k.payload->>'shortDescription'

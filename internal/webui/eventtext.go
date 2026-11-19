@@ -87,6 +87,9 @@ func EventMessages(e site.Event) []Msg {
 		return []Msg{namedItem("ev.msf.added", "module", str(d, "fullname"), str(d, "title")), msg("ev.msf.no_time")}
 	case e.Source == "nuclei" && e.Type == "poc_published":
 		return []Msg{namedItem("ev.nuclei.added", "template", str(d, "template_id"), str(d, "title")), msg("ev.nuclei.no_time")}
+	case e.Source == "github" && e.Type == "poc_published" && str(d, "title") != "":
+		// a trusted repository (migration 0032): its name and why the date is a day
+		return []Msg{msg("ev.github.repo", "repo", str(d, "title")), msg("ev.github.created")}
 	}
 	stage := e.Code
 	if !knownStage(stage) {

@@ -16,7 +16,7 @@ var adminElems = map[string]bool{}
 func init() {
 	for _, e := range strings.Fields(`html head meta title link script body header div a nav form span input kbd details summary ul li
 		main p h1 h2 h3 section dl dt dd table thead tbody tr th td code bdi br article pre button label select option textarea
-		figure figcaption svg rect footer b template time strong em blockquote ol`) {
+		figure figcaption svg rect footer b template time strong em blockquote ol dialog`) {
 		adminElems[e] = true
 	}
 }
@@ -62,7 +62,8 @@ func TestModeratorView(t *testing.T) {
 	}
 	_, body = adm.do("GET", "/admin/users/"+target.id, "")
 	s = string(body)
-	for _, want := range []string{"tom-gh", "REASON-SECRET-7", "FILED-NOTE-9", "203.0.113.99", `id="h-actions"`, `id="reauth"`} {
+	for _, want := range []string{"tom-gh", "REASON-SECRET-7", "FILED-NOTE-9", "203.0.113.99", `id="h-actions"`, `id="reauth"`,
+		`<dialog class="dlg" id="reauth" aria-labelledby="reauth-h">`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("admin view lacks %q", want)
 		}

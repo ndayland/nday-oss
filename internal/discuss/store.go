@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"nday.land/nday/internal/audit"
 	"nday.land/nday/internal/auth"
@@ -428,7 +429,8 @@ func (s *Store) Create(ctx context.Context, in NewComment, l Limits, gate Gate) 
 	}
 	var out *Row
 	var newAcct bool
-	err := s.DB.WithConn(ctx, func(c *pgx.Conn) error {
+	gate = gateOnce(gate) // a retried transaction must not count twice
+	err := withConnRetry(ctx, s.DB, func(c *pgx.Conn) error {
 		return pgx.BeginFunc(ctx, c, func(tx pgx.Tx) error {
 			if err := userLock(ctx, tx, "post", in.Author); err != nil {
 				return err
@@ -510,7 +512,48 @@ func (s *Store) Create(ctx context.Context, in NewComment, l Limits, gate Gate) 
 			return err
 		})
 	})
+	if vulnGone(err) {
+		err = ErrNoVuln
+	}
 	return out, newAcct, err
+}
+
+// vulnGone: err is a foreign-key violation saying the vulnerability went
+// away while the transaction waited for its row (docs/ghsa.md: the merge
+// that moves a GHSA-keyed vulnerability under its CVE deletes the row and
+// moves the threads), on the vuln reference or on a parent that moved with
+// its thread.
+func vulnGone(err error) bool {
+	var pe *pgconn.PgError
+	return errors.As(err, &pe) && pe.Code == "23503" &&
+		(pe.ConstraintName == "comments_cve_id_fkey" || pe.ConstraintName == "comments_parent_fk")
+}
+
+// withConnRetry is db.WithConn(ctx, f), run once more when f fails with
+// deadlock_detected (40P01): its transaction was rolled back whole, so the
+// retry starts over.
+func withConnRetry(ctx context.Context, db auth.ConnSource, f func(*pgx.Conn) error) error {
+	err := db.WithConn(ctx, f)
+	var pe *pgconn.PgError
+	if errors.As(err, &pe) && pe.Code == "40P01" {
+		err = db.WithConn(ctx, f)
+	}
+	return err
+}
+
+// gateOnce calls gate at most once and repeats its answer.
+func gateOnce(gate Gate) Gate {
+	if gate == nil {
+		return nil
+	}
+	called := false
+	var res error
+	return func(newAccount bool) error {
+		if !called {
+			called, res = true, gate(newAccount)
+		}
+		return res
+	}
 }
 
 // diagnose explains why a conditional write matched no row: ErrNotFound,

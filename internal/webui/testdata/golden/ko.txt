@@ -4,83 +4,87 @@
 
 ### kev_t5_patch_0of3 (CVE-2026-102895 shape)
 keys: status.lead.after.kev + status.patch.fixed + status.poc.none
-CVE 공개 5일 후 KEV 등재. 해결 버전: gpustack 2.2.0. PoC 출처 3곳 모두 미등재.
+CVE 공개 5일 후 KEV 등재. 해결 버전: gpustack 2.2.0. PoC 출처 4곳 모두 미등재.
 
 ### stub_no_record_kev_no_patch
 keys: status.no_record + status.kev.at + status.patch.none + status.poc.none
-공식 CVE 레코드 미수집, 공개 시점 알 수 없음. CISA KEV 등재일: 2026-11-09. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 미등재.
+공식 CVE 레코드 미수집, 공개 시점 알 수 없음. CISA KEV 등재일: 2026-11-09. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 미등재.
 
 ### disclosed_only
 keys: status.disclosed_at + status.patch.none + status.poc.none + status.kev.not_listed
-CVE 공개: 2026-11-04T21:16Z. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 미등재. CISA KEV 미등재.
+CVE 공개: 2026-11-04T21:16Z. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 미등재. CISA KEV 미등재.
 
 ### kev_same_day
 keys: status.lead.same_day + status.patch.none + status.poc.none
-CVE 공개 당일 CISA KEV 등재. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 미등재.
+CVE 공개 당일 CISA KEV 등재. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 미등재.
 
 ### kev_1_day_after
 keys: status.lead.after.kev + status.patch.none + status.poc.none
-CVE 공개 1일 후 KEV 등재. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 미등재.
+CVE 공개 1일 후 KEV 등재. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 미등재.
 
 ### kev_before_record_20d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-CVE 레코드 공개보다 20일 앞서 KEV 등재. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 미등재.
+CVE 레코드 공개보다 20일 앞서 KEV 등재. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 미등재.
 
 ### kev_before_record_1d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-CVE 레코드 공개보다 1일 앞서 KEV 등재. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 미등재.
+CVE 레코드 공개보다 1일 앞서 KEV 등재. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 미등재.
 
-### poc_t7_2of3
+### poc_t7_2of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-CVE 공개 7일 후 PoC 공개. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 중 2곳 등재: exploitdb 및 nuclei. CISA KEV 미등재.
+CVE 공개 7일 후 PoC 공개. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 중 2곳 등재: exploitdb 및 nuclei. CISA KEV 미등재.
 
-### poc_t1_1of3
+### poc_t1_1of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-CVE 공개 1일 후 PoC 공개. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 중 1곳 등재: metasploit. CISA KEV 미등재.
+CVE 공개 1일 후 PoC 공개. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 중 1곳 등재: metasploit. CISA KEV 미등재.
 
-### poc_time_unknown_3of3
+### poc_time_unknown_4of4
 keys: status.disclosed_at + status.patch.none + status.poc.all + status.kev.not_listed
-CVE 공개: 2026-11-04T21:16Z. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 등재. CISA KEV 미등재.
+CVE 공개: 2026-11-04T21:16Z. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 등재. CISA KEV 미등재.
+
+### poc_t30_github_only
+keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
+CVE 공개 30일 후 PoC 공개. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 중 1곳 등재: github. CISA KEV 미등재.
 
 ### patch_t3_known
 keys: status.lead.after.pat + status.patch.fixed + status.poc.none + status.kev.not_listed
-CVE 공개 3일 후 패치 기록. 해결 버전: a 1.0.1 및 b 2.0. PoC 출처 3곳 모두 미등재. CISA KEV 미등재.
+CVE 공개 3일 후 패치 기록. 해결 버전: a 1.0.1 및 b 2.0. PoC 출처 4곳 모두 미등재. CISA KEV 미등재.
 
 ### patch_same_day
 keys: status.lead.same_day + status.patch.no_version + status.poc.none + status.kev.not_listed
-CVE 공개 당일 패치 기록. 패치 기록은 있으나 출처에 해결 버전 정보 없음. PoC 출처 3곳 모두 미등재. CISA KEV 미등재.
+CVE 공개 당일 패치 기록. 패치 기록은 있으나 출처에 해결 버전 정보 없음. PoC 출처 4곳 모두 미등재. CISA KEV 미등재.
 
 ### patch_before_record_2d
 keys: status.lead.before.pat + status.patch.no_version + status.poc.none + status.kev.not_listed
-CVE 레코드 공개보다 2일 앞서 패치 기록. 패치 기록은 있으나 출처에 해결 버전 정보 없음. PoC 출처 3곳 모두 미등재. CISA KEV 미등재.
+CVE 레코드 공개보다 2일 앞서 패치 기록. 패치 기록은 있으나 출처에 해결 버전 정보 없음. PoC 출처 4곳 모두 미등재. CISA KEV 미등재.
 
 ### analysis_t2
 keys: status.lead.after.ana + status.patch.none + status.poc.none + status.kev.not_listed
-CVE 공개 2일 후 기술 분석 게재. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 미등재. CISA KEV 미등재.
+CVE 공개 2일 후 기술 분석 게재. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 미등재. CISA KEV 미등재.
 
 ### itw_t12
 keys: status.lead.after.itw + status.patch.none + status.poc.none + status.kev.not_listed
-CVE 공개 12일 후 실제 공격 악용 기록. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 미등재. CISA KEV 미등재.
+CVE 공개 12일 후 실제 공격 악용 기록. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 미등재. CISA KEV 미등재.
 
 ### itw_before_record_3d
 keys: status.lead.before.itw + status.patch.none + status.poc.none + status.kev.not_listed
-CVE 레코드 공개보다 3일 앞서 실제 공격 악용 기록. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 미등재. CISA KEV 미등재.
+CVE 레코드 공개보다 3일 앞서 실제 공격 악용 기록. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 미등재. CISA KEV 미등재.
 
 ### patch_without_fixed_version
 keys: status.disclosed_at + status.patch.no_version + status.poc.none + status.kev.not_listed
-CVE 공개: 2026-11-04T21:16Z. 패치 기록은 있으나 출처에 해결 버전 정보 없음. PoC 출처 3곳 모두 미등재. CISA KEV 미등재.
+CVE 공개: 2026-11-04T21:16Z. 패치 기록은 있으나 출처에 해결 버전 정보 없음. PoC 출처 4곳 모두 미등재. CISA KEV 미등재.
 
 ### two_fixed_versions
 keys: status.disclosed_at + status.patch.fixed + status.poc.none + status.kev.not_listed
-CVE 공개: 2026-11-04T21:16Z. 해결 버전: a 1 및 b 2. PoC 출처 3곳 모두 미등재. CISA KEV 미등재.
+CVE 공개: 2026-11-04T21:16Z. 해결 버전: a 1 및 b 2. PoC 출처 4곳 모두 미등재. CISA KEV 미등재.
 
 ### many_fixed_versions
 keys: status.disclosed_at + status.patch.fixed_many + status.poc.none + status.kev.not_listed
-CVE 공개: 2026-11-04T21:16Z. 해결 버전: a 1, b 2 외 1개. PoC 출처 3곳 모두 미등재. CISA KEV 미등재.
+CVE 공개: 2026-11-04T21:16Z. 해결 버전: a 1, b 2 외 1개. PoC 출처 4곳 모두 미등재. CISA KEV 미등재.
 
 ### disclosure_unknown_kev_time_unknown
 keys: status.disclosure_unknown + status.kev.time_unknown + status.patch.none + status.poc.none
-공개 시점 알 수 없음. CISA KEV 등재, 등재일 알 수 없음. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 3곳 모두 미등재.
+공개 시점 알 수 없음. CISA KEV 등재, 등재일 알 수 없음. nday가 아직 패치 근거를 수집하지 않았습니다. 패치가 없다는 뜻은 아닙니다. PoC 출처 4곳 모두 미등재.
 
 ### rejected
 keys: status.rejected + status.disclosed_at
@@ -207,6 +211,10 @@ nuclei-templates에 탐지 템플릿 있음: <span lang="en">X - Auth Bypass</sp
 ### nuclei_bare
 keys: ev.nuclei.added + ev.nuclei.no_time
 nuclei-templates에 해당 탐지 템플릿 있음. 출처에 템플릿 배포 시점 정보 없음.
+
+### github_repo
+keys: ev.github.repo + ev.github.created
+GitHub PoC 저장소: acme/CVE-2026-1-poc. 날짜는 저장소 생성일.
 
 ### generic_itw
 keys: ev.generic

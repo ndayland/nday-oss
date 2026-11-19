@@ -7,7 +7,7 @@ import (
 )
 
 // Link is a hyperlink or, when Href is empty, plain text. External links get
-// rel="noopener noreferrer" in the templates.
+// target="_blank" rel="noopener noreferrer" in the templates.
 type Link struct {
 	Text     string
 	Href     string
@@ -53,6 +53,27 @@ func ExtLink(text, raw string) Link {
 	return Link{Text: text}
 }
 
+// offSite reports whether an absolute link leaves the site: its host is not
+// the site's (with or without "www."), a subdomain of it or the API host.
+func (u *UI) offSite(href string) bool {
+	host := func(raw string) string {
+		p, err := url.Parse(raw)
+		if err != nil {
+			return ""
+		}
+		return strings.ToLower(p.Hostname())
+	}
+	h := host(href)
+	if h == "" {
+		return true
+	}
+	root := strings.TrimPrefix(host(u.opts.BaseURL), "www.")
+	if root != "" && (h == root || strings.HasSuffix(h, "."+root)) {
+		return false
+	}
+	return h != host(u.opts.APIURL)
+}
+
 // shellSafe are characters that need no quoting in sh.
 var shellSafe = regexp.MustCompile(`^[A-Za-z0-9_@%+=:,./-]+$`)
 
@@ -81,13 +102,18 @@ func newCmd(cmd, pipe string) CmdLine {
 	return c
 }
 
-// CurlCmd is "curl -s <quoted url>" piped to jq with filter.
+// curlAuth is the header of a data API call: the reader's API token, read
+// from $NDAY_TOKEN by the shell.
+const curlAuth = `-H "Authorization: Bearer $NDAY_TOKEN"`
+
+// CurlCmd is "curl -s -H <token header> <quoted url>" piped to jq with
+// filter ("" = no pipe).
 func CurlCmd(rawURL, jqFilter string) CmdLine {
 	pipe := ""
 	if jqFilter != "" {
 		pipe = "| jq " + ShellQuote(jqFilter)
 	}
-	return newCmd("curl -s "+ShellQuote(rawURL), pipe)
+	return newCmd("curl -s "+curlAuth+" "+ShellQuote(rawURL), pipe)
 }
 
 var (

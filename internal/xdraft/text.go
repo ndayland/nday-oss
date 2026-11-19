@@ -55,6 +55,7 @@ var pocWhat = map[string]string{
 	"exploitdb":  "Exploit-DB entry",
 	"metasploit": "Metasploit module",
 	"nuclei":     "nuclei template",
+	"github":     "GitHub repository",
 }
 
 var tokenRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
@@ -107,7 +108,8 @@ func TPlus(days *int) string {
 //   - mentions: "@" and "＠" become "[at]";
 //   - hashtags: "#" and "＃" dropped when a letter, digit, mark or "_"
 //     follows; cashtags: "$" and "＄" dropped when a letter, mark or "_"
-//     follows ("$5" stays);
+//     follows ("$5" stays); "follows" is judged on the output, so a run
+//     of sigils ("##tag", "$$TSLA", "#＃x") leaves no live tag;
 //   - links: every dot (".", and the look-alikes "。" U+3002, "．" U+FF0E,
 //     "｡" U+FF61) between a letter, digit or mark and a following letter or
 //     mark becomes "[.]", whatever precedes the host ("中evil.com",
@@ -133,17 +135,18 @@ func Clean(s string) string {
 		b.WriteRune(r)
 	}
 	s = schemeURLRe.ReplaceAllString(b.String(), "")
-	// mentions, hashtags, cashtags (ASCII and full-width forms)
+	// mentions, hashtags, cashtags (ASCII and full-width forms), decided
+	// right to left on what is WRITTEN: a sigil is dropped when the rune
+	// that follows it in the output would make it a tag, so a run of
+	// sigils ("##tag", "$$TSLA", "＃#x") leaves none behind
 	r := []rune(s)
-	b.Reset()
-	for i, c := range r {
-		next := rune(0)
-		if i+1 < len(r) {
-			next = r[i+1]
-		}
+	out := make([]string, len(r))
+	next := rune(0) // the first rune written after position i
+	for i := len(r) - 1; i >= 0; i-- {
+		c := r[i]
 		switch c {
 		case '@', '\uFF20':
-			b.WriteString("[at]")
+			out[i], next = "[at]", '['
 			continue
 		case '#', '\uFF03':
 			if lnm(next) || next == '_' {
@@ -154,7 +157,11 @@ func Clean(s string) string {
 				continue
 			}
 		}
-		b.WriteRune(c)
+		out[i], next = string(c), c
+	}
+	b.Reset()
+	for _, o := range out {
+		b.WriteString(o)
 	}
 	// dots that may end a domain name (after the pass above, so a dropped
 	// "#" cannot join two parts)
@@ -316,22 +323,42 @@ func cut(s string, w int) string {
 // The result always weighs at most BodyBudget (the title is cut first,
 // then left out, then the product line is cut). No hashtags, emoji or
 // mentions; upstream text goes through Clean.
-func Build(in Input) string {
-	head := in.CVE + " +" + site.StageCode(in.Stage)
-	if tp := TPlus(in.Days); tp != "" {
-		head += " " + tp
+func Build(in Input) string { return compose(in) }
+
+// Share is the text of the share control on a public vulnerability page
+// (without the link, which the page appends): the draft body for the
+// vulnerability's most advanced stage, written by the same rules as Build.
+// in.Stage "" (or anything that is not a draft stage) means no stage was
+// reached: the same body without the stage code, T+ figure and sentence.
+// It weighs at most BodyBudget, so body + "\n" + link fits one post.
+func Share(in Input) string {
+	if !IsStage(in.Stage) {
+		in.Stage, in.Source, in.Days = "", "", nil
 	}
-	sent := Sentence(in.Stage, in.Source)
+	return compose(in)
+}
+
+// compose is Build and Share; a stage "" leaves out its code, the T+
+// figure and the sentence.
+func compose(in Input) string {
+	head, sent := in.CVE, ""
+	if in.Stage != "" {
+		head += " +" + site.StageCode(in.Stage)
+		if tp := TPlus(in.Days); tp != "" {
+			head += " " + tp
+		}
+		sent = Sentence(in.Stage, in.Source)
+	}
 	prod := cut(ProductLine(in.Products), maxProductLine)
 	title := cut(Clean(in.Title), maxTitle)
 	join := func(title, prod string) string {
 		parts := []string{head}
-		for _, p := range []string{prod, title} {
+		for _, p := range []string{prod, title, sent} {
 			if p != "" {
 				parts = append(parts, p)
 			}
 		}
-		return strings.Join(append(parts, sent), "\n")
+		return strings.Join(parts, "\n")
 	}
 	body := join(title, prod)
 	if WeightedLength(body) <= BodyBudget {

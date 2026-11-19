@@ -207,17 +207,45 @@ type XPost struct {
 }
 
 // XPostsPage is the review list's page size.
-const XPostsPage = 30
+const XPostsPage = ListPage
 
 var postIDRe = regexp.MustCompile(`^[0-9]{1,20}$`)
 
-// XPosts lists collected posts newest first (by first observation), with
-// optional filters: author handle (case-insensitive) and CVE id. before is
-// the paging position (observed time and post id of the last row).
-func (s *Service) XPosts(ctx context.Context, handle, cve string, before *Cursor) ([]XPost, *Cursor, error) {
-	cur := Cursor{At: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), ID: "99999999999999999999"}
-	if before != nil {
-		cur = *before
+// XPosts lists one page of the collected posts newest first (by first
+// observation; keyset both ways; XPostsCount is its length), with
+// optional filters: author handle (case-insensitive) and CVE id. A
+// position is the observed time and post id of a row.
+func (s *Service) XPosts(ctx context.Context, handle, cve string, pos Keyset[Cursor]) ([]XPost, *Cursor, *Cursor, error) {
+	return keysetPage(pos, XPostsPage, func(cur *Cursor, back bool, n int) ([]XPost, error) {
+		return s.xPosts(ctx, handle, cve, cur, back, n)
+	}, func(p XPost) Cursor { return Cursor{At: p.ObservedAt, ID: p.PostID} })
+}
+
+// XPostsCount is the length of the post list for the same filters: the
+// posts the list groups (each page of it reads them all), counted once.
+func (s *Service) XPostsCount(ctx context.Context, handle, cve string) (n int, err error) {
+	err = s.o.ReadDB.WithConn(ctx, func(c *pgx.Conn) error {
+		return c.QueryRow(ctx, `SELECT count(DISTINCT e.dedupe_key)::int
+			FROM event e
+			WHERE `+xPostMatch, XSource, handle, cve).Scan(&n)
+	})
+	return n, err
+}
+
+// xPostMatch is the post list's filter on events e: $1 the source, $2 the
+// author handle, $3 the CVE id ("" = any).
+const xPostMatch = `e.source = $1 AND e.type = 'social_post'
+				  AND ($2 = '' OR lower(e.detail->>'author_handle') = lower($2))
+				  AND ($3 = '' OR e.dedupe_key IN (SELECT dedupe_key FROM event WHERE source = $1 AND type = 'social_post' AND cve_id = $3))`
+
+func (s *Service) xPosts(ctx context.Context, handle, cve string, cur *Cursor, back bool, n int) ([]XPost, error) {
+	at := Cursor{At: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), ID: "99999999999999999999"}
+	if cur != nil {
+		at = *cur
+	}
+	cmp, ord := "<", "DESC"
+	if back {
+		cmp, ord = ">", "ASC"
 	}
 	var out []XPost
 	err := s.o.ReadDB.WithConn(ctx, func(c *pgx.Conn) error {
@@ -227,14 +255,12 @@ func (s *Service) XPosts(ctx context.Context, handle, cve string, before *Cursor
 				       min(e.detail->>'text') AS text, min(e.detail->>'lang') AS lang,
 				       (array_agg(e.detail->'cves'))[1] AS cves
 				FROM event e
-				WHERE e.source = $1 AND e.type = 'social_post'
-				  AND ($2 = '' OR lower(e.detail->>'author_handle') = lower($2))
-				  AND ($3 = '' OR e.dedupe_key IN (SELECT dedupe_key FROM event WHERE source = $1 AND type = 'social_post' AND cve_id = $3))
+				WHERE `+xPostMatch+`
 				GROUP BY e.dedupe_key)
 			SELECT post_id, seen, at, coalesce(url, ''), coalesce(author_id, ''), coalesce(handle, ''), coalesce(text, ''),
 			       coalesce(lang, ''), coalesce(cves, '[]'::jsonb)
-			FROM p WHERE (seen, lpad(post_id, 20, '0')) < ($4, lpad($5, 20, '0'))
-			ORDER BY seen DESC, lpad(post_id, 20, '0') DESC LIMIT $6`, XSource, handle, cve, cur.At, cur.ID, XPostsPage+1)
+			FROM p WHERE (seen, lpad(post_id, 20, '0')) `+cmp+` ($4, lpad($5, 20, '0'))
+			ORDER BY seen `+ord+`, lpad(post_id, 20, '0') `+ord+` LIMIT $6`, XSource, handle, cve, at.At, at.ID, n)
 		if err != nil {
 			return err
 		}
@@ -251,16 +277,7 @@ func (s *Service) XPosts(ctx context.Context, handle, cve string, before *Cursor
 		}
 		return rows.Err()
 	})
-	if err != nil {
-		return nil, nil, err
-	}
-	var next *Cursor
-	if len(out) > XPostsPage {
-		out = out[:XPostsPage]
-		last := out[len(out)-1]
-		next = &Cursor{At: last.ObservedAt, ID: last.PostID}
-	}
-	return out, next, nil
+	return out, err
 }
 
 // EncodeXCursor / DecodeXCursor: the review list's cursor (post ids are
@@ -491,6 +508,9 @@ func (s *Service) XAddByHandle(ctx context.Context, actor, handle, note string) 
 			if err := xconfig.InsertAccount(ctx, tx, r.ID, r.Handle, note); err != nil {
 				return err
 			}
+			if err := xconfig.SetProfile(ctx, tx, r.ID, profileOf(r)); err != nil {
+				return err
+			}
 			return audit.Write(ctx, tx, accountEntry(&actor, audit.XAccountAdd, xconfig.Account{UserID: r.ID, Handle: r.Handle},
 				map[string]any{"user_id": r.ID, "handle": r.Handle, "note": note, "lookup": true, "entered": handle}))
 		}
@@ -501,6 +521,9 @@ func (s *Service) XAddByHandle(ctx context.Context, actor, handle, note string) 
 			return xconfig.ErrExists
 		}
 		if _, err := xconfig.UpdateAccount(ctx, tx, r.ID, r.Handle, old.Note); err != nil {
+			return err
+		}
+		if err := xconfig.SetProfile(ctx, tx, r.ID, profileOf(r)); err != nil {
 			return err
 		}
 		res.Renamed, res.Previous = true, old.Handle
@@ -607,6 +630,11 @@ func importXAccounts(ctx context.Context, tx pgx.Tx, actor *string, accounts []x
 		if err != nil {
 			return nil, &xconfig.LineError{Line: a.Line, Err: err}
 		}
+		if a.Profile != nil { // looked up on X just now
+			if err := xconfig.SetProfile(ctx, tx, a.UserID, a.Profile); err != nil {
+				return nil, &xconfig.LineError{Line: a.Line, Err: err}
+			}
+		}
 		switch r {
 		case xconfig.Inserted:
 			res.Inserted++
@@ -694,7 +722,7 @@ func ResolveXImport(ctx context.Context, lk *xlookup.Client, accounts []xconfig.
 		}
 		switch r := found[xlookup.Key(a.Handle)]; r.Outcome {
 		case xlookup.Found:
-			a.UserID, a.Handle = r.ID, r.Handle
+			a.UserID, a.Handle, a.Profile = r.ID, r.Handle, profileOf(r)
 			looked[a.Line] = true
 			out = append(out, a)
 		case xlookup.Unavailable:

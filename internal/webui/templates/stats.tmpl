@@ -6,10 +6,6 @@
 <h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "stats.h1"}}</h1>
 <p class="lede">{{if .AsOf}}{{t "stats.lede_at" "time" .AsOf}}{{else}}{{t "stats.lede"}}{{end}}</p>
 </div>
-<details class="apid">
-<summary>{{t "stats.api.summary"}}</summary>
-{{template "cmd" .Curl}}
-</details>
 <section class="sec" aria-labelledby="by">
 <h2 class="h2" id="by"><span class="h" aria-hidden="true"># </span>{{t "stats.by_stage.h2"}}</h2>
 <div class="bars wide">

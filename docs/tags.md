@@ -322,7 +322,7 @@ The lists themselves (hot, search, tag pages) query `vuln_tag_visible` directly 
 
 ## 7. Site and API
 
-- **Vulnerability page**: the tag block sits right under the status sentence, before `curl` and the key facts. Why: the status sentence answers "how far along the lifecycle is it", and the tags answer "what kind of bug is it,
+- **Vulnerability page**: the tag block sits right under the status sentence, before the key facts. Why: the status sentence answers "how far along the lifecycle is it", and the tags answer "what kind of bug is it,
   and where can it be reached from"; together they're the first screen you need for triage. The block takes only a line or two, so it doesn't push the lifecycle chart down. Tags are grouped by dimension, with `remote-unauth` in bold and
   `ransomware` in KEV red. Below it is a `<details>` that needs no JS, "why these tags": first one sentence ("nday derives these tags by fixed rules from the facts below; NVD, the CNA and other sources do not assign them"),
   then each tag's basis (CWE ids and the sources that gave them, vector and source, KEV field, item keys, advisory and package names); when the basis is
@@ -330,11 +330,12 @@ The lists themselves (hot, search, tag pages) query `vuln_tag_visible` directly 
 - **Lists** (`/`, `/tag/<slug>`, `/vuln`): `?tag=<slug>` can repeat and the tags are intersected, combined with the existing filters; unknown slugs are ignored and left out of the canonical link; at most 5.
   Selected tags show as removable chips (one `--tag` line). Each row shows at most 3 tags, in this order: `remote-unauth` (the strongest reachability signal), `ransomware`
   (a consequence signal the lifecycle bar doesn't express), and the first type tag (what kind of bug; by vocabulary order). The other access tags, Metasploit/Exploit-DB/nuclei
-  (the row already has POC n/3) and the ecosystem stay on the vulnerability page. The tag block goes before the vendor on the second line; the table already scrolls horizontally on narrow screens, and the row layout is unchanged at 375 px.
+  (the row already has POC n/4) and the ecosystem stay on the vulnerability page. The tag block goes before the vendor on the second line; the table already scrolls horizontally on narrow screens, and the row layout is unchanged at 375 px.
 - `/tags`: lists all tags by dimension with slug, count and a one-line description. Dimensions with more than 20 tags (type, product, product type) are sorted by count, highest first, and only the first 20 are shown;
   the rest go in a `<details>` that needs no JS ("N more tags", catalog key `tag.page.more`). Dimensions with 20 tags or fewer keep vocabulary order and show everything. `/tag/<slug>`: description, count, the CWE list for type tags, the reused hot-list view (same
-  `since` / `min_stage` / `include_rejected` / `tag` parameters), and that tag's RSS (`/feed.xml?tag=<slug>`, also in the page header as `<link rel=alternate>`).
+  `since` / `min_stage` / `include_rejected` / `tag` parameters), and that tag's feed (`/feed.xml?tag=<slug>`; not linked from the page, since the feed needs a session, an API token or the private feed key).
   They exist under every language prefix, are indexed normally, and `hreflang` is the same as on other pages. An uppercase slug gets a 301 to lowercase; an unknown slug gets a 404.
+- **Icons**: product and ecosystem tags show their brand mark before the label where one exists ([tagicons.md](tagicons.md)).
 - **Feed**: `/feed.xml?tag=…` (same validation), titled "nday · hot · <tag name>", with the tag parameter in `id`/`self`.
 - **API** (`docs/api.md`): `/api/hot` and `/api/search` (and `/v1/…`) accept a repeatable `tag`; an unknown slug or more than 5 is a 400. Rows get a
   `tags` field (array of slugs); the vulnerability JSON gets `tags: [{slug, dimension, origin, basis, rule_version}]`; and there's `GET /api/tags` (`/v1/tags`).

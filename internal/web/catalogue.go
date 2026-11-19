@@ -10,14 +10,14 @@ import (
 
 // vulns is GET /api/vulns (/v1/vulns on the API host): the catalogue of
 // every vulnerability, most recent change first (site.Store.Catalogue).
-// ?stage=&year=&tag=&include_rejected=&limit=&cursor=
+// ?stage=&year=&tag=&include_rejected=&limit=&cursor=&before=
 func (s *Server) vulns(w http.ResponseWriter, r *http.Request) {
-	q, err := queryParams(r, "stage", "year", "tag", "include_rejected", "limit", "cursor")
+	q, err := queryParams(r, "stage", "year", "tag", "include_rejected", "limit", "cursor", "before")
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	p := site.CatalogueParams{Stage: q.Get("stage"), Cursor: q.Get("cursor"), Tags: q["tag"]}
+	p := site.CatalogueParams{Stage: q.Get("stage"), Cursor: q.Get("cursor"), Before: q.Get("before"), Tags: q["tag"]}
 	if v, ok := q["stage"]; ok && v[0] == "" {
 		err = &site.InputError{Param: "stage", Msg: "empty (leave the parameter out for every stage)"}
 	}
@@ -41,6 +41,8 @@ func (s *Server) vulns(w http.ResponseWriter, r *http.Request) {
 	if err == nil {
 		if v, ok := q["cursor"]; ok && v[0] == "" {
 			err = &site.InputError{Param: "cursor", Msg: "invalid cursor"}
+		} else if v, ok := q["before"]; ok && v[0] == "" {
+			err = &site.InputError{Param: "before", Msg: "invalid cursor"}
 		}
 	}
 	if err == nil {

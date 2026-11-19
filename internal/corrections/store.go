@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"nday.land/nday/internal/audit"
 	"nday.land/nday/internal/auth"
@@ -106,7 +107,7 @@ const NewAccountOpenPerUser = 1
 // ... SELECT that requires the vulnerability to exist (ErrNoVuln).
 func (s *Store) Submit(ctx context.Context, n Submission, lim Limits, nl discuss.Limits) (*Correction, error) {
 	var out *Correction
-	err := s.DB.WithConn(ctx, func(c *pgx.Conn) error {
+	err := withConnRetry(ctx, s.DB, func(c *pgx.Conn) error {
 		return pgx.BeginFunc(ctx, c, func(tx pgx.Tx) error {
 			if err := lock(ctx, tx, "user", n.Submitter); err != nil {
 				return err
@@ -167,10 +168,35 @@ func (s *Store) Submit(ctx context.Context, n Submission, lim Limits, nl discuss
 			return err
 		})
 	})
+	if vulnGone(err) {
+		err = ErrNoVuln
+	}
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
+}
+
+// vulnGone: err is a foreign-key violation on the vulnerability reference,
+// i.e. the vulnerability went away while the transaction waited for its row
+// (docs/ghsa.md: the merge that moves a GHSA-keyed vulnerability under its
+// CVE deletes the row). The merge also takes the per-vulnerability lock
+// Submit takes, so Submit normally finds no row instead.
+func vulnGone(err error) bool {
+	var pe *pgconn.PgError
+	return errors.As(err, &pe) && pe.Code == "23503" && pe.ConstraintName == "vuln_corrections_cve_id_fkey"
+}
+
+// withConnRetry is db.WithConn(ctx, f), run once more when f fails with
+// deadlock_detected (40P01): its transaction was rolled back whole, so the
+// retry starts over.
+func withConnRetry(ctx context.Context, db auth.ConnSource, f func(*pgx.Conn) error) error {
+	err := db.WithConn(ctx, f)
+	var pe *pgconn.PgError
+	if errors.As(err, &pe) && pe.Code == "40P01" {
+		err = db.WithConn(ctx, f)
+	}
+	return err
 }
 
 // Mine lists user's corrections, newest first (at most MineMax), of one

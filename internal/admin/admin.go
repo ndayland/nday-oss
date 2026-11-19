@@ -29,6 +29,7 @@
 package admin
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -76,6 +77,12 @@ type Options struct {
 	// `nday serve` builds it from NDAY_X_BEARER_TOKEN, never with another
 	// base URL).
 	XLookup *xlookup.Client
+	// GitHubLookup resolves a GitHub login to the owner's numeric id and
+	// GitHub's spelling of the login when a trusted account is added
+	// (ghrepo.LookupOwner: one request to https://api.github.com; nil: no
+	// lookup, accounts are saved "id pending" and the fetch pass resolves
+	// them). ghrepo.ErrLoginNotFound when the login does not exist.
+	GitHubLookup func(ctx context.Context, login string) (int64, string, error)
 	// Settings applies database settings to the running process (the
 	// settings pages; nil: not available). `nday serve` passes its
 	// implementation (internal/cli).
@@ -105,6 +112,8 @@ type Service struct {
 	loc   *time.Location
 	// xl is the X user lookup in force (Options.XLookup, then SetXLookup).
 	xl atomic.Pointer[xlookup.Client]
+	// refresher: background refreshes of vuln_state_mat (staterefresh.go)
+	refresher stateRefresher
 }
 
 // New builds the service.

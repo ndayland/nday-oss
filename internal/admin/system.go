@@ -2,13 +2,16 @@ package admin
 
 import (
 	"context"
+	"errors"
 	"runtime"
 	"runtime/debug"
 	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
+	"nday.land/nday/internal/jobrun"
 	"nday.land/nday/internal/site"
 )
 
@@ -125,9 +128,160 @@ func (s *Service) Collectors(ctx context.Context) ([]CollectorRow, error) {
 	return out, nil
 }
 
+// JobRow is one background job for the system page (job_run, migration
+// 0035), with a backlog count when there is a cheap one.
+type JobRow struct {
+	Name          string // jobrun.Names
+	Recorded      bool   // a job_run row exists
+	StartedAt     *time.Time
+	FinishedAt    *time.Time
+	OK            *bool
+	Error         *string
+	LastSuccessAt *time.Time
+	// Limited: the last run's stored counters say the remote told it to
+	// stop (detail.rate_limited true: github-discover and github-fetch)
+	Limited     bool
+	Status      string // JobStatus
+	BacklogKind string // "pending", "due" or "" (none shown)
+	Backlog     int64
+}
+
+// jobEvery is how often each job is meant to run: the hourly ones ride
+// nday-github-discover.timer or nday-collect@xposts.timer, site icons
+// nday-site-icons.timer (daily).
+var jobEvery = map[string]time.Duration{
+	jobrun.GitHubDiscover: time.Hour,
+	jobrun.GitHubPoC:      time.Hour,
+	jobrun.GitHubFetch:    time.Hour,
+	jobrun.PagesFetch:     time.Hour,
+	jobrun.SiteIcons:      24 * time.Hour,
+}
+
+// runningFor is how long an unfinished run counts as running: the
+// units' TimeoutStartSec (20 min) plus slack. Older means it died.
+const runningFor = 30 * time.Minute
+
+// JobStatus is the state of a job's last run at now:
+//
+//	none        no record yet (neutral: fresh deploy, timer not fired)
+//	running     started less than runningFor ago, no end yet
+//	unfinished  started earlier, no end recorded (killed, crashed)
+//	error       the last run ended with an error
+//	stale       the last run was ok but is older than 2.5 periods
+//	            (two missed runs plus the timers' random delay)
+//	limited     the last run was ok but was rate limited (Limited): it
+//	            ended cleanly, often after doing nothing
+//	ok          otherwise
+func JobStatus(j JobRow, now time.Time) string {
+	switch {
+	case !j.Recorded || j.StartedAt == nil:
+		return "none"
+	case j.FinishedAt == nil || j.OK == nil:
+		if now.Sub(*j.StartedAt) < runningFor {
+			return "running"
+		}
+		return "unfinished"
+	case !*j.OK:
+		return "error"
+	}
+	if every, ok := jobEvery[j.Name]; ok && now.Sub(*j.StartedAt) > every*5/2 {
+		return "stale"
+	}
+	if j.Limited {
+		return "limited"
+	}
+	return "ok"
+}
+
+// jobBacklog: one count per job where it is cheap — each an index range
+// on a table of a few thousand rows (github_repo_state_idx,
+// web_page_status_idx, site_icon_next_try_idx). Discovery and the PoC
+// repair have no queue. Site icons count only known hosts due again: new
+// hosts come from the linked-hosts query, far too heavy for a page view.
+var jobBacklog = map[string]struct{ kind, sql string }{
+	jobrun.GitHubFetch: {"pending", `SELECT count(*) FROM github_repo WHERE state = 'pending'`},
+	jobrun.PagesFetch:  {"pending", `SELECT count(*) FROM web_page WHERE status = 'pending'`},
+	jobrun.SiteIcons:   {"due", `SELECT count(*) FROM site_icon WHERE next_try_at <= now()`},
+}
+
+// Jobs lists every job of jobrun.Names with its last run and backlog. A
+// database without job_run (0035 not applied) shows every job with no
+// record; a backlog query that fails just leaves that count out.
+func (s *Service) Jobs(ctx context.Context) ([]JobRow, error) {
+	byName := map[string]JobRow{}
+	err := s.o.ReadDB.WithConn(ctx, func(c *pgx.Conn) error {
+		// rate_limited is read as jsonb true only: a missing, null or
+		// malformed detail is not limited (and never fails the page)
+		rows, err := c.Query(ctx, `SELECT name, started_at, finished_at, ok, error, last_success_at,
+            COALESCE(jsonb_typeof(detail) = 'object' AND detail->'rate_limited' = 'true'::jsonb, false) FROM job_run`)
+		if err != nil {
+			if isUndefinedTable(err) {
+				return nil
+			}
+			return err
+		}
+		_, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (struct{}, error) {
+			x := JobRow{Recorded: true}
+			if err := r.Scan(&x.Name, &x.StartedAt, &x.FinishedAt, &x.OK, &x.Error, &x.LastSuccessAt, &x.Limited); err != nil {
+				return struct{}{}, err
+			}
+			byName[x.Name] = x
+			return struct{}{}, nil
+		})
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	now := s.now()
+	out := make([]JobRow, 0, len(jobrun.Names))
+	for _, n := range jobrun.Names {
+		x, ok := byName[n]
+		if !ok {
+			x = JobRow{Name: n}
+		}
+		for _, t := range []**time.Time{&x.StartedAt, &x.FinishedAt, &x.LastSuccessAt} {
+			if *t != nil {
+				u := (*t).UTC()
+				*t = &u
+			}
+		}
+		x.Status = JobStatus(x, now)
+		out = append(out, x)
+	}
+	err = s.o.ReadDB.WithConn(ctx, func(c *pgx.Conn) error {
+		for i := range out {
+			b, ok := jobBacklog[out[i].Name]
+			if !ok {
+				continue
+			}
+			var n int64
+			if err := c.QueryRow(ctx, b.sql).Scan(&n); err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				continue
+			}
+			out[i].BacklogKind, out[i].Backlog = b.kind, n
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// isUndefinedTable: Postgres' undefined_table (a migration not applied).
+func isUndefinedTable(err error) bool {
+	var pe *pgconn.PgError
+	return errors.As(err, &pe) && pe.Code == "42P01"
+}
+
 // System is the system page.
 type System struct {
 	Collectors []CollectorRow
+	Jobs       []JobRow
 	Sources    *site.SourcesReport
 	Tables     []TableSize
 	DBSize     int64
@@ -154,6 +308,9 @@ func (s *Service) System(ctx context.Context) (*System, error) {
 		return nil, err
 	}
 	sys.Collectors = cs
+	if sys.Jobs, err = s.Jobs(ctx); err != nil {
+		return nil, err
+	}
 	exact := map[string]bool{}
 	for _, t := range exactTables {
 		exact[t] = true

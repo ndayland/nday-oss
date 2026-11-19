@@ -80,6 +80,19 @@ type Options struct {
 	// address (default burst 120, then 4 per second): one cookie replayed
 	// from many addresses is throttled by itself.
 	TokenLimit *RateLimiter
+	// APITokenLimit rate-limits each API token and each private feed key,
+	// whatever the client address (default burst 120, then 2 per second:
+	// 120 requests a minute).
+	APITokenLimit *RateLimiter
+	// APIClientLimit rate-limits API token and feed key lookups per client
+	// address, so a flood of made-up credentials cannot keep the database
+	// busy (default burst 300, then 10 per second).
+	APIClientLimit *RateLimiter
+	// APILookups caps concurrent API token and feed key lookups (default
+	// 1). They have their own slots, so a flood of them can never take the
+	// session lookup slots of signed-in readers; a request that cannot get
+	// one within apiLookupWait gets 503 busy.
+	APILookups int
 	// SessionLookups caps concurrent session lookups (and the database work
 	// of /api/me), so a flood of session cookies cannot take every
 	// connection of the small auth pool (default 2).
@@ -109,11 +122,16 @@ type Service struct {
 	pkRL    *RateLimiter
 	acctRL  *RateLimiter
 	tokenRL *RateLimiter
-	dead    *deadTokens   // token hashes known not to load
-	host    string        // host[:port] of PublicOrigin
-	lookups chan struct{} // session lookup slots
-	rlWarn  warnAggregate // aggregated rate-limit warnings
-	signups dailyCounter  // passkey-only sign-ups per day
+	dead    *deadTokens // token hashes known not to load
+	// API tokens and feed keys (apitoken.go)
+	apiRL     *RateLimiter  // per token / feed key
+	apiAddrRL *RateLimiter  // per client address
+	apiDead   *deadTokens   // API token / feed key hashes known to be invalid
+	host      string        // host[:port] of PublicOrigin
+	lookups   chan struct{} // session lookup slots
+	apiSlots  chan struct{} // API token / feed key lookup slots (apitoken.go)
+	rlWarn    warnAggregate // aggregated rate-limit warnings
+	signups   dailyCounter  // passkey-only sign-ups per day
 }
 
 // New builds the service for a validated, enabled configuration.
@@ -131,7 +149,8 @@ func New(cfg *Config, opt Options) (*Service, error) {
 	s := &Service{store: opt.Store, log: opt.Logger, hc: opt.Client, keys: keys, endpoints: opt.Endpoints,
 		now: opt.Now, startRL: opt.StartLimit, cbRL: opt.CallbackLimit, pkRL: opt.PasskeyLimit,
 		acctRL: opt.AccountLimit, signupFixed: opt.SignupLimit != nil, tokenRL: opt.TokenLimit,
-		dead: newDeadTokens(deadTokensMax, deadTokensTTL)}
+		dead: newDeadTokens(deadTokensMax, deadTokensTTL), apiRL: opt.APITokenLimit, apiAddrRL: opt.APIClientLimit,
+		apiDead: newDeadTokens(deadTokensMax, deadTokensTTL)}
 	if s.log == nil {
 		s.log = slog.Default()
 	}
@@ -158,12 +177,19 @@ func New(cfg *Config, opt Options) (*Service, error) {
 	if s.acctRL == nil {
 		s.acctRL = NewRateLimiter(300, 200*time.Millisecond)
 	}
+	if s.apiRL == nil {
+		s.apiRL = NewRateLimiter(120, 500*time.Millisecond)
+	}
+	if s.apiAddrRL == nil {
+		s.apiAddrRL = NewRateLimiter(300, 100*time.Millisecond)
+	}
 	applyDefaults(cfg)
 	n := opt.SessionLookups
 	if n <= 0 {
 		n = 2
 	}
 	s.lookups = make(chan struct{}, n)
+	s.apiSlots = make(chan struct{}, max(1, opt.APILookups))
 	u, err := url.Parse(cfg.PublicOrigin)
 	if err != nil || u.Host == "" {
 		return nil, errors.New("auth: invalid public origin")
@@ -182,11 +208,14 @@ func (s *Service) Enabled() []string { return append([]string(nil), s.state.Load
 func (s *Service) Config() *Config { return s.state.Load().cfg }
 
 // Register mounts the auth routes on the web server. Only these three
-// subtrees are touched; public pages never see the session cookie.
+// subtrees are touched; public pages never see the session cookie. It also
+// makes the service the authenticator of the server's gated routes (the
+// data API and the feed; see AuthenticateData).
 func (s *Service) Register(srv *web.Server) {
 	srv.Handle("/auth/", s)
 	srv.Handle("/account/", s)
 	srv.Handle("/api/me", s)
+	srv.SetAPIAuth(s)
 }
 
 // ServeHTTP routes /auth/*, /account/* and /api/me. Every response is
@@ -255,7 +284,20 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			rt = &route{http.MethodPost, s.acceptTerms, true}
 		case "follows":
 			rt = &route{http.MethodPost, s.setFollows, true}
+		case "tokens": // GET lists, POST creates
+			if r.Method == http.MethodPost {
+				rt = &route{http.MethodPost, s.createAPIToken, true}
+			} else {
+				rt = &route{http.MethodGet, s.listAPITokens, true}
+			}
+		case "feed":
+			rt = &route{http.MethodGet, s.feedAddress, true}
 		}
+	case len(segs) == 4 && segs[0] == "account" && segs[1] == "tokens" && segs[3] == "revoke":
+		id := segs[2]
+		rt = &route{http.MethodPost, func(w http.ResponseWriter, r *http.Request) { s.revokeAPIToken(w, r, id) }, true}
+	case r.URL.Path == "/account/feed/rotate":
+		rt = &route{http.MethodPost, s.rotateFeedKey, true}
 	case r.URL.Path == "/account/follows/match":
 		rt = &route{http.MethodPost, s.matchFollows, true}
 	}
@@ -388,9 +430,16 @@ func (s *Service) sessionInSlot(r *http.Request, h []byte) (*Session, *User, boo
 	return ss, u, true, err
 }
 
-// sessionError answers a failed session lookup: 503 when the lookup slots
-// are saturated, 500 otherwise.
+// sessionError answers a failed session (or API token) lookup: 503 when
+// the lookup slots are saturated or the request's context ended (client
+// gone, request deadline: not a server fault, so no ERROR line), 500
+// otherwise.
 func (s *Service) sessionError(w http.ResponseWriter, err error) {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		w.Header().Set("Retry-After", "1")
+		web.WriteError(w, http.StatusServiceUnavailable, "busy", "try again in a moment", "")
+		return
+	}
 	if errors.Is(err, errTokenLimited) {
 		w.Header().Set("Retry-After", "1")
 		web.WriteError(w, http.StatusTooManyRequests, "rate_limited", "too many requests; try again later", "")
@@ -1330,6 +1379,7 @@ func (s *Service) setFollows(w http.ResponseWriter, r *http.Request) {
 }
 
 // matchFollows: POST /account/follows/match with {"cve_ids":["CVE-…", ...]}
+// (vulnerability ids: CVE ids, or GHSA ids of advisories without a CVE)
 // answers {"matches":[...]}: the ids (at most MaxMatchCVEs, canonical form)
 // of vulnerabilities affecting a followed vendor or product. A read, but a
 // POST (the list does not fit a URL), so it is guarded like the others.
@@ -1350,9 +1400,9 @@ func (s *Service) matchFollows(w http.ResponseWriter, r *http.Request) {
 	}
 	ids := make([]string, 0, len(body.CVEIDs))
 	for _, raw := range body.CVEIDs {
-		id, valid := site.ParseCVEID(raw)
+		id, valid := site.ParseVulnID(raw)
 		if !valid {
-			web.WriteError(w, http.StatusBadRequest, "bad_request", "not a CVE id (expected CVE-YYYY-NNNN...)", "cve_ids")
+			web.WriteError(w, http.StatusBadRequest, "bad_request", site.BadVulnIDMsg, "cve_ids")
 			return
 		}
 		ids = append(ids, id)

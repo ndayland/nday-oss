@@ -25,6 +25,7 @@ import (
 	"nday.land/nday/internal/site/sitetest"
 	"nday.land/nday/internal/testutil"
 	"nday.land/nday/internal/web"
+	"nday.land/nday/internal/web/webtest"
 	"nday.land/nday/internal/webui"
 	"nday.land/nday/internal/webui/i18n"
 )
@@ -81,12 +82,23 @@ func newEnvWith(t *testing.T, opts webui.Options) *tenv { return newEnvFull(t, w
 // filled in), e.g. PublicURL and APIURL for two-host mode.
 func newEnvFull(t *testing.T, wc web.Config, opts webui.Options) *tenv {
 	t.Helper()
+	return newEnvSeed(t, wc, opts, nil)
+}
+
+// newEnvSeed is newEnvFull with more data: extra runs on the seeded
+// database before the server starts.
+func newEnvSeed(t *testing.T, wc web.Config, opts webui.Options, extra func(*pgx.Conn)) *tenv {
+	t.Helper()
 	t.Parallel()
 	d := testutil.NewMigratedDB(t)
 	sitetest.Seed(t, d.Conn)
 	seedHostile(t, d.Conn)
 	sitetest.SeedTags(t, d.Conn)
 	sitetest.SeedCredits(t, d.Conn)
+	sitetest.SeedGHSA(t, d.Conn)
+	if extra != nil {
+		extra(d.Conn)
+	}
 	cfg, err := pgx.ParseConfig(d.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -97,6 +109,7 @@ func newEnvFull(t *testing.T, wc web.Config, opts webui.Options) *tenv {
 	store := site.New(pool).WithClock(now)
 	wc.Store, wc.Logger = store, slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv := web.New(wc)
+	srv.SetAPIAuth(webtest.BearerAuth{})
 	opts.Now = now
 	ui, err := webui.New(srv, opts)
 	if err != nil {
@@ -107,11 +120,18 @@ func newEnvFull(t *testing.T, wc web.Config, opts webui.Options) *tenv {
 	return &tenv{ts: ts, ui: ui, store: store}
 }
 
+// get sends the test API token (webtest.BearerAuth) unless hdr sets
+// Authorization itself (an empty value sends none): it stands for a
+// signed-in reader, whom the data API, /raw/... and the feed require.
 func (e *tenv) get(t *testing.T, path string, hdr ...string) (*http.Response, string) {
 	t.Helper()
 	req, _ := http.NewRequest(http.MethodGet, e.ts.URL+path, nil)
+	req.Header.Set("Authorization", "Bearer "+webtest.TestAPIToken)
 	for i := 0; i+1 < len(hdr); i += 2 {
 		req.Header.Set(hdr[i], hdr[i+1])
+		if hdr[i] == "Authorization" && hdr[i+1] == "" {
+			req.Header.Del("Authorization")
+		}
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -119,6 +139,7 @@ func (e *tenv) get(t *testing.T, path string, hdr ...string) (*http.Response, st
 	}
 	b, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
+	checkPagerCounts(t, path, string(b))
 	return resp, string(b)
 }
 
@@ -324,10 +345,15 @@ func TestPagesCSPAndNoInline(t *testing.T) {
 		}
 	}
 	for _, l := range e.ui.Locales().Enabled {
-		for _, must := range []string{"/feed.xml", "/about", "/src", "/stats", "/vuln/" + sitetest.GPU} {
+		for _, must := range []string{"/about", "/src", "/stats", "/vuln/" + sitetest.GPU} {
 			if !seen[l.Path(must)] {
 				t.Errorf("crawl did not reach %s", l.Path(must))
 			}
+		}
+		// the feed is reached only through the reader's private address
+		// (account page), never linked from a page
+		if seen[l.Path("/feed.xml")] {
+			t.Errorf("a page links %s", l.Path("/feed.xml"))
 		}
 	}
 	var assets int
@@ -398,7 +424,7 @@ func TestHostileDataEscaped(t *testing.T) {
 		if !strings.Contains(body, `<span>javascript:alert(4)</span>`) && strings.Contains(body, "alert(4)") {
 			t.Errorf("%s: javascript: commit URL not rendered as text", l.Tag)
 		}
-		if !strings.Contains(body, `<a href="https://github.com/a/b/commit/abcdef0123" rel="noopener noreferrer">a/b@abcdef0</a>`) {
+		if !strings.Contains(body, `<a href="https://github.com/a/b/commit/abcdef0123" target="_blank" rel="noopener noreferrer" data-fav=""><span class="fav" aria-hidden="true"></span>a/b@abcdef0</a>`) {
 			t.Errorf("%s: good commit link missing", l.Tag)
 		}
 		if strings.Contains(body, "pip install") {
@@ -418,7 +444,9 @@ func TestDetailContent(t *testing.T) {
 	set := e.ui.Locales()
 	zh, en := set.ByTag("zh-Hans"), set.Primary()
 	common := []string{
-		"curl -s https://nday.land/api/vuln/CVE-2026-102895",
+		// the raw records panel: the same links for everyone, hidden until
+		// app.js sees a signed-in reader (/raw/... needs a session)
+		"<section class=\"panel\" data-signed-in=\"\" hidden=\"\">\n<h2>",
 		"≤ 2026-11-09", "~ITW", "&#43;KEV",
 		"pip install -U &#39;gpustack&gt;=2.2.0&#39;", "gpustack/gpustack#5346", "gpustack/gpustack@53f42a6",
 		"Improper Authentication", `href="/raw/kev/CVE-2026-102895.json"`, `<details class="raw">`,
@@ -426,7 +454,7 @@ func TestDetailContent(t *testing.T) {
 	}
 	_, body := e.get(t, "/zh-hans/vuln/"+sitetest.GPU)
 	for _, want := range append(common,
-		"披露后第 5 天进入 KEV。已有补丁记录，修复版本是 gpustack 2.2.0。三个 PoC 库都已收录。",
+		"披露后第 5 天进入 KEV。已有补丁记录，修复版本是 gpustack 2.2.0。PoC 来源中 exploitdb、metasploit、nuclei 已收录（3/4）。",
 		"推定，无直接来源", "日精度，来源给出", `本站 <time datetime="2026-11-12T01:00:00Z" data-lt="long">2026-11-12T01:00Z</time> 批量导入`, "时间未知",
 		`<html lang="zh-Hans">`, `href="/zh-hans/src#kev"`, `lang="en"`) {
 		if !strings.Contains(body, want) {
@@ -435,7 +463,7 @@ func TestDetailContent(t *testing.T) {
 	}
 	_, body = e.get(t, "/vuln/"+sitetest.GPU)
 	for _, want := range append(common,
-		"Added to KEV 5 days after disclosure. Patched: fixed in gpustack 2.2.0. All three PoC sources list it.",
+		"Added to KEV 5 days after disclosure. Patched: fixed in gpustack 2.2.0. Listed by 3 of 4 PoC sources: exploitdb, metasploit, and nuclei.",
 		en.Text("ev.implied.note"), en.Text("precision.note", "precision", "day"),
 		string(en.HTML("ev.obs.backfill", "time", template.HTML(`<time datetime="2026-11-12T01:00:00Z" data-lt="long">2026-11-12T01:00Z</time>`))), en.Text("time.unknown"),
 		`<html lang="en">`, `href="/src#kev"`) {
@@ -489,7 +517,7 @@ func TestHotPageAndCaching(t *testing.T) {
 		t.Fatalf("unknown param: %d", resp.StatusCode)
 	}
 	for _, want := range []string{
-		"curl -s &#39;https://nday.land/api/hot?since=30d&amp;min_stage=patch&#39;", `role="heading" aria-level="2"><span aria-hidden="true">## </span>2026-11-`, "&#43;KEV",
+		`role="heading" aria-level="2"><span aria-hidden="true">## </span>2026-11-`, "&#43;KEV",
 		`aria-current="true">30 天</a>`, `href="/zh-hans/?since=30d&amp;min_stage=poc"`, "全库当前阶段", "回填中",
 		"等待官方记录回填", "Barracuda Networks / Email Security Gateway (ESG)、Load Balancer ADC &#43;1",
 		`role="img" aria-label="生命周期：`, `<a class="ttl" href="/zh-hans/vuln/CVE-2026-1003" tabindex="-1" aria-hidden="true">cowlib 响应拆分</a>`,
@@ -721,7 +749,7 @@ func TestI18nDebugPage(t *testing.T) {
 	}
 	_, body := e.get(t, "/__i18n/en")
 	for _, want := range []string{"status.lead.after.kev", "Added to KEV <mark>2</mark> days after disclosure.", "kev_t5_patch_0of3",
-		"Added to KEV 5 days after disclosure. Patched: fixed in gpustack 2.2.0. None of the three PoC sources lists it."} {
+		"Added to KEV 5 days after disclosure. Patched: fixed in gpustack 2.2.0. None of the four PoC sources lists it."} {
 		if !strings.Contains(body, want) {
 			t.Errorf("debug page missing %q", want)
 		}
@@ -756,7 +784,7 @@ func TestStaticFeedRobots(t *testing.T) {
 	// generated per-locale font stacks.
 	css := ""
 	for _, l := range links {
-		if strings.HasSuffix(l, ".css") {
+		if strings.HasPrefix(l, "/static/app.") && strings.HasSuffix(l, ".css") {
 			_, css = e.get(t, l)
 		}
 	}
@@ -811,11 +839,13 @@ func TestStaticFeedRobots(t *testing.T) {
 		}
 		ids := map[string]bool{}
 		for _, en := range feed.Entries {
-			if ids[en.ID] || !strings.HasPrefix(en.ID, "tag:nday.land,2026:transition/CVE-") {
+			if ids[en.ID] || !(strings.HasPrefix(en.ID, "tag:nday.land,2026:transition/CVE-") ||
+				strings.HasPrefix(en.ID, "tag:nday.land,2026:transition/"+sitetest.GHSA+"/")) {
 				t.Errorf("entry id %q", en.ID)
 			}
 			ids[en.ID] = true
-			if !strings.HasPrefix(en.Link.Href, "https://nday.land"+l.Path("/vuln/CVE-")) {
+			if !strings.HasPrefix(en.Link.Href, "https://nday.land"+l.Path("/vuln/CVE-")) &&
+				en.Link.Href != "https://nday.land"+l.Path("/vuln/"+sitetest.GHSA) {
 				t.Errorf("entry link %q", en.Link.Href)
 			}
 			if strings.Contains(en.Summary, i18n.MissingOpen) || en.Summary == "" {
@@ -870,27 +900,13 @@ func TestCheckHTMLCatches(t *testing.T) {
 	}
 }
 
-// TestTwoHostPages: with an API host configured, every curl line, raw JSON
-// link and endpoint name on the pages points at NDAY_API_URL/v1; the API
-// host itself serves no page, asset or HTML.
+// TestTwoHostPages: with an API host configured, the raw record links on
+// the pages point at NDAY_API_URL/v1 (the account page's API reference:
+// TestAccountAPIPane); the API host itself serves no page, asset or HTML.
 func TestTwoHostPages(t *testing.T) {
 	e := newEnvFull(t, web.Config{PublicURL: "https://www.nday.land", APIURL: "https://api.nday.land"}, webui.Options{})
 	pages := map[string][]string{
-		"/?since=30d": {"curl -s &#39;https://api.nday.land/v1/hot?since=30d&amp;min_stage=patch&#39;",
-			`data-raw="https://api.nday.land/v1/hot?since=30d&amp;min_stage=patch"`},
-		"/zh-hans/vuln/" + sitetest.GPU: {"curl -s https://api.nday.land/v1/vuln/CVE-2026-102895",
-			`href="https://api.nday.land/v1/raw/kev/CVE-2026-102895.json"`},
-		"/vuln?q=barracuda": {"curl -s &#39;https://api.nday.land/v1/search?q=barracuda&#39;",
-			`data-raw="https://api.nday.land/v1/search?q=barracuda"`},
-		"/src":   {"curl -s https://api.nday.land/v1/sources", `data-raw="https://api.nday.land/v1/sources"`},
-		"/stats": {"curl -s https://api.nday.land/v1/stats", `data-raw="https://api.nday.land/v1/stats"`},
-		"/about": {"GET /v1/hot", "GET /v1/vuln/{cve}", "GET /v1/search", "GET /v1/sources", "GET /v1/stats",
-			"GET /v1/raw/{source}/{key}.json", "GET /healthz", "GET /feed.xml",
-			`href="https://api.nday.land/v1/hot?since=7d&amp;min_stage=patch"`,
-			"curl -s &#39;https://api.nday.land/v1/hot?since=7d&amp;min_stage=patch&#39;",
-			"curl -s https://api.nday.land/v1/raw/kev/CVE-2026-102895.json", "curl -s https://api.nday.land/healthz",
-			"curl -s https://www.nday.land/feed.xml"},
-		"/ja/about": {"GET /v1/hot", "curl -s https://api.nday.land/v1/stats", "curl -s https://www.nday.land/ja/feed.xml"},
+		"/zh-hans/vuln/" + sitetest.GPU: {`href="https://api.nday.land/v1/raw/kev/CVE-2026-102895.json"`},
 	}
 	for p, wants := range pages {
 		resp, body := e.get(t, p)
@@ -937,7 +953,7 @@ func TestTwoHostPages(t *testing.T) {
 	b, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if resp.StatusCode != 200 || !strings.HasPrefix(resp.Header.Get("Content-Type"), "application/json") ||
-		!strings.Contains(string(b), `"docs":"https://www.nday.land/about#api"`) {
+		!strings.Contains(string(b), `"docs":"https://www.nday.land/account#api"`) || !strings.Contains(string(b), `"auth":{"scheme":"Bearer"`) {
 		t.Errorf("api host /: %d %s", resp.StatusCode, b)
 	}
 	req, _ = http.NewRequest(http.MethodGet, e.ts.URL+"/robots.txt", nil)
@@ -1057,7 +1073,7 @@ func TestLocalTimeMarkers(t *testing.T) {
 	}
 }
 
-// TestHotChrome: the hot list folds its API command away, labels its filters
+// TestHotChrome: the hot list shows no API command, labels its filters
 // in words (the query parameters stay the API's) and shows only a short
 // status line (with the failing collectors, linked to the sources page);
 // the sources page keeps the whole status line.
@@ -1065,7 +1081,6 @@ func TestHotChrome(t *testing.T) {
 	e := newEnv(t)
 	_, body := e.get(t, "/")
 	for _, want := range []string{
-		"<details class=\"apid\">\n<summary>Get this list from the API</summary>\n<div class=\"cmd\">",
 		`<span class="k">Changed in</span>`, `<span class="k">Reached at least</span>`, `<span class="k">Tags</span>`,
 		`href="/?since=24h">24h</a>`, `href="/?min_stage=poc">PoC</a>`, `<a class="chk" href="/?include_rejected=1"><span class="box" aria-hidden="true"></span>`,
 		`Include rejected IDs</a>`, `<a class="bad" href="/src">collectors 1/7 ok</a>`, `<div class="statusline">`,
@@ -1079,17 +1094,14 @@ func TestHotChrome(t *testing.T) {
 		// o hollow, k known; h the halo of the latest change)
 		`<svg class="strip" role="img" aria-label="Lifecycle — exploited in the wild: inferred from KEV; added to KEV: latest change"><use href="#sl"/><use href="#n0"/><use href="#n1"/><use href="#n2"/><use href="#n3"/><use href="#o4"/><use href="#h5"/><use href="#k5"/></svg>`,
 		`<div aria-hidden="true"><svg class="sdefs" width="0" height="0" aria-hidden="true"><defs><line id="sl" `,
-		`<span aria-hidden="true">0/3</span><span class="sr">0/3 PoC sources listing it (of 3)</span></div>`,
+		`<span aria-hidden="true">0/4</span><span class="sr">0/4 PoC sources listing it (of 4)</span></div>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("hot list missing %q", want)
 		}
 	}
-	if _, sb := e.get(t, "/vuln?q=barracuda"); !strings.Contains(sb, "<details class=\"apid\">\n<summary>Get this list from the API</summary>\n<div class=\"cmd\">") {
-		t.Error("search: the API command is not folded")
-	}
-	if _, db := e.get(t, "/discussed"); !strings.Contains(db, "<details class=\"apid\">\n<summary>Get this list from the API</summary>\n<div class=\"cmd\">") {
-		t.Error("/discussed: the API command is not folded")
+	if strings.Contains(body, `class="cmd"`) || strings.Contains(body, "data-raw") {
+		t.Error("hot list: an API command or raw link")
 	}
 	strip := section(body, `<div class="statusline">`, `</div>
 </div>`)
@@ -1113,6 +1125,33 @@ func TestHotChrome(t *testing.T) {
 	for _, want := range []string{"collectors 1/7 ok", "vulns ", "events ", "backfill queue ", "updated "} {
 		if !strings.Contains(strip, want) {
 			t.Errorf("sources status line missing %q: %s", want, strip)
+		}
+	}
+}
+
+// TestVulnByGHSA: /vuln/{GHSA id} of an alias redirects (302, temporary)
+// to the one CVE it aliases in every locale (a non-canonical spelling first
+// gets the canonical 301), is the unknown-id 404 for none, and a malformed id
+// keeps the 400.
+func TestVulnByGHSA(t *testing.T) {
+	e := newEnv(t)
+	for _, l := range e.ui.Locales().Enabled {
+		resp := e.noRedirect(t, l.Path("/vuln/GHSA-gj9m-f8ph-pmhr"))
+		if resp.StatusCode != 302 || resp.Header.Get("Location") != l.Path("/vuln/"+sitetest.GPU) {
+			t.Errorf("%s: %d %q", l.Tag, resp.StatusCode, resp.Header.Get("Location"))
+		}
+		resp = e.noRedirect(t, l.Path("/vuln/ghsa-GJ9M-f8ph-pmhr"))
+		if resp.StatusCode != 301 || resp.Header.Get("Location") != l.Path("/vuln/GHSA-gj9m-f8ph-pmhr") {
+			t.Errorf("%s non-canonical: %d %q", l.Tag, resp.StatusCode, resp.Header.Get("Location"))
+		}
+	}
+	resp, body := e.get(t, "/vuln/GHSA-5555-6666-7777")
+	if resp.StatusCode != 404 || !strings.Contains(body, "GHSA-5555-6666-7777") || !strings.Contains(body, `name="q"`) {
+		t.Errorf("none: %d", resp.StatusCode)
+	}
+	for _, bad := range []string{"GHSA-gj9m-f8ph", "GHSA-aaaa-bbbb-cccc"} {
+		if resp, _ := e.get(t, "/vuln/"+bad); resp.StatusCode != 400 {
+			t.Errorf("malformed %s: %d", bad, resp.StatusCode)
 		}
 	}
 }

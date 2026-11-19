@@ -63,20 +63,20 @@
 <option value="{{.}}">{{t "admin.user.duration" "d" .}}</option>
 {{- end}}
 </select>
-<button type="submit" class="btn acct-del">{{if eq .Status "suspended"}}{{t "admin.user.resuspend"}}{{else}}{{t "admin.user.suspend"}}{{end}}</button>
+<button type="submit" class="btn acct-del" data-confirm="{{ts "btn.confirm"}}">{{if eq .Status "suspended"}}{{t "admin.user.resuspend"}}{{else}}{{t "admin.user.suspend"}}{{end}}</button>
 </div>
 <p class="acct-st" role="status" aria-live="polite"></p>
 </form>
 <ul class="acct-btns">
 {{- if eq .Status "suspended"}}
-<li><button type="button" class="btn" data-act="unsuspend">{{t "admin.user.unsuspend"}}</button></li>
+<li><button type="button" class="btn" data-act="unsuspend" data-confirm="{{ts "btn.confirm"}}">{{t "admin.user.unsuspend"}}</button></li>
 {{- end}}
 {{- if eq .Role "user"}}
-<li><button type="button" class="btn" data-act="role" data-role="moderator">{{t "admin.user.grant_mod"}}</button></li>
+<li><button type="button" class="btn" data-act="role" data-role="moderator" data-confirm="{{ts "btn.confirm"}}">{{t "admin.user.grant_mod"}}</button></li>
 {{- else if eq .Role "moderator"}}
-<li><button type="button" class="btn" data-act="role" data-role="user">{{t "admin.user.revoke_mod"}}</button></li>
+<li><button type="button" class="btn" data-act="role" data-role="user" data-confirm="{{ts "btn.confirm"}}">{{t "admin.user.revoke_mod"}}</button></li>
 {{- end}}
-<li><button type="button" class="btn" data-act="signout">{{t "admin.user.signout_all"}}</button></li>
+<li><button type="button" class="btn" data-act="signout" data-confirm="{{ts "btn.confirm"}}">{{t "admin.user.signout_all"}}</button></li>
 </ul>
 <p class="note">{{t "admin.user.signout_note"}}</p>
 <p class="acct-st" role="status" aria-live="polite"></p>
@@ -86,6 +86,7 @@
 {{- end}}
 <section class="sec" aria-labelledby="h-comments">
 <h2 class="h2" id="h-comments"><span class="h" aria-hidden="true"># </span>{{t "admin.user.comments_h2"}}</h2>
+<div class="adm-region" id="r-ucomments" data-page-region="r-ucomments">
 {{- if .Comments}}
 <div class="adm-list">
 {{- range .Comments}}
@@ -95,23 +96,34 @@
 {{- else}}
 <p class="note">{{t "admin.none"}}</p>
 {{- end}}
+{{template "pager" .CommentsPager}}
+</div>
 </section>
 <section class="sec" aria-labelledby="h-rabout">
 <h2 class="h2" id="h-rabout"><span class="h" aria-hidden="true"># </span>{{t "admin.user.reports_about_h2"}}</h2>
+<div class="adm-region" id="r-rabout" data-page-region="r-rabout">
 {{template "reportrows" .ReportsAbout}}
+{{template "pager" .AboutPager}}
+</div>
 </section>
 {{- if .Full}}
 <section class="sec" aria-labelledby="h-rfiled">
 <h2 class="h2" id="h-rfiled"><span class="h" aria-hidden="true"># </span>{{t "admin.user.reports_filed_h2"}}</h2>
+<div class="adm-region" id="r-rfiled" data-page-region="r-rfiled">
 {{template "reportrows" .ReportsFiled}}
+{{template "pager" .FiledPager}}
+</div>
 </section>
 <section class="sec" aria-labelledby="h-audit">
 <h2 class="h2" id="h-audit"><span class="h" aria-hidden="true"># </span>{{t "admin.user.audit_h2"}}</h2>
+<div class="adm-region" id="r-uaudit" data-page-region="r-uaudit">
 {{- if .Audit}}
 {{template "auditrows" .Audit}}
 {{- else}}
 <p class="note">{{t "admin.none"}}</p>
 {{- end}}
+{{template "pager" .AuditPager}}
+</div>
 </section>
 {{- end}}
 {{- end}}
@@ -122,10 +134,17 @@
 
 {{define "reportrows"}}{{if .}}<div class="tbl-x">
 <table class="aff adm-tbl adm-wide">
-<thead><tr><th scope="col">{{t "admin.rep.col" "col" "when"}}</th><th scope="col">{{t "admin.rep.col" "col" "reason"}}</th><th scope="col">{{t "admin.rep.col" "col" "comment"}}</th><th scope="col">{{t "admin.rep.col" "col" "state"}}</th></tr></thead>
+<thead><tr><th scope="col">{{t "admin.rep.col" "col" "when"}}</th><th scope="col">{{t "admin.rep.col" "col" "reason"}}</th><th scope="col">{{t "admin.rep.col" "col" "comment"}}</th><th scope="col">{{t "admin.rep.col" "col" "state"}}</th><th scope="col">{{t "admin.row.more"}}</th></tr></thead>
 <tbody>
 {{- range .}}
-<tr><td>{{.At.HTML}}</td><td>{{t "disc.report.reason" "reason" .Reason}}{{with .Note}}<br/><bdi class="cm-note">{{.}}</bdi>{{end}}</td><td><a href="{{.Permalink}}">{{.CVE}}</a> <bdi class="dim">{{.Excerpt}}</bdi></td><td>{{t "admin.rep.state" "state" .State}}</td></tr>
+<tr><td>{{.At.HTML}}</td><td>{{t "disc.report.reason" "reason" .Reason}}{{with .Note}}<br/><span class="adm-clip cm-note" dir="auto">{{.}}</span>{{end}}</td><td><a href="{{.Permalink}}">{{.CVE}}</a> <span class="adm-clip dim" dir="auto">{{.Excerpt}}</span></td><td>{{t "admin.rep.state" "state" .State}}</td><td><div class="adm-rowacts"><button type="button" class="btn sm" data-rowx="" aria-expanded="false" aria-controls="{{.Detail}}">{{t "admin.row.more"}}</button></div></td></tr>
+<tr class="adm-detail" id="{{.Detail}}" hidden=""><td colspan="5"><div class="adm-dbox">
+{{- with .Note}}
+<p><bdi class="cm-note">{{.}}</bdi></p>
+{{- end}}
+<p><bdi>{{.Excerpt}}</bdi></p>
+{{template "rowclose"}}
+</div></td></tr>
 {{- end}}
 </tbody>
 </table>

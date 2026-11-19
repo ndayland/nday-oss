@@ -166,8 +166,8 @@ func TestShellQuoteAndCurl(t *testing.T) {
 		}
 	}
 	c := CurlCmd("https://nday.land/api/hot?since=30d&min_stage=patch", ".")
-	if c.Cmd != "curl -s 'https://nday.land/api/hot?since=30d&min_stage=patch'" || c.Pipe != "| jq ." ||
-		c.Copy != "curl -s 'https://nday.land/api/hot?since=30d&min_stage=patch' | jq ." {
+	if c.Cmd != `curl -s -H "Authorization: Bearer $NDAY_TOKEN" 'https://nday.land/api/hot?since=30d&min_stage=patch'` || c.Pipe != "| jq ." ||
+		c.Copy != `curl -s -H "Authorization: Bearer $NDAY_TOKEN" 'https://nday.land/api/hot?since=30d&min_stage=patch' | jq .` {
 		t.Errorf("curl %+v", c)
 	}
 }
@@ -254,14 +254,14 @@ func TestHotFiltersLinks(t *testing.T) {
 	if got := NewAPI("https://www.nday.land", "https://api.nday.land").URL(f.APIPath()); got != "https://api.nday.land/v1/hot?since=30d&min_stage=poc&include_rejected=true" {
 		t.Errorf("api two-host %q", got)
 	}
-	next := "NEXT"
-	page := &site.HotPage{NextCursor: &next}
-	hv := BuildHotView(loc(t, "en"), f, page, NewAPI("https://nday.land", ""))
-	if hv.NextHref != "/?since=30d&min_stage=poc&include_rejected=1&cursor=NEXT" {
-		t.Errorf("next %q", hv.NextHref)
+	next, prev := "NEXT", "PREV"
+	page := &site.HotPage{NextCursor: &next, PrevCursor: &prev, Limit: 50}
+	hv := BuildHotView(loc(t, "en"), f, page, nil, NewAPI("https://nday.land", ""))
+	if hv.Pager == nil || hv.Pager.Next != "/?since=30d&min_stage=poc&include_rejected=1&cursor=NEXT" {
+		t.Errorf("next %+v", hv.Pager)
 	}
-	if !hv.OnCursor || hv.FirstHref != "/?since=30d&min_stage=poc&include_rejected=1" {
-		t.Errorf("first %q", hv.FirstHref)
+	if hv.Pager.First != "/?since=30d&min_stage=poc&include_rejected=1" || hv.Pager.Prev != "/?since=30d&min_stage=poc&include_rejected=1&before=PREV" {
+		t.Errorf("first/prev %+v", hv.Pager)
 	}
 	// Filter links keep the other filters and drop the cursor.
 	if hv.Since[0].Href != "/?since=24h&min_stage=poc&include_rejected=1" || !hv.Since[2].Active || hv.Since[0].Active {
@@ -273,8 +273,9 @@ func TestHotFiltersLinks(t *testing.T) {
 	if hv.Rejected.Href != "/?since=30d&min_stage=poc" || !hv.Rejected.Active {
 		t.Errorf("rejected %+v", hv.Rejected)
 	}
-	if hv.Curl.Copy != "curl -s 'https://nday.land/api/hot?since=30d&min_stage=poc&include_rejected=true' | jq ." {
-		t.Errorf("curl %q", hv.Curl.Copy)
+	// the data API command (account page): the token header from $NDAY_TOKEN
+	if c := CurlCmd(NewAPI("https://nday.land", "").URL(f.APIPath()), "."); c.Copy != `curl -s -H "Authorization: Bearer $NDAY_TOKEN" 'https://nday.land/api/hot?since=30d&min_stage=poc&include_rejected=true' | jq .` {
+		t.Errorf("curl %q", c.Copy)
 	}
 	// Unknown parameters are ignored; bad known ones are errors.
 	if _, err := parseHotFilters(map[string][]string{"utm_source": {"x"}, "since": {"30d"}}); err != nil {
@@ -313,7 +314,7 @@ func TestHotRowGrouping(t *testing.T) {
 	if got := string(r2.Time.HTML()); got != "11-12" {
 		t.Errorf("day html %s", got)
 	}
-	if r1.Title != "等待官方记录回填" || !r1.TitleMissing || r1.TPlus != "T+?" || r1.Poc != "0/3" || !r1.PocZero {
+	if r1.Title != "等待官方记录回填" || !r1.TitleMissing || r1.TPlus != "T+?" || r1.Poc != "0/4" || !r1.PocZero {
 		t.Errorf("row %+v", r1)
 	}
 	// The change in words, with the code kept as a secondary token.
@@ -349,7 +350,7 @@ func TestHotPinnedRows(t *testing.T) {
 	}
 	page := &site.HotPage{Rows: []site.HotRow{row("CVE-2026-1", true), row("CVE-2026-2", false), row("CVE-2026-3", false)}}
 	hv := BuildHotView(loc(t, "zh-Hans"), HotFilters{Since: 7 * 24 * time.Hour, MinStage: "patch_released"}, page,
-		NewAPI("https://nday.land", ""))
+		nil, NewAPI("https://nday.land", ""))
 	if len(hv.Rows) != 3 || !hv.Rows[0].Pinned || hv.Rows[1].Pinned || hv.Rows[0].DateHeader != "" ||
 		hv.Rows[1].DateHeader != "2026-11-12 周四" || hv.Rows[2].DateHeader != "" {
 		t.Errorf("rows %+v", hv.Rows)
@@ -363,7 +364,7 @@ func TestHotPinnedRows(t *testing.T) {
 	rule.PinReason = site.PinRule
 	page = &site.HotPage{Rows: []site.HotRow{rule, fill, row("CVE-2026-2", false), row("CVE-2026-3", false)}}
 	hv = BuildHotView(loc(t, "en"), HotFilters{Since: 7 * 24 * time.Hour, MinStage: "patch_released"}, page,
-		NewAPI("https://nday.land", ""))
+		nil, NewAPI("https://nday.land", ""))
 	seen := map[string]int{}
 	for _, r := range hv.Rows {
 		seen[r.CVE]++

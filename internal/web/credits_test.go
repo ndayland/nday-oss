@@ -35,9 +35,9 @@ func TestVulnCreditsJSON(t *testing.T) {
 	t.Cleanup(pool.Close)
 	store := site.New(pool).WithClock(func() time.Time { return sitetest.Now })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	single := httptest.NewServer(web.New(web.Config{Store: store, Logger: log}).Handler())
+	single := httptest.NewServer(gated(web.New(web.Config{Store: store, Logger: log})).Handler())
 	t.Cleanup(single.Close)
-	two := httptest.NewServer(web.New(web.Config{Store: store, Logger: log, PublicURL: testPublic, APIURL: testAPI}).Handler())
+	two := httptest.NewServer(gated(web.New(web.Config{Store: store, Logger: log, PublicURL: testPublic, APIURL: testAPI})).Handler())
 	t.Cleanup(two.Close)
 	want := `[{"key":"CVE-2026-102895","name":"Zhang Wei of Example Lab","role":"finder","source":"cvelist","type":"finder"},` +
 		`{"key":"CVE-2026-102895","name":"Example PSIRT","role":"reporter","source":"cvelist","type":"reporter"},` +

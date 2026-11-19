@@ -87,7 +87,7 @@
 </div>
 <div class="acct-row">
 <button type="submit" class="btn"{{if not $key}} disabled=""{{end}}>{{t "admin.set.secret_save"}}</button>
-<button type="button" class="btn acct-del" data-act="clearsecret"{{if not .Stored}} disabled=""{{end}}>{{t "admin.set.secret_clear"}}</button>
+<button type="button" class="btn acct-del" data-act="clearsecret" data-confirm="{{ts "btn.confirm"}}"{{if not .Stored}} disabled=""{{end}}>{{t "admin.set.secret_clear"}}</button>
 </div>
 <p class="acct-st" role="status" aria-live="polite"></p>
 </form>

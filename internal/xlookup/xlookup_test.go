@@ -50,10 +50,10 @@ func TestLookup(t *testing.T) {
 		requests int
 	}{
 		{"found, canonical case", token, []string{"xdevelopers", "X"}, nil, map[string]xlookup.Result{
-			"xdevelopers": {xlookup.Found, "2244994945", "XDevelopers"}, "x": {xlookup.Found, "783214", "X"}}, 1},
+			"xdevelopers": {Outcome: xlookup.Found, ID: "2244994945", Handle: "XDevelopers", Name: "XDevelopers (fake)"}, "x": {Outcome: xlookup.Found, ID: "783214", Handle: "X", Name: "X (fake)"}}, 1},
 		{"not found", token, []string{"nobody_here"}, nil, map[string]xlookup.Result{"nobody_here": {Outcome: xlookup.NotFound}}, 1},
 		{"suspended", token, []string{"Gone_Bad"}, nil, map[string]xlookup.Result{"gone_bad": {Outcome: xlookup.Unavailable}}, 1},
-		{"mixed", token, []string{"X", "nobody", "gone_bad"}, nil, map[string]xlookup.Result{"x": {xlookup.Found, "783214", "X"},
+		{"mixed", token, []string{"X", "nobody", "gone_bad"}, nil, map[string]xlookup.Result{"x": {Outcome: xlookup.Found, ID: "783214", Handle: "X", Name: "X (fake)"},
 			"nobody": {Outcome: xlookup.NotFound}, "gone_bad": {Outcome: xlookup.Unavailable}}, 1},
 		{"429", token, []string{"X", "too_fast"}, xlookup.ErrRateLimited, nil, 1},
 		{"401", "WRONG-" + token, []string{"X"}, xlookup.ErrAuth, nil, 1},

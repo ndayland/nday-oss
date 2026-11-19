@@ -130,7 +130,7 @@ func TestPipeline(t *testing.T) {
 		t.Fatal(err)
 	}
 	ft, _ = run(token, step{status: 200, file: "search_page1.json"})
-	if len(ft.Requests) != 1 || query(t, ft.Requests[0].URL).Get("query") != "(from:alice_sec) CVE -is:retweet" {
+	if len(ft.Requests) != 1 || query(t, ft.Requests[0].URL).Get("query") != "(from:alice_sec) (CVE OR GHSA) -is:retweet" {
 		t.Fatalf("%v", ft.Requests)
 	}
 	if cur, _ := cursor(); lastRun(t, cur).Get("stopped") != "request_cap" || lastRun(t, cur).Get("dropped_author") != pyjson.Int("1") {
@@ -480,5 +480,112 @@ func TestPipelineLinksCandidates(t *testing.T) {
 	if want := []string{"0 | https://t.co/Media2 | x.com | media | ok | 0", "1 | https://t.co/Quote2 | twitter.com | quote | ok | 0",
 		"2 | https://t.co/New3 | - | other | pending | 2"}; !slices.Equal(got, want) {
 		t.Errorf("after old-shape apply:\n%s", strings.Join(got, "\n"))
+	}
+}
+
+// GHSA ids in posts (docs/ghsa.md): an alias of a CVE goes to that CVE (one
+// event even when the post also names the CVE), a GHSA id with its own vuln
+// row keeps its GHSA-keyed event, an unknown GHSA id writes no event, no stub
+// vuln and no error; the x_post_no_cve row is there for a post without a CVE
+// id in every case.
+func TestPipelineGHSA(t *testing.T) {
+	t.Parallel()
+	d := testutil.NewMigratedDB(t)
+	ctx := context.Background()
+	c, err := xposts.New(xposts.Options{Env: env(map[string]string{xposts.TokenEnv: token}),
+		Logger: slog.New(slog.NewTextHandler(&logBuf{}, nil))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	exec := func(sql string, args ...any) {
+		t.Helper()
+		if _, err := d.Conn.Exec(ctx, sql, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	count := func(sql string, args ...any) int {
+		t.Helper()
+		var n int
+		if err := d.Conn.QueryRow(ctx, sql, args...).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	const (
+		gAlias = "GHSA-2cm2-m3w5-gp2f" // alias of CVE-2026-5555
+		gOwn   = "GHSA-jmqv-2mx7-544h" // has its own vuln row
+		gNone  = "GHSA-cfgh-jmpq-rvwx" // unknown
+	)
+	exec(`INSERT INTO vuln (cve_id) VALUES ('CVE-2026-5555'), ('CVE-2026-6666'), ($1)`, gOwn)
+	exec(`INSERT INTO vuln_alias (cve_id, alias, alias_type) VALUES ('CVE-2026-5555', $1, 'ghsa'), ('CVE-2026-6666', $2, 'ghsa')`,
+		gAlias, "GHSA-2222-3333-4444")
+	apply := func(id, text string) *pipeline.Stats {
+		t.Helper()
+		v, err := pyjson.DecodeString(`{"post": {"id": "` + id + `", "author_id": "1001", "created_at": "2026-11-12T00:00:00Z", "text": ` +
+			jsonStr(text) + `}, "author": {"id": "1001", "username": "alice_sec"}}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		n, err := c.Normalize(model.RawRecord{Source: xposts.Name, SourceKey: id, Payload: v})
+		if err != nil {
+			t.Fatal(err)
+		}
+		st := &pipeline.Stats{}
+		if err := pipeline.ApplyNormalized(ctx, d.Conn, n, NOW, false, st); err != nil {
+			t.Fatal(err)
+		}
+		return st
+	}
+	events := func(id string) string {
+		t.Helper()
+		rows, err := d.Conn.Query(ctx, `SELECT cve_id FROM event WHERE dedupe_key = $1 ORDER BY cve_id`, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := pgx.CollectRows(rows, pgx.RowTo[string])
+		if err != nil {
+			t.Fatal(err)
+		}
+		return strings.Join(got, ",")
+	}
+
+	// CVE + its GHSA alias in one post: one event, a rerun changes nothing
+	for i := 0; i < 2; i++ {
+		st := apply("101", "CVE-2026-5555 = "+strings.ToUpper(gAlias[:5])+gAlias[5:])
+		if st.EventInserted != 1-i || st.EventUpdated != 0 {
+			t.Fatalf("run %d: %+v", i, st)
+		}
+	}
+	if got := events("101"); got != "CVE-2026-5555" {
+		t.Errorf("events %q", got)
+	}
+	if n := count(`SELECT count(*) FROM x_post_no_cve WHERE post_id = '101'`); n != 0 {
+		t.Error("post with a CVE id in x_post_no_cve")
+	}
+	// alias only: the event lands on the CVE; the post is also kept in the no-CVE table
+	apply("102", "see https://github.com/advisories/"+gAlias)
+	if got := events("102"); got != "CVE-2026-5555" || count(`SELECT count(*) FROM x_post_no_cve WHERE post_id = '102'`) != 1 {
+		t.Errorf("events %q", got)
+	}
+	// a GHSA id with its own vuln row keeps a GHSA-keyed event
+	apply("103", gOwn)
+	if got := events("103"); got != gOwn {
+		t.Errorf("events %q", got)
+	}
+	// unknown GHSA id: no event, no stub, no error, post kept for later
+	before := count(`SELECT count(*) FROM vuln`)
+	st := apply("104", "new advisory "+gNone)
+	if got := events("104"); got != "" || count(`SELECT count(*) FROM vuln`) != before || st.EventInserted != 0 ||
+		count(`SELECT count(*) FROM x_post_no_cve WHERE post_id = '104'`) != 1 {
+		t.Errorf("events %q", got)
+	}
+	// CVE + unknown GHSA id: the CVE event only
+	apply("105", "CVE-2026-6666 "+gNone)
+	if got := events("105"); got != "CVE-2026-6666" {
+		t.Errorf("events %q", got)
+	}
+	// the raw GHSA key never appears as an alias row of its own
+	if n := count(`SELECT count(*) FROM vuln_alias WHERE alias = $1`, gNone); n != 0 {
+		t.Errorf("%d alias rows", n)
 	}
 }

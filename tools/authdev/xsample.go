@@ -78,6 +78,12 @@ func xSample(ctx context.Context, dbURL string, log *slog.Logger) error {
 		if err := candidateSample(ctx, tx, now); err != nil {
 			return err
 		}
+		if err := repoSample(ctx, tx, now); err != nil {
+			return err
+		}
+		if err := searchRepoSample(ctx, tx, now); err != nil {
+			return err
+		}
 		log.Info("authdev: sample X collector data inserted (accounts, settings, cursor, posts, candidates)")
 		return nil
 	})
@@ -209,4 +215,94 @@ func sampleHost(u string) string {
 	h := strings.TrimPrefix(strings.TrimPrefix(u, "https://"), "www.")
 	h, _, _ = strings.Cut(h, "/")
 	return h
+}
+
+// repoSample attaches two GitHub repository links to sample posts, with
+// fetched repository metadata (migrations/0023, internal/ghrepo) so the
+// resources panel shows repositories without calling the GitHub API: one
+// whose name carries the post's CVE (listed under PoC on that CVE's page)
+// and one without (stays under code). Rows that exist are left as they are.
+func repoSample(ctx context.Context, tx pgx.Tx, now time.Time) error {
+	for i, r := range []struct {
+		post, url, full, cve string
+		ghID, stars          int64
+		created              string
+	}{
+		{"1856000000000000000", "https://github.com/sample-researcher/CVE-2024-3094-poc", "sample-researcher/CVE-2024-3094-poc", "CVE-2024-3094",
+			900000001, 1234, "2024-03-30"},
+		{"1856000000000000001", "https://github.com/example/scanner", "example/scanner", "", 900000002, 87, "2023-07-14"},
+	} {
+		if _, err := tx.Exec(ctx, `INSERT INTO x_post_link (post_id, pos, short_url, expanded_url, final_url, host, kind, origin, status, repo_queued_url)
+			VALUES ($1, 5, $2, $3, $3, 'github.com', 'code', 'api', 'ok', $3) ON CONFLICT (post_id, pos) DO NOTHING`,
+			r.post, fmt.Sprintf("https://t.co/smplrepo%d", i), r.url); err != nil {
+			return err
+		}
+		var id int64
+		err := tx.QueryRow(ctx, `INSERT INTO github_repo (github_id, queued_name, full_name, owner_login, owner_type, stars, forks, topics,
+			is_fork, is_archived, repo_created_at, pushed_at, state, fetched_at, first_source, status, status_by, status_at)
+			VALUES ($1, lower($2), $2, split_part($2, '/', 1), 'User', $3, 3, '{}', false, false, $4::date, $5, 'ok', $5, 'xposts', 'trusted', 'rule', $5)
+			ON CONFLICT (github_id) DO UPDATE SET fetched_at = EXCLUDED.fetched_at RETURNING id`,
+			r.ghID, r.full, r.stars, r.created, now).Scan(&id)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO github_repo_name (name_key, repo_id) VALUES (lower($1), $2) ON CONFLICT DO NOTHING`, r.full, id); err != nil {
+			return err
+		}
+		// the link as a fetch pass leaves it: checked and stamped with the repository
+		if _, err := tx.Exec(ctx, `UPDATE x_post_link SET repo_root_key = lower($3), repo_github_id = $4, repo_checked_at = $5
+			WHERE post_id = $1 AND pos = 5 AND final_url = $2 AND repo_github_id IS NULL`, r.post, r.url, r.full, r.ghID, now); err != nil {
+			return err
+		}
+		if r.cve != "" {
+			if _, err := tx.Exec(ctx, `INSERT INTO github_repo_cve (repo_id, cve_id, basis) VALUES ($1, $2, 'name'), ($1, $2, 'post')
+				ON CONFLICT DO NOTHING`, id, r.cve); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// searchRepoSample adds repositories "found by search" (internal/ghrepo
+// Discover, migrations/0025) for CVE-2024-3094: unverified, trusted by an
+// admin, rejected by an admin and an unverified fork, so the PoC group of
+// that page (the mark, the fork and the rejected one hidden) and the
+// future review page can be previewed without the GitHub API. Rows that
+// exist are left as they are, so a review decision survives a re-run.
+func searchRepoSample(ctx context.Context, tx pgx.Tx, now time.Time) error {
+	for _, r := range []struct {
+		full, desc, status, by string
+		ghID, stars            int64
+		fork                   bool
+		created                string
+	}{
+		{"sample-finder/CVE-2024-3094-exploit", "Exploit for CVE-2024-3094 (sample, unverified)", "unverified", "", 900000011, 42, false, "2024-04-01"},
+		{"sample-lab/xz-backdoor-lab", "Lab for CVE-2024-3094 (sample, trusted by an admin)", "trusted", "admin", 900000012, 310, false, "2024-03-31"},
+		{"sample-bad/CVE-2024-3094", "Sample rejected repository", "rejected", "admin", 900000013, 5, false, "2024-04-02"},
+		// 12 stars: a fork under ghrepo.MinForkStars would not be in the review list
+		{"sample-forker/CVE-2024-3094-exploit", "Fork of the sample exploit", "unverified", "", 900000014, 12, true, "2024-04-03"},
+	} {
+		var by, at any
+		if r.by != "" {
+			by, at = r.by, now
+		}
+		var id int64
+		err := tx.QueryRow(ctx, `INSERT INTO github_repo (github_id, queued_name, full_name, owner_login, owner_type, description, stars, forks,
+			topics, is_fork, is_archived, repo_created_at, pushed_at, state, fetched_at, seen_at, first_source, status, status_by, status_at)
+			VALUES ($1, lower($2), $2, split_part($2, '/', 1), 'User', $3, $4, 0, '{}', $5, false, $6::date, $7, 'ok', $7, $7, 'search', $8, $9, $10)
+			ON CONFLICT (github_id) DO UPDATE SET fetched_at = EXCLUDED.fetched_at, seen_at = EXCLUDED.seen_at RETURNING id`,
+			r.ghID, r.full, r.desc, r.stars, r.fork, r.created, now, r.status, by, at).Scan(&id)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO github_repo_name (name_key, repo_id) VALUES (lower($1), $2) ON CONFLICT DO NOTHING`, r.full, id); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO github_repo_cve (repo_id, cve_id, basis) VALUES ($1, 'CVE-2024-3094', 'description')
+			ON CONFLICT DO NOTHING`, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }

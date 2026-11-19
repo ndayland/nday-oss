@@ -2,7 +2,8 @@
 
 A read-only JSON API, served by `nday serve [--listen 127.0.0.1:8080]` (or the `NDAY_LISTEN` environment variable).
 The code is in `internal/web` (routes and middleware; the separate API host is in `internal/web/apihost.go`) and `internal/site`
-(queries; the HTML pages use the same structs). No auth, no cookies, no write endpoints.
+(queries; the HTML pages use the same structs). No write endpoints. Every data route needs a personal access token
+(`Authorization: Bearer <token>`, see [Authentication](#authentication)); `/healthz`, the API index and `robots.txt` don't.
 
 ## Base URL
 
@@ -28,28 +29,82 @@ On the API host, replace `/api` with `/v1` and put `/v1` in front of `/raw`.
 
 - **Single-host mode**: if `NDAY_API_URL` isn't set, everything is served from the website host, same as it always was (local development: `http://127.0.0.1:8080/api/hot`).
 - **API host** (`NDAY_API_URL=https://api.nday.land` set): requests whose `Host` is that host (case-insensitive, default port ignored)
-  are handled by the API routes **only**: the `/v1/*` routes in the table above, `/raw/...` (an alias of `/v1/raw/...`), `/healthz`, the index (`{"name","docs","endpoints"}`, where `docs` points to the website's
-  `/about#api`) and `/robots.txt` (`Disallow: /`). Everything else gets a JSON 404. Pages, static files, `/auth/*`, `/account/*` and
+  are handled by the API routes **only**: the `/v1/*` routes in the table above, `/raw/...` (an alias of `/v1/raw/...`), `/healthz`, the index
+  (`{"name","docs","auth","endpoints"}`: `docs` points to the website's `/account#api`, where tokens are made, and
+  `auth` is `{"scheme":"Bearer","header":"Authorization","token_url":"…/account#api"}`) and `/robots.txt` (`Disallow: /`). Everything else gets a JSON 404. Pages, static files, `/auth/*`, `/account/*` and
   `/api/me` don't exist on the API host (404).
 - **Legacy path redirects**: when `NDAY_API_URL` is set, `/api/hot`, `/api/vulns`, `/api/discussed`, `/api/vuln/{cve}`, `/api/sources`, `/api/stats`, `/api/search` and
-  `/raw/...` on the website host answer `308 Permanent Redirect`. `Location` is `NDAY_API_URL` + `/v1/...`, and the query string is kept as is
+  `/api/tags` on the website host answer `308 Permanent Redirect` (no token needed for the redirect itself). `Location` is `NDAY_API_URL` + `/v1/...`, and the query string is kept as is
   (`Cache-Control: public, max-age=3600`). The target is built only from the configured origin and the escaped request path. The request's `Host` is never used.
   `/api/me`, `/auth/*` and `/account/*` aren't redirected. Other unknown `/api/*` paths are still a JSON 404. `/healthz` exists on both hosts.
-  Exception: `/api/affected/suggest` is answered **directly** on the website host (same handler, same cache headers). The first-login page's script calls it,
-  and the page CSP is `connect-src 'self'`, so the script can't follow a 308 to the API host. On the API host it's `/v1/affected/suggest`.
+  Exceptions, answered **directly** on the website host: `/api/affected/suggest` (the first-login page's script calls it, and the page CSP is
+  `connect-src 'self'`, so the script can't follow a 308 to the API host) and `/raw/{source}/{key}.json` (signed-in readers open these links from
+  vulnerability pages; a browser can't add a header to a link). Both accept the token **or** the session cookie of a signed-in user there.
+  On the API host they're `/v1/affected/suggest` and `/v1/raw/...` (token only).
   A 308 keeps the method, but anything other than GET/HEAD is already a 405 on the website host.
 - **CORS** (API host only, on every response including errors): `Access-Control-Allow-Origin: *`. It never sends
-  `Access-Control-Allow-Credentials`. `Access-Control-Expose-Headers: ETag`. A preflight `OPTIONS` gets `204` with
-  `Access-Control-Allow-Methods: GET, HEAD, OPTIONS`, `Access-Control-Allow-Headers: Accept, If-None-Match` and
+  `Access-Control-Allow-Credentials`. `Access-Control-Expose-Headers: ETag, Retry-After, WWW-Authenticate`. A preflight `OPTIONS` gets `204`
+  (no token needed) with `Access-Control-Allow-Methods: GET, HEAD, OPTIONS`, `Access-Control-Allow-Headers: Accept, Authorization, If-None-Match` and
   `Access-Control-Max-Age: 86400`. Responses also carry `Cross-Origin-Resource-Policy: cross-origin`, `X-Content-Type-Options: nosniff` and
   `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`. The API host never sends `Set-Cookie`
   (the middleware strips any `Set-Cookie`).
 - **Login isn't part of the public API**: `/auth/*`, `/account/*` and `GET /api/me` exist only on the website host (see the appendix at the end), and cookies are never sent to the API host.
 
+## Authentication
+
+Every data route (`hot`, `vulns`, `discussed`, `vuln/{cve}`, `sources`, `stats`, `search`, `tags`, `affected/suggest`, `raw/...`) on
+both hosts needs a **personal access token** of a signed-in account, sent as
+
+```
+Authorization: Bearer nday_…
+```
+
+- Make one on the account page (`/account#developer`; up to 5 per account, each with a name). The token (`nday_` + 64 base64url characters: 32 random bytes and a 16-byte server tag)
+  is shown **once**; only its SHA-256 is stored. A token whose tag doesn't check out is refused without any lookup. Revoke it there; a revoked token stops working at once.
+- The header is the only place a token is read: not the query string, not a cookie. A token in the URL is refused (and redacted from the logs).
+- On the website host, `/api/affected/suggest` and `/raw/...` also accept the session cookie of a signed-in user; those responses are
+  `Cache-Control: no-store` with `Vary: Cookie`.
+- Not gated: `/healthz`, the API index (`/`, `/v1`), `robots.txt`, `OPTIONS` preflights, the 308 redirects, HTML pages and static files.
+- A token works only while its account exists and is not suspended. Deleting the account deletes its tokens.
+- Limits: 120 requests per token at once, then 2 per second (`429 rate_limited` with `Retry-After`); token checks per client address are
+  limited too (burst 300, then 10 per second), and an unknown or revoked token that is replayed is refused from memory.
+- With sign-in switched off (no provider and no passkeys configured), no token can exist, so every data route answers 401.
+
+| Status | `code` | When |
+|---|---|---|
+| 401 | `token_required` | no `Authorization` header, more than one, or not `Bearer <token>` |
+| 401 | `invalid_token` | a token that is malformed, unknown or revoked (which of these is not told) |
+| 403 | `suspended` | the token's account is suspended |
+| 429 | `rate_limited` | see the limits above |
+| 503 | `busy` | the token lookup could not get a database slot in time; retry |
+
+Every 401 carries `WWW-Authenticate: Bearer realm="nday"`; every refusal is `Cache-Control: no-store`.
+
+```sh
+export NDAY_TOKEN=nday_…   # from /account#developer
+curl -s -H "Authorization: Bearer $NDAY_TOKEN" 'https://api.nday.land/v1/hot?since=30d&min_stage=patch' | jq .
+```
+
+The Atom feed (`/feed.xml`, `/<locale>/feed.xml`, with `?tag=`) is gated too: a signed-in session, a token, or the account's
+**private feed address** `https://www.nday.land[/<locale>]/feed.xml?key=<user id>.<mac>.<tag>` (for feed readers, which can do neither).
+The key works on the feed only (never on a data route), is shown on the account page and can be rotated there, which stops the old address
+at once. A wrong, rotated or deleted-account key gets the same 401 `token_required` as no credential; a suspended account gets 403.
+Feed responses are `Cache-Control: private, no-store` (`no-store` with the session) and `Referrer-Policy: no-referrer`; the `key` value
+is redacted in the access and error logs. See `docs/auth.md` for how the key is made.
+
 ## General conventions
 
 - Only `GET` / `HEAD` are accepted (the API host also accepts `OPTIONS` preflights). Other methods get a `405` (JSON, with `Allow: GET, HEAD`;
   on the API host, `Allow: GET, HEAD, OPTIONS`).
+- **Vulnerability IDs** (since 2026-11-16): a vulnerability's main ID is its CVE ID. A GitHub advisory that has no CVE is a
+  vulnerability of its own whose ID is the GHSA ID (`GHSA-gpwc-27cw-rh9r`: `GHSA-` and three groups of four characters from
+  `23456789cfghjmpqrvwx`, output in lower case). Wherever a field is named `cve_id` or `cve` (every list row, `/api/vuln`, discussions,
+  corrections, researcher posts), its value is the vulnerability's ID, so it **may be a GHSA ID**; the field names and types don't change.
+  When upstream later assigns a CVE, the vulnerability moves to the CVE ID and the GHSA ID becomes one of its `aliases`
+  (`/api/vuln/GHSA-…` then redirects to the CVE, see below). An advisory that GitHub withdrew reads like a rejected CVE record:
+  `is_rejected: true`, and in `/api/vuln` `rejection` has `date_rejected` = the advisory's `withdrawn_at`, no reasons and no
+  `replaced_by`. Every route that takes an ID (`{cve}` in a path, `cursor`, `?cve=`) accepts
+  both forms in any letter case; anything else is a 400.
 - Field names are snake_case. Times are always RFC 3339 UTC instants (`2026-11-09T00:00:00Z`). Unknown values are an explicit `null`,
   never a guess. Calendar dates (KEV `date_added` / `due_date`) are `YYYY-MM-DD` strings.
 - Stages: each one has an event type name and a three-letter code:
@@ -72,6 +127,12 @@ On the API host, replace `/api` with `/v1` and put `/v1` in front of `/raw`.
   `unknown` (the source gave no time and it came from a bulk import).
 - **Effective time** `effective_at` is `occurred_at`, or else (for live observations) `observed_at`, or else `null`.
 - `days_since_disclosure`: the difference in UTC calendar days from the disclosure date to the target date (can be negative: KEV earlier than the CVE publication). `null` if either is unknown.
+- **Titles** (added 2026-11-19; additive only): every object that has `title` (rows of `/api/hot`, `/api/vulns`, `/api/discussed`,
+  `/api/search`, and `/api/vuln`) also has `effective_title` and `title_origin`. `title` is unchanged: the record's own title or
+  `null`. `effective_title` is what nday's pages show: the title nday staff set by hand (`title_origin: "staff"`), else the record's
+  title (`"record"`), else a title nday composed from the record's structured data (`"composed"`, in English, e.g.
+  `"Java SE: buffer overflow / out-of-bounds write in Compiler"`; the rule is in `docs/titles.md`). Both are `null` when the
+  vulnerability has no title at all. Plain text (escape it like any other string).
 - List data comes from the materialized state `vuln_state_mat`, which is refreshed after every successful collection (`state_refreshed_at`).
   `slots` / `transition` in `/api/vuln` are computed straight from the events, so they're always current.
 
@@ -81,18 +142,23 @@ On the API host, replace `/api` with `/v1` and put `/v1` in front of `/raw`.
 {"error":{"status":400,"code":"bad_request","message":"since: bad duration \"5m\", use e.g. 24h, 7d or 30d","param":"since"}}
 ```
 
-`code`: `bad_request` (400, `param` names the parameter), `not_found` (404), `method_not_allowed` (405),
-`timeout` (503, database timeout), `internal` (500). Every parameter is validated. Unknown and repeated parameters are both a 400.
+`code`: `bad_request` (400, `param` names the parameter), `token_required` / `invalid_token` (401), `suspended` (403), `not_found` (404),
+`method_not_allowed` (405), `rate_limited` (429), `timeout` / `busy` (503), `internal` (500). The token is checked first, so an
+unauthenticated request never sees a parameter error. Every parameter is validated. Unknown and repeated parameters are both a 400.
 
 ### Caching
 
 | Endpoint | Cache-Control | Validator |
 |---|---|---|
-| `/api/*`, `/v1/*` (200 and 404) | `public, max-age=60` | weak `ETag` (hash of the body); `If-None-Match` is supported → 304 |
-| `/raw/...`, `/v1/raw/...` | `public, max-age=3600` | strong `ETag` = the record's `content_hash`; `Last-Modified` = fetch time |
-| `/healthz`, 400/405/5xx | `no-store` | — |
+| `/api/*`, `/v1/*` (200 and 404) | `private, max-age=60` | weak `ETag` (hash of the body); `If-None-Match` is supported → 304 |
+| `/raw/...`, `/v1/raw/...` | `private, max-age=3600` | strong `ETag` = the record's `content_hash`; `Last-Modified` = fetch time |
+| same, authenticated by the session cookie (website host) | `no-store`, `Vary: Cookie` | — |
+| index, `robots.txt`, 308 redirects | `public, …` | — |
+| `/healthz`, 400/401/403/405/429/5xx | `no-store` | — |
 
+Every gated response carries `Vary: Authorization`; no shared cache (CDN) may keep one.
 There's also a 30 s in-process TTL cache with request coalescing (concurrent requests with the same parameters hit the database once).
+Its key is the request, not the caller: the body is the same for every token, and the token is checked **before** the cache is consulted.
 The `X-Nday-Cache: hit|miss` response header helps when debugging.
 
 ## Routes
@@ -124,8 +190,9 @@ Vulnerabilities that recently moved into a new stage, newest transition first (t
 | `min_stage` | `patch_released` | type name, shorthand or code (see the table above) |
 | `include_rejected` | `false` | `true/false/1/0` (empty = true) |
 | `limit` | 50 | 1–200 |
-| `offset` | 0 | 0–10000 (ignored when `cursor` is given) |
+| `offset` | 0 | 0–10000 (ignored when `cursor` or `before` is given) |
 | `cursor` | — | the previous page's `next_cursor` |
+| `before` | — | added 2026-11-17: a page's `prev_cursor`, to page backwards (see "Paging backwards" below). Not combined with `cursor` (400, `param: "before"`) |
 | `tag` | — | tag slug (see `GET /api/tags`). **Repeatable**; results must match all of them (`?tag=remote-unauth&tag=xss`). Case-insensitive. An unknown slug, or more than 5 distinct slugs, is a 400 (`param: "tag"`) |
 
 Each row has `researchers_7d` (added 2026-11-14; additive only): the number of **distinct** allowlisted researchers who posted about the CVE on X in the last 7 days (`[now-7d, now]`); only enabled accounts count
@@ -153,15 +220,20 @@ Paging: pinned CVEs are removed from the normal rows on **every page**, so a CVE
 (so at most `limit` + `NDAY_HOT_PIN_MAX` rows, `limit` + 10 by default). `limit`, `offset` and `next_cursor` apply to the normal rows only, exactly as when nothing is pinned.
 Post times are used only for filtering and sorting and aren't returned. The Atom feed (`/feed.xml`) doesn't pin; it lists all rows in their original order.
 
+Paging backwards (added 2026-11-17; additive only): every response has `prev_cursor`, a string on any page but the first (a `cursor`, `offset` or `before` page with rows),
+otherwise `null`. `before=<prev_cursor>` returns the `limit` normal rows just before that page, in the usual order, with its own `next_cursor` and `prev_cursor`.
+When nothing comes before them, the response is the first page exactly as without `before` (pinned rows included, `prev_cursor` null). `cursor`, `next_cursor` and `offset`
+are unchanged.
+
 The response has `tags` (added 2026-11-14; additive only): the normalized tag filter (in vocabulary order; `[]` when there's no filter). Each row has `tags` too: that CVE's tag slugs (vocabulary order).
 
 Row fields: `products` has at most 2 entries (deduplicated case-insensitively, first reporter first) and `product_count` is the total.
 `transition` is the most recent change (`type/code/at/precision/source/event_id`). `poc_sources` is how many of exploitdb,
-metasploit and nuclei have a PoC event (n/3).
+metasploit, nuclei and github have a PoC event (n/4; github since 2026-11-19, see below).
 
 ```sh
-curl -s 'https://api.nday.land/v1/hot?since=30d&min_stage=patch' | jq .
-# single-host mode: curl -s 'http://127.0.0.1:8080/api/hot?since=30d&min_stage=patch' | jq .
+curl -s -H "Authorization: Bearer $NDAY_TOKEN" 'https://api.nday.land/v1/hot?since=30d&min_stage=patch' | jq .
+# single-host mode: curl -s -H "Authorization: Bearer $NDAY_TOKEN" 'http://127.0.0.1:8080/api/hot?since=30d&min_stage=patch' | jq .
 ```
 
 Example (`?since=30d&min_stage=patch&limit=1`, local database, 2026-11-13):
@@ -260,6 +332,7 @@ Example (`?since=30d&min_stage=patch&limit=1`, local database, 2026-11-13):
     }
   ],
   "next_cursor": "MTc5NDM1NTIwMDAwMDAwMHw0fENWRS0yMDI2LTU5NzI2",
+  "prev_cursor": null,
   "generated_at": "2026-11-13T02:06:48.348007Z"
 }
 ```
@@ -276,14 +349,15 @@ A CVE whose stage event times are all unknown has no `transition.at`; it sorts a
 | Parameter | Default | Values |
 |---|---|---|
 | `stage` | — (all) | The **current** stage, exact match. Values are the same as `min_stage` in `/api/hot`: `disclosed`, `patch`, `analysis`, `poc`, `exploited`, `kev`, or a code (`DIS` etc.), or the full type name. Case-insensitive. An empty or unknown value is a 400 (`param: "stage"`) |
-| `year` | — (all) | The year in the CVE ID (`CVE-<year>-…`), from 1999 up to the current UTC year + 1. `0`, an empty value or a non-integer is a 400 (`param: "year"`) |
+| `year` | — (all) | The year in the CVE ID (`CVE-<year>-…`), from 1999 up to the current UTC year + 1. `0`, an empty value or a non-integer is a 400 (`param: "year"`). A vulnerability whose ID is a GHSA ID has no year and is never in a year-filtered list |
 | `tag` | — | Same as `/api/hot`: repeatable, must match all, at most 5 distinct slugs (comma syntax isn't supported; `a,b` is treated as one unknown slug) |
 | `include_rejected` | `false` | `true/false/1/0` (empty = true) |
 | `limit` | 50 | 1–200 |
 | `cursor` | — | the previous page's `next_cursor` (opaque; a `/api/hot` cursor doesn't work here and vice versa). An empty or invalid value is a 400 |
+| `before` | — | added 2026-11-17: a page's `prev_cursor`; the `limit` rows just before that page, in the usual order (the first page itself when nothing comes before them). Not combined with `cursor`; an empty or invalid value is a 400 (`param: "before"`) |
 
-There's no `offset`; page with `cursor` only. Unknown parameters and repeated non-`tag` parameters are a 400, in the same error format as above.
-`Cache-Control: public, max-age=60` with an `ETag` (`If-None-Match` → 304), same as `/api/hot`.
+There's no `offset`; page with `cursor` (and `before`) only. Unknown parameters and repeated non-`tag` parameters are a 400, in the same error format as above.
+`Cache-Control: private, max-age=60` with an `ETag` (`If-None-Match` → 304), same as `/api/hot`.
 
 Response:
 
@@ -295,6 +369,7 @@ Response:
 | `include_rejected`, `limit` | The values actually used |
 | `rows` | Exactly the same structure as the `/api/hot` rows (including `tags` and `researchers_7d`); `pinned` is always `false` |
 | `next_cursor` | A string when there's another page, otherwise `null` |
+| `prev_cursor` | Added 2026-11-17: a string on any page but the first (pass it as `before`), otherwise `null` |
 | `generated_at` | Generation time |
 
 Rows with an unknown time: `transition` is `{"type":"","code":"","precision":"unknown","source":null,"event_id":null,"at":null}`,
@@ -341,6 +416,7 @@ Example (`?stage=kev&limit=1`, test data; the 6 `slots` entries are omitted, sam
     }
   ],
   "next_cursor": "dnwxNzk0MzU1MjAwMDAwMDAwfDZ8Q1ZFLTIwMjYtMTAwMQ",
+  "prev_cursor": null,
   "generated_at": "2026-11-13T01:00:00Z"
 }
 ```
@@ -357,10 +433,10 @@ CVEs that are only mentioned in posts and have just a placeholder row in the dat
 | `offset` | 0 | 0–10000 |
 
 Row fields are the same as `/api/hot` rows (`stage`/`stage_code`/`transition` can be `null`), plus `researchers_7d` (≥1).
-`next_offset` is the next page's `offset` when there's another page, otherwise `null`. Cache: `public, max-age=60`.
+`next_offset` is the next page's `offset` when there's another page, otherwise `null`. Cache: `private, max-age=60`.
 
 ```sh
-curl -s 'https://api.nday.land/v1/discussed?limit=20' | jq '.rows[] | {cve_id, researchers_7d}'
+curl -s -H "Authorization: Bearer $NDAY_TOKEN" 'https://api.nday.land/v1/discussed?limit=20' | jq '.rows[] | {cve_id, researchers_7d}'
 ```
 
 Example (test database, excerpt of the third row, a CVE that is only mentioned in posts):
@@ -375,15 +451,29 @@ Example (test database, excerpt of the third row, a CVE that is only mentioned i
 
 ### `GET /api/vuln/{cve}`
 
-The CVE ID is case-insensitive and is output in canonical uppercase. A malformed ID is a 400; one that doesn't exist is a 404.
+`{cve}` is the vulnerability's ID (see [Vulnerability IDs](#general-conventions)): a CVE ID, case-insensitive, output in canonical
+uppercase, or a GHSA ID, case-insensitive, output as `GHSA-` plus lower case. A malformed ID is a 400; one that doesn't exist is a 404.
+
+A GHSA ID is resolved in this order:
+1. a vulnerability whose ID is that GHSA ID (an advisory without a CVE) → `200` with that vulnerability, `cve_id` being the GHSA ID;
+2. otherwise the `ghsa` alias: exactly one CVE answers `307` with `Location` set to the same route for that CVE (`/v1/vuln/CVE-…` or `/api/vuln/CVE-…`; a redirect is cached like a detail response, `public, max-age=60`, since the alias comes from upstream and can change; this is also what a GHSA ID answers once its vulnerability has moved to a newly assigned CVE);
+   more than one is a 409 `ambiguous` (use `/search?q=GHSA-…`);
+3. otherwise a 404 `not_found`.
 
 - `events`: all events, ordered by effective time ascending, followed by the ones with unknown time (by stage, then id). `detail` is the source's original JSON.
 - `slots`: the usual slot fields plus `precision`, `days_since_disclosure`, `event_ids` and `sources`.
 - `state`: the materialized row (matches the lists; can be one refresh behind `events`; `null` when there are no events).
-- Panels: `patches` (patch advisories such as GHSA: package, affected range, fixed version, fix commits), `poc` (always 3 entries),
+- Panels: `patches` (patch advisories such as GHSA: package, affected range, fixed version, fix commits), `poc` (always 4 entries: exploitdb, metasploit, nuclei, github),
   `kev`, `cvss` (the CVE record is preferred, with `source` as `cvelist:cna` / `cvelist:adp:<name>`; otherwise `ghsa`),
   `ssvc` (CISA-ADP), `cwes` (deduplicated across sources, names from GHSA), `raw_records` (raw records you can download) and
   `rejection` (the reason for a REJECTED record).
+- PoC source `github` (added 2026-11-19; additive: the first three `poc` entries keep their place and meaning): a GitHub
+  repository staff trusted, or one the researcher-post rule trusted whose own name, description or topics name this CVE
+  (`docs/github.md` "PoC events"). Each such repository is one event of type `poc_published` and source `github`: `occurred_at`
+  is the repository's creation time, or the CVE's disclosure for one created up to 30 days before it (`detail.precision` `"day"`: read the UTC day; `null` for one created earlier still),
+  `observed_at` a UTC day, `url` and `detail.url` its `https://github.com/<owner>/<name>`,
+  `detail.title` its full name, the item `key` its GitHub numeric id. It disappears again when the repository stops counting
+  (rejected, reset, gone), and `stage`, `poc_sources` and the lists change with it. No raw record (`/raw/github/...` is a 404).
 - `classification` (added 2026-11-14; additive only: none of the fields above or their values change): the CWEs and CVSS scores for this CVE from the classification layer (`vuln_cwe` / `vuln_cvss`,
   rules in `docs/nvd.md`), each with its provenance. Always an object; both arrays are empty when there's no classification data.
   - `cwe[]`: `id` (`CWE-<n>`, ascending by number) and `sources[]` (`source`, `source_org`; sorted by priority, then `source_org`).
@@ -427,9 +517,9 @@ The CVE ID is case-insensitive and is output in canonical uppercase. A malformed
   so escape them when you display them and don't treat them as links.
 
 ```sh
-curl -s https://api.nday.land/v1/vuln/CVE-2026-102895 | jq .events
-curl -s https://api.nday.land/v1/vuln/CVE-2018-0125 | jq .classification
-curl -s https://api.nday.land/v1/vuln/CVE-2026-52760 | jq .credits
+curl -s -H "Authorization: Bearer $NDAY_TOKEN" https://api.nday.land/v1/vuln/CVE-2026-102895 | jq .events
+curl -s -H "Authorization: Bearer $NDAY_TOKEN" https://api.nday.land/v1/vuln/CVE-2018-0125 | jq .classification
+curl -s -H "Authorization: Bearer $NDAY_TOKEN" https://api.nday.land/v1/vuln/CVE-2026-52760 | jq .credits
 ```
 
 `classification` example (local development database, CVE-2018-0125: a sample of the CVE record + the NVD 2018 data feed):
@@ -743,6 +833,11 @@ Example (long strings truncated with `…`; the `detail` of ghsa / kev keeps onl
       "source": "nuclei",
       "present": false,
       "items": []
+    },
+    {
+      "source": "github",
+      "present": false,
+      "items": []
     }
   ],
   "poc_sources": 0,
@@ -949,8 +1044,9 @@ Counts by current stage (all 6 stages are listed, including zeros; rejected CVEs
 `limit` defaults to 20, max 50. `q` is at most 100 characters.
 
 - Input that looks like a CVE ID (`CVE-2026-1028`, `cve2026`, `2026-1028`) → exact/prefix match on the ID (`kind: "cve_id"`, exact matches first).
-- A GHSA ID → exact match on aliases (`kind: "alias"`).
-- Anything else → case-insensitive substring match on title, title_zh, vendor and product (`kind: "text"`; `%`, `_` and `\` are literal),
+- A GHSA ID → the vulnerability whose ID it is (first), then the CVEs that have it as an alias (`kind: "alias"`; any letter case,
+  `query` is the canonical form). Search doesn't check the GHSA alphabet.
+- Anything else → case-insensitive substring match on title, title_zh, the composed and staff titles (`effective_title`; since 2026-11-19), vendor and product (`kind: "text"`; `%`, `_` and `\` are literal),
   most recently changed first. Fewer than 2 characters isn't queried (`kind: "too_short"`), and an empty string gives `kind: "empty"`.
 - `truncated: true` means there are more matches.
 - `tag` (repeatable, must match all; validated like `/api/hot`): limits any of the results above to CVEs that have all those tags. If `q` is empty but there's a `tag`, it lists every CVE with those tags,
@@ -1039,8 +1135,8 @@ Vendor and product name suggestions (used by the "follow" search box on the firs
   which is the number of vulnerabilities that following this name would match (the name contains the query, so all of those rows pass the filter; verified in `internal/site/suggest_test.go`).
 - The query runs ILIKE on the raw vendor/product columns first (the pg_trgm GIN index from migration 0003 can be used) and groups only the matched rows by `lower(name)`.
   `EXPLAIN ANALYZE` on a local copy of the data on 2026-11-14 (`q=for`): 12.9 ms execution (the earlier version picked names first and then joined the whole `affected` table on `lower()`: 246 ms).
-- There's no per-client rate limit. None of the `/api/*` data endpoints has one right now (there's no rate limiter in `internal/web`). Like search, it relies on the in-process cache (the same query hits the database once per 30 seconds, and concurrent requests are coalesced).
-- Ordered by `count` descending, then by name. All the data is public (`affected` is written only from public sources, and vulnerability pages and search already show it). Like search, it's publicly cached and doesn't read cookies.
+- Like every data route it needs a token (or, on the website host, the session cookie), and the per-token limit applies. Like search, it relies on the in-process cache (the same query hits the database once per 30 seconds, and concurrent requests are coalesced).
+- Ordered by `count` descending, then by name. All the data is public (`affected` is written only from public sources, and vulnerability pages and search already show it). Like search, it's cached privately; on the website host it reads the session cookie when no token is sent (the welcome page's script uses that), and the response is then `no-store`.
 - Errors: `400 bad_request` (`param` is `limit`, `q` or an unknown parameter name).
 
 ```json
@@ -1063,12 +1159,13 @@ The latest version of a record from one source, output as is (rendered from json
 metasploit, nuclei, nvd (the NVD key is the CVE ID and the content is that entry's `cve` object from the NVD data feed; `raw_records` doesn't list it,
 so build `/raw/nvd/<CVE>.json` yourself). `key` is a CVE ID, GHSA ID, EDB ID, the full Metasploit module name (including `/`) or a Nuclei template id.
 For links, just use `raw_records[].path` (`/raw/...`) from `/api/vuln` (`/v1/vuln`). On the API host, `GET /raw/{source}/{key}.json`
-is an alias of `/v1/raw/...` (same handler, same response), so resolving it against the API origin works. Resolved against the website host, it gets a 308 to `/v1/raw/...`.
+is an alias of `/v1/raw/...` (same handler, same response), so resolving it against the API origin works. Resolved against the website host,
+it's answered there too (no redirect), with a token **or** a signed-in session cookie (a reader clicking the link on a vulnerability page).
 
 ```
-$ curl -sD- https://api.nday.land/v1/raw/ghsa/GHSA-gj9m-f8ph-pmhr.json
+$ curl -sD- -H "Authorization: Bearer $NDAY_TOKEN" https://api.nday.land/v1/raw/ghsa/GHSA-gj9m-f8ph-pmhr.json
 HTTP/1.1 200 OK
-Cache-Control: public, max-age=3600
+Cache-Control: private, max-age=3600
 Content-Length: 6909
 Content-Type: application/json; charset=utf-8
 Etag: "c7eb19dd3ebcfa97ac3513f7c09865eda75ca67dcc6da207336ec2a11115a972"
@@ -1089,9 +1186,9 @@ Last-Modified: Thu, 12 Nov 2026 15:00:15 GMT
 | `NDAY_PUBLIC_URL` | — | The website origin (such as `https://www.nday.land`), used for page links and the `docs` field in the API index. An invalid value is ignored with a warning |
 | `NDAY_API_URL` | — | The API host origin (such as `https://api.nday.land`). It must be an http(s) origin with no userinfo, path, query or fragment, or startup fails. Unset = single-host mode. If it's the same as `NDAY_PUBLIC_URL`, you get a warning and it runs in single-host mode. If it's set but `NDAY_PUBLIC_URL` isn't, you get a warning |
 
-The same process also serves the HTML pages (`internal/webui`: `/`, `/vuln`, `/vuln/{cve}`, `/src`, `/stats`, `/about`, `/feed.xml`,
+The same process also serves the HTML pages (`internal/webui`: `/`, `/vuln`, `/vuln/{cve}` (`{cve}` a CVE ID or the GHSA ID of an advisory without a CVE; a GHSA ID that is only an alias is a 302 to the CVE's page), `/src`, `/stats`, `/about`, `/feed.xml`,
 `/static/…`), on the website host only. Pages ignore unknown query parameters (so `utm_*` is fine), while this API still returns 400 for them. 404s under `/api/` and `/raw/` are still JSON.
-The `curl` examples and "raw JSON" links on the pages point to `NDAY_API_URL/v1/...` when `NDAY_API_URL` is set, and to `NDAY_PUBLIC_URL/api/...` otherwise.
+The endpoint list and `curl` examples (with the token header) are on the account page (`/account#developer`); they point to `NDAY_API_URL/v1/...` when `NDAY_API_URL` is set, and to `NDAY_PUBLIC_URL/api/...` otherwise. Public pages show no API commands.
 
 Access and error logs can be written to files (`NDAY_LOG_DIR`); see `docs/logging.md` for the format and fields.
 
@@ -1107,7 +1204,7 @@ It doesn't write to disk.
 When login is configured, the same process also serves `/auth/*`, `/account/*` and `GET /api/me` on the **website host**
 (not on the API host, and not part of the public API at `https://api.nday.land/v1`).
 These are the only routes in this API that read cookies and the only ones with POST. Every response has `Cache-Control: no-store`.
-Everything above is unaffected: no cookies are read, no `Set-Cookie` is sent, and cache headers don't change. Query parameter values under `/auth/` are logged as
+The data routes above never send `Set-Cookie`; on the website host only `/api/affected/suggest`, `/raw/...` and the feed read the session cookie (as a credential, see Authentication). Query parameter values under `/auth/` are logged as
 `REDACTED` in the access log, and rate limiting on the login endpoints uses `CF-Connecting-IP`. Every response also carries
 `Permissions-Policy: publickey-credentials-create=(self), publickey-credentials-get=(self)`.
 Endpoints, request/response examples and error codes are in `docs/auth.md` §3. When login isn't configured these routes don't exist (`/api/me` is the JSON 404 described above).
@@ -1121,6 +1218,8 @@ Contract changes that pages must follow:
 - New ticket intent `"reauth"`: signing in to the same account from an already signed-in browser without a ticket no longer refreshes the session (it doesn't count as a recent sign-in). To satisfy `reauth_required` you must sign in again with a reauth ticket or a passkey. The same session token is also rate limited (`429 rate_limited`).
 - Linking an identity no longer uses `?intent=link&csrf=…`. First `POST /auth/{provider}/ticket` (`{"intent":"link","return":"/path"}`, with `X-CSRF-Token`), then navigate to the returned `start_url` (single use, 2 minutes). To switch accounts while signed in, use `"intent":"switch"`.
 - If an already signed-in browser starts a sign-in without a ticket and it would land on a different or new account, you get `?auth=signed_in_as_other` and the session is unchanged. There are also the callback results `reauth_required` and `suspended`.
+- API tokens and the private feed address (`docs/auth.md` §3): `GET`/`POST /account/tokens`, `POST /account/tokens/{id}/revoke`,
+  `GET /account/feed`, `POST /account/feed/rotate`. New error code `409 token_limit`.
 - New error codes: `403 suspended` (a suspended user changing their handle, linking, or adding a passkey), `403 reauth_required` (adding a passkey, linking and deleting the account need a sign-in within the last 15 minutes), `409 last_usable_method`, `409 passkey_limit`, `400 display_name_reserved`, `429 signup_limit`, `403 ticket_required`/`ticket_invalid`, `503 busy`. `/api/me` and the signed-in endpoints are rate limited per address (`429 rate_limited`).
 
 ## Appendix: discussion endpoints (not part of the public data API)
@@ -1130,6 +1229,7 @@ They read the session, they write, and responses vary by caller (`Cache-Control:
 they aren't on the API host (`https://api.nday.land/v1`), there's no `/v1/discuss`, and they aren't promised to stay stable for third parties. The endpoints above are unaffected.
 Since 2026-11-15: `GET /api/discuss/{cve}` also returns comments to signed-out requests by default (the same public content a signed-in user with no role sees. The author's `display_name` has a value only for moderators and is always `null` for signed-out requests and ordinary signed-in users, who only get `handle` and `role`. All permission fields are false, and signed-out requests are also rate limited per address. With `NDAY_DISCUSS_GUEST_READ=off` it returns only the outline).
 Top-level comments have an optional `purpose` (`analysis` / `reproduction` / `fix` / `detection` / `question`; can be set when posting and editing; new error code `400 bad_purpose`). See `docs/discuss.md` §3–§4.1.
+Since 2026-11-16 `{cve}` here, in `GET /api/posts/{cve}` and in `POST /account/follows/match` (`cve_ids`) is a vulnerability ID, a CVE ID or the GHSA ID of an advisory without a CVE (see [Vulnerability IDs](#general-conventions)). A GHSA ID that has no vulnerability of its own (only an alias, e.g. after it moved to a new CVE) is a `404 not_found` for reading and posting; nothing is ever written under an alias.
 
 ## Appendix: researcher post endpoint (not part of the public data API)
 
@@ -1170,6 +1270,7 @@ Signed in: the posts themselves (also at most 50, newest first, only posts from 
 Each entry has `short_url` (the t.co short link as it appears in the text), `final_url` (the final address, **untrusted**: clients should only make it a link if it's an http/https address), `host` and `kind`
 (`media`/`quote`/`patch`/`code`/`poc`/`advisory`/`other`; see `docs/xposts.md`). Signed-out responses are unchanged (no `links`).
 The public "related resources" section of the vulnerability page doesn't go through this endpoint. The server renders it directly (see `docs/xposts.md`, "Public visibility").
+No API endpoint lists the GitHub repositories of that section. Since 2026-11-19 the page splits them into the repositories that count as a PoC source (exactly the `poc_published` events of source `github` above, with `stage` and `poc_sources` following them) and a collapsed "unreviewed" group that counts for nothing; nothing in the API changed with it (`docs/github.md` "Counted or unreviewed").
 
 (Real output from the `TestPostsNotPublic` test, excerpted.) `GET /api/discuss/{cve}` has returned only the outline to signed-out requests since the same day. Since 2026-11-15 it returns the same public comment content as for signed-in users by default (with `NDAY_DISCUSS_GUEST_READ=off` it still returns only the outline); see `docs/discuss.md` §4.1. The rules for researcher posts (this section) are unchanged.
 
@@ -1180,7 +1281,7 @@ Added 2026-11-15 (`internal/corrections`; details in `docs/corrections.md` §3).
 
 | Endpoint | Auth | Description |
 |---|---|---|
-| `POST /api/corrections/{cve}` | signed in, same origin + `X-CSRF-Token`, not suspended, has a handle, has accepted the current rules | Submit a correction: `{"category","body","evidence_url"?}`. Per-user token bucket + 24-hour cap + pending cap (`NDAY_CORRECTIONS_*`) |
+| `POST /api/corrections/{cve}` (`{cve}`: a vulnerability ID, CVE or GHSA; a GHSA ID that is only an alias is a 404 `not_found`) | signed in, same origin + `X-CSRF-Token`, not suspended, has a handle, has accepted the current rules | Submit a correction: `{"category","body","evidence_url"?}`. Per-user token bucket + 24-hour cap + pending cap (`NDAY_CORRECTIONS_*`) |
 | `GET /api/corrections/mine?cve=` | signed in (suspended users too) | The caller's own corrections and their status |
 | `POST /api/corrections/item/{id}/accept` / `reject` | moderator or admin, same origin + CSRF | Accept (a public note is required) / reject (internal note optional); writes an audit log entry |
 

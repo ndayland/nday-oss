@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -63,22 +64,68 @@ func (s *Store) SearchUsers(ctx context.Context, q string, after *UserCursor, li
 	if limit <= 0 || limit > UserPageMax {
 		limit = UserPageMax
 	}
+	out, err := s.SearchUsersFrom(ctx, q, after, false, limit+1)
+	if err != nil {
+		return nil, nil, err
+	}
+	var next *UserCursor
+	if len(out) > limit {
+		out = out[:limit]
+		last := out[len(out)-1]
+		next = &UserCursor{CreatedAt: last.CreatedAt, ID: last.ID}
+	}
+	return out, next, nil
+}
+
+// userMatch is SearchUsers' filter on users u: $q the query, $e it
+// escaped for LIKE (placeholder numbers).
+func userMatch(q, e int) string {
+	return strings.NewReplacer("$q", fmt.Sprintf("$%d", q), "$e", fmt.Sprintf("$%d", e)).Replace(
+		`($q = '' OR u.id::text = lower($q) OR u.handle_key LIKE lower($e) || '%'
+			       OR lower(u.display_name) LIKE '%' || lower($e) || '%')`)
+}
+
+// CountUsers is the number of accounts SearchUsers lists for q: one pass
+// over the users table (small: the site's accounts), as a search page
+// itself may read it all.
+func (s *Store) CountUsers(ctx context.Context, q string) (n int, err error) {
 	q = strings.TrimSpace(q)
 	if utf8.RuneCountInString(q) > 64 {
 		q = string([]rune(q)[:64])
 	}
-	cur := UserCursor{CreatedAt: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), ID: "ffffffff-ffff-ffff-ffff-ffffffffffff"}
-	if after != nil {
-		cur = *after
+	err = s.DB.WithConn(ctx, func(c *pgx.Conn) error {
+		return c.QueryRow(ctx, `SELECT count(*)::int FROM users u WHERE `+userMatch(1, 2), q, likeEscape(q)).Scan(&n)
+	})
+	return n, err
+}
+
+// SearchUsersFrom is one raw page of SearchUsers' list: at most n
+// (1..UserPageMax+1) accounts matching q strictly after cur in list order
+// (newest first; cur nil = from the newest) or, with back, strictly before
+// it (oldest first), for paging backwards.
+func (s *Store) SearchUsersFrom(ctx context.Context, q string, cur *UserCursor, back bool, n int) ([]UserRow, error) {
+	if n <= 0 || n > UserPageMax+1 {
+		n = UserPageMax + 1
+	}
+	q = strings.TrimSpace(q)
+	if utf8.RuneCountInString(q) > 64 {
+		q = string([]rune(q)[:64])
+	}
+	at := UserCursor{CreatedAt: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), ID: "ffffffff-ffff-ffff-ffff-ffffffffffff"}
+	if cur != nil {
+		at = *cur
+	}
+	cmp, ord := "<", "DESC"
+	if back {
+		cmp, ord = ">", "ASC"
 	}
 	now := s.now()
 	var out []UserRow
 	err := s.DB.WithConn(ctx, func(c *pgx.Conn) error {
 		rows, err := c.Query(ctx, `SELECT `+userCols+` FROM users u
-			WHERE (u.created_at, u.id) < ($1, $2::uuid)
-			  AND ($3 = '' OR u.id::text = lower($3) OR u.handle_key LIKE lower($4) || '%'
-			       OR lower(u.display_name) LIKE '%' || lower($4) || '%')
-			ORDER BY u.created_at DESC, u.id DESC LIMIT $5`, cur.CreatedAt, cur.ID, q, likeEscape(q), limit+1)
+			WHERE (u.created_at, u.id) `+cmp+` ($1, $2::uuid)
+			  AND `+userMatch(3, 4)+`
+			ORDER BY u.created_at `+ord+`, u.id `+ord+` LIMIT $5`, at.CreatedAt, at.ID, q, likeEscape(q), n)
 		if err != nil {
 			return err
 		}
@@ -93,15 +140,9 @@ func (s *Store) SearchUsers(ctx context.Context, q string, after *UserCursor, li
 		return rows.Err()
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	var next *UserCursor
-	if len(out) > limit {
-		out = out[:limit]
-		last := out[len(out)-1]
-		next = &UserCursor{CreatedAt: last.CreatedAt, ID: last.ID}
-	}
-	return out, next, nil
+	return out, nil
 }
 
 // IdentitySummary is a linked sign-in method as the admin pages show it:

@@ -31,15 +31,13 @@
 <meta property="og:image:height" content="630"/>
 <meta name="twitter:card" content="summary_large_image"/>
 <link rel="icon" href="{{asset "favicon.svg"}}" type="image/svg+xml"/>
-{{- if .Feed}}
-<link rel="alternate" type="application/atom+xml" title="{{.FeedTitle}}" href="{{.Feed}}"/>
-{{- else}}
-<link rel="alternate" type="application/atom+xml" title="{{ts "feed.title"}}" href="{{href "/feed.xml"}}"/>
-{{- end}}
 <link rel="preload" href="{{asset "fonts/JetBrainsMono-Regular.woff2"}}" as="font" type="font/woff2" crossorigin=""/>
 <link rel="preload" href="{{asset "fonts/JetBrainsMono-Bold.woff2"}}" as="font" type="font/woff2" crossorigin=""/>
 <script src="{{asset "theme.js"}}"></script>
 <link rel="stylesheet" href="{{asset "app.css"}}"/>
+{{- if tagiconmask}}
+<link rel="stylesheet" href="{{asset "tagicons.css"}}"/>
+{{- end}}
 <script src="{{asset "app.js"}}" defer=""></script>
 {{- with .Acct}}{{if .Script}}
 <script src="{{asset "account.js"}}" defer=""></script>
@@ -52,16 +50,21 @@
 <script src="{{asset "admin.js"}}" defer=""></script>
 {{- end}}{{end}}
 </head>
-<body{{if .AutoSelect}} data-autosel=""{{end}}{{if .PosID}} data-pos=""{{end}}{{with .CopyID}} data-id="{{.}}"{{end}}{{with .RawHref}} data-raw="{{.}}"{{end}} data-up="{{.Up}}" data-t-copied="{{ts "js.copied"}}" data-t-copy-failed="{{ts "js.copy_failed"}}" data-t-copied-id="{{ts "js.copied_id" "id" "{id}"}}" data-t-local-time="{{ts "sbar.local_time" "offset" "{offset}"}}"{{with fallbacklang "sbar.local_time"}} data-t-local-time-lang="{{.}}"{{end}}>
+<body{{if .Landing}} class="landing"{{end}}{{if .AutoSelect}} data-autosel=""{{end}}{{if .PosID}} data-pos=""{{end}}{{with .CopyID}} data-id="{{.}}"{{end}} data-up="{{.Up}}" data-t-copied="{{ts "js.copied"}}" data-t-copy-failed="{{ts "js.copy_failed"}}" data-t-copied-id="{{ts "js.copied_id" "id" "{id}"}}" data-t-local-time="{{ts "sbar.local_time" "offset" "{offset}"}}"{{with fallbacklang "sbar.local_time"}} data-t-local-time-lang="{{.}}"{{end}}>
 <a class="skip" href="#main">{{t "skip.main"}}</a>
 <header class="top">
 <div class="wrap">
 <a class="brand" href="{{href "/"}}">nday<span class="cur" aria-hidden="true"></span></a>
+{{- if .Landing}}
+<details class="topm" open="">
+<summary><span class="sr">{{t "nav.menu"}}</span><span class="topm-g" aria-hidden="true">&gt;</span></summary>
+{{- end}}
 <nav class="nav" aria-label="{{ts "nav.label"}}">
 <a href="{{href "/"}}"{{if eq .Nav "hot"}} aria-current="page"{{end}}>{{t "nav.hot" "path" (path "~/hot")}}</a>
 <a href="{{href "/discussed"}}"{{if eq .Nav "discussed"}} aria-current="page"{{end}}>{{t "nav.discussed" "path" (path "~/discussed")}}</a>
 <a href="{{href "/vuln"}}"{{if eq .Nav "vuln"}} aria-current="page"{{end}}>{{t "nav.vuln" "path" (path "~/vuln")}}</a>
 </nav>
+{{- if not .Landing}}
 <form class="search" action="{{href "/vuln"}}" method="get" role="search">
 <span class="prompt" aria-hidden="true">&gt;</span>
 <input id="q" type="search" name="q" value="{{.Query}}" aria-label="{{ts "search.box.label"}}" placeholder="{{ts "search.box.placeholder"}}" autocomplete="off" spellcheck="false" maxlength="100"/>
@@ -70,8 +73,8 @@
 <input type="hidden" name="tag" value="{{.}}"/>
 {{- end}}
 </form>
+{{- end}}
 <div class="toplinks">
-<a class="tl-api" href="{{href "/about#api"}}">api</a>
 <a href="{{href "/src"}}"{{if eq .Nav "src"}} aria-current="page"{{end}}>{{t "nav.sources"}}</a>
 <a href="{{href "/about"}}"{{if eq .Nav "about"}} aria-current="page"{{end}}>{{t "nav.about"}}</a>
 {{- if gt (len .Switch) 1}}
@@ -96,6 +99,9 @@
 <a class="acct" id="acct" href="{{.LoginHref}}" data-login="{{.LoginPath}}" data-account="{{.AccountPath}}"{{with .AdminPath}} data-admin="{{.}}"{{end}}>{{t "acct.slot.signin"}}</a>
 {{- end}}
 </div>
+{{- if .Landing}}
+</details>
+{{- end}}
 </div>
 </header>
 {{- with .Status}}
@@ -140,7 +146,6 @@
 <dt><b>Enter</b></dt><dd>{{t "help.enter"}}</dd>
 <dt><b>/</b></dt><dd>{{t "help.slash"}}</dd>
 <dt><b>y</b></dt><dd>{{t "help.y"}}</dd>
-<dt><b>r</b></dt><dd>{{t "help.r"}}</dd>
 <dt><b>o</b></dt><dd>{{t "help.o"}}</dd>
 <dt><b>u</b></dt><dd>{{t "help.u"}}</dd>
 <dt><b>?</b></dt><dd>{{t "help.help"}}</dd>

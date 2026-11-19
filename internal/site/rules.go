@@ -200,6 +200,38 @@ func ParseCVEID(s string) (string, bool) {
 	return "CVE-" + m[1] + "-" + m[2], true
 }
 
+// ghsaIDRe is a GitHub advisory id in any case, with the alphabet GitHub
+// uses for them (no vowels, no 0, 1, 2 lookalikes besides 2..9).
+var ghsaIDRe = regexp.MustCompile(`^(?i)ghsa(-[23456789cfghjmpqrvwx]{4}){3}$`)
+
+// ParseGHSAID canonicalises a GitHub advisory id given in any case
+// ("ghsa-GPWC-27cw-rh9r" -> "GHSA-gpwc-27cw-rh9r", the form vuln and
+// vuln_alias store). ok is false if s is not a GHSA id.
+func ParseGHSAID(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	if !ghsaIDRe.MatchString(s) {
+		return "", false
+	}
+	return "GHSA" + strings.ToLower(s[4:]), true
+}
+
+// ParseVulnID canonicalises a vulnerability id: a CVE id (ParseCVEID) or,
+// for an advisory without a CVE, its GHSA id (ParseGHSAID). The CVE id is
+// the main id; a GHSA id names a vulnerability only until it gets a CVE, and
+// after that is an alias of it. ok is false if s is neither.
+func ParseVulnID(s string) (string, bool) {
+	if id, ok := ParseCVEID(s); ok {
+		return id, true
+	}
+	return ParseGHSAID(s)
+}
+
+// BadVulnIDMsg is the *InputError message for an id ParseVulnID rejects.
+const BadVulnIDMsg = "not a vulnerability id (expected CVE-YYYY-NNNN... or GHSA-xxxx-xxxx-xxxx)"
+
+// IsGHSAID reports whether id (canonical, from ParseVulnID) is a GHSA id.
+func IsGHSAID(id string) bool { return strings.HasPrefix(id, "GHSA-") }
+
 // InputError is a caller error (bad parameter); HTTP maps it to 400.
 type InputError struct {
 	Param string

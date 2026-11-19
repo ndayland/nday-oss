@@ -1,0 +1,37 @@
+[Unit]
+Description=nday site icons: fetch the icons of the third-party sites the vulnerability pages link to
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=nday
+Group=nday
+EnvironmentFile=/etc/nday/nday.env
+WorkingDirectory=/opt/nday
+# At most 200 hosts a run, one at a time, 1 s apart; https on port 443 of
+# public addresses only (internal/pagefetch guard), 10 s a request, 15 s a
+# host; the run stops itself after 15 minutes (siteicon.RunBudget), below
+# TimeoutStartSec; see docs/siteicons.md.
+ExecStart=/opt/nday/bin/nday site-icons
+TimeoutStartSec=20min
+MemoryMax=512M
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# Second line of defence behind the pagefetch guard: no private, CGNAT,
+# link-local (cloud metadata) or unique-local address is reachable from this
+# unit. PostgreSQL is reached over its unix socket (NDAY_DATABASE_URL with
+# host=/var/run/postgresql, deploy/README.md "Layout on the host"), which
+# this does not affect; loopback stays open (the systemd-resolved stub at
+# 127.0.0.53). If the host's DNS server is on a private address, name
+# lookups from this unit fail: then drop the matching range here.
+IPAddressDeny=10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10 169.254.0.0/16 fc00::/7 fe80::/10
+RestrictNamespaces=yes
+LockPersonality=yes

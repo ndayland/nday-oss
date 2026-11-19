@@ -27,8 +27,10 @@ const (
 	URLWeight   = 23
 	// LinkCost is what the page appends to a body: "\n" + the detail URL.
 	LinkCost = 1 + URLWeight
-	// BodyBudget is the most a stored body may weigh so that body + "\n" +
-	// link fits.
+	// BodyBudget is the most a body may weigh so that body + "\n" + link
+	// fits: what the generator and Share write. A saved body may weigh up
+	// to MaxWeighted (the image forms post it alone); one over BodyBudget
+	// cannot be posted in the link form.
 	BodyBudget = MaxWeighted - LinkCost
 	// MaxBodyRunes bounds a body before weighting (the table's CHECK).
 	MaxBodyRunes = 1000
@@ -167,3 +169,7 @@ func WeightedLength(text string) int {
 
 // FitsWithLink reports whether body + "\n" + a link fits in one post.
 func FitsWithLink(body string) bool { return WeightedLength(body) <= BodyBudget }
+
+// FitsAlone reports whether body fits one post on its own, with no link
+// (the whole MaxWeighted budget; the image forms of the drafts page).
+func FitsAlone(body string) bool { return WeightedLength(body) <= MaxWeighted }

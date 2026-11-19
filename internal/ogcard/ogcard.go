@@ -64,7 +64,7 @@ type Product struct {
 
 // Card is everything the card shows.
 type Card struct {
-	CVE   string // CVE-2026-102895
+	CVE   string // the vulnerability id: CVE-2026-102895, or a GHSA id
 	Title string // upstream English title; "" when there is none
 	// Products: affected pairs in display order; ProductTotal counts all of
 	// them (pairs not passed or not drawable show as "+N").
@@ -76,6 +76,11 @@ type Card struct {
 	Change   string
 	TPlus    string
 	Rejected bool
+	// Address, when set, is printed in place of the brand at the top left
+	// ("nday.land/vuln/CVE-2026-102895"): the card of a post that carries no
+	// link (the image forms of /admin/x/drafts). ASCII. Left out of Key's
+	// JSON when empty, so the keys of the plain cards do not change.
+	Address string `json:",omitempty"`
 }
 
 // Key is a short digest of everything that changes the picture (Card and
@@ -407,8 +412,6 @@ func Render(c Card) ([]byte, error) {
 
 	// Header: brand left; REJECTED and the latest change right.
 	head := cv.face(true, headSize)
-	x := cv.text(head, cGreen, marginX, headBase, "nday")
-	cv.text(head, cFg2, x, headBase, ".land")
 	right := Width - marginX
 	small := cv.face(false, headSize)
 	if tp, code := Clean(c.TPlus), Clean(c.Change); tp != "" && code != "" {
@@ -428,6 +431,35 @@ func Render(c Card) ([]byte, error) {
 		cv.rect(x0, headBase-30, right, headBase+10, cLine)
 		cv.rect(x0+2, headBase-28, right-2, headBase+8, cBg)
 		cv.text(tag, cFg3, x0+12, headBase-1, label)
+		right = x0
+	}
+	// brand, or the address: the host in the brand's colours ("nday" green,
+	// the rest of the host dim), the path in the text colour, in a smaller
+	// face when the right side leaves too little room (cut only as a last
+	// resort)
+	host, path := "nday.land", ""
+	pathFace := small
+	if a := Clean(c.Address); a != "" {
+		host, path, _ = strings.Cut(a, "/")
+		if path != "" {
+			path = "/" + path
+		}
+		room := right - 28 - marginX - width(head, host)
+		for size := float64(headSize); width(pathFace, path) > room && size > 20; {
+			size -= 2
+			pathFace = cv.face(false, size)
+		}
+		if width(pathFace, path) > room {
+			path = fit(pathFace, path, "", max(0, room))
+		}
+	}
+	name, rest, _ := strings.Cut(host, ".")
+	x := cv.text(head, cGreen, marginX, headBase, name)
+	if rest != "" || strings.Contains(host, ".") {
+		x = cv.text(head, cFg2, x, headBase, "."+rest)
+	}
+	if path != "" {
+		cv.text(pathFace, cFg, x, headBase, path)
 	}
 	cv.rect(marginX, ruleY, Width-marginX, ruleY+2, cLine2)
 

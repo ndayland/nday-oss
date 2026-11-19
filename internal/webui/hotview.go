@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"nday.land/nday/internal/site"
+	"nday.land/nday/internal/titles"
 	"nday.land/nday/internal/webui/i18n"
 )
 
@@ -125,9 +126,10 @@ const (
 )
 
 // slotsRecord tells from a row's lifecycle slots whether the CVE record is
-// collected: the DIS slot comes only from the cvelist record
-// (site/vuln.go; model.EventDisclosed is emitted by cvelist alone). No
-// slots means no event at all, so no record either.
+// collected: the DIS slot comes from the cvelist record (site/vuln.go;
+// model.EventDisclosed), or, for a vulnerability keyed by a GHSA id, from
+// the advisory, which is its record. No slots means no event at all, so no
+// record either.
 func slotsRecord(slots []site.Slot) int {
 	if len(slots) > iDIS && slots[iDIS].State != site.SlotNone {
 		return recordPresent
@@ -135,24 +137,34 @@ func slotsRecord(slots []site.Slot) int {
 	return recordMissing
 }
 
-// rowTitle picks title_zh (Simplified Chinese pages only), then the upstream
-// title; missing reports the placeholder, chosen by what the row knows about
+// rowTitle picks a staff title (titleview.go), then title_zh (Simplified
+// Chinese pages only), then the upstream title, then a composed title in
+// l; missing reports the placeholder, chosen by what the row knows about
 // the CVE record (recordUnknown/Missing/Present). lang is "en" when the
-// title is upstream English shown on a non-English page.
-func rowTitle(l *i18n.Locale, zh, en *string, record int) (title string, missing bool, lang string) {
+// title is upstream English shown on a non-English page; mark is the
+// origin marker of a staff or composed title (nil otherwise).
+func rowTitle(l *i18n.Locale, zh, en *string, ti site.TitleInfo, record int) (title string, missing bool, lang string, mark *TitleMark) {
+	if ti.Origin() == titles.OriginStaff {
+		return *ti.EffectiveTitle, false, "", titleMark(l, titles.OriginStaff)
+	}
 	if l.Tag == "zh-Hans" && zh != nil && strings.TrimSpace(*zh) != "" {
-		return *zh, false, ""
+		return *zh, false, "", nil
 	}
 	if en != nil && strings.TrimSpace(*en) != "" {
-		return *en, false, upstreamLang(l)
+		return *en, false, upstreamLang(l), nil
+	}
+	if ti.Origin() == titles.OriginComposed {
+		if t, lang := composedTitle(l, ti); t != "" {
+			return t, false, lang, titleMark(l, titles.OriginComposed)
+		}
 	}
 	switch record {
 	case recordMissing:
-		return l.Text("title.missing_row"), true, ""
+		return l.Text("title.missing_row"), true, "", nil
 	case recordPresent:
-		return l.Text("title.missing_row_no_title"), true, ""
+		return l.Text("title.missing_row_no_title"), true, "", nil
 	}
-	return l.Text("title.missing_row_unknown"), true, ""
+	return l.Text("title.missing_row_unknown"), true, "", nil
 }
 
 // upstreamLang is the lang attribute of upstream (English) record text.
@@ -176,6 +188,7 @@ type HotRowView struct {
 	Title        string
 	TitleMissing bool
 	TitleLang    string
+	Mark         *TitleMark // a composed or staff title's origin marker
 	Vendor       string
 	Rejected     bool
 	Strip        Strip
@@ -221,6 +234,11 @@ type HotFilters struct {
 	MinStage        string // event type
 	IncludeRejected bool
 	Cursor          string
+	// Before: ?before=, a page's previous-page position (site.HotParams.Before).
+	Before string
+	// Page: the display-only page number ?p= of a later page (pageIndex; 0 =
+	// not known). It labels the page; the rows never depend on it.
+	Page int
 	// Tags: ?tag= filters (vocabulary slugs, canonical order; unknown slugs
 	// were dropped by parseHotFilters).
 	Tags []string
@@ -257,7 +275,8 @@ var (
 	stageChoices = []string{"patch", "poc", "exploited"}
 )
 
-// Query renders f as page query parameters, defaults omitted.
+// Query renders f as page query parameters, defaults omitted; withCursor
+// adds the page position (cursor or before, and p).
 func (f HotFilters) Query(withCursor bool) string {
 	q := url.Values{}
 	if f.Since != defaultSince {
@@ -269,8 +288,16 @@ func (f HotFilters) Query(withCursor bool) string {
 	if f.IncludeRejected {
 		q.Set("include_rejected", "1")
 	}
-	if withCursor && f.Cursor != "" {
-		q.Set("cursor", f.Cursor)
+	if withCursor {
+		if f.Cursor != "" {
+			q.Set("cursor", f.Cursor)
+		}
+		if f.Before != "" {
+			q.Set("before", f.Before)
+		}
+		if f.Page > 1 {
+			q.Set("p", strconv.Itoa(f.Page))
+		}
 	}
 	s := encodeOrdered(q, "since", "min_stage", "include_rejected")
 	if len(f.Tags) > 0 {
@@ -279,7 +306,7 @@ func (f HotFilters) Query(withCursor bool) string {
 		}
 		s += tagQuery(f.Tags)
 	}
-	if c := encodeOrdered(q, "cursor"); c != "" {
+	if c := encodeOrdered(q, "cursor", "before", "p"); c != "" {
 		if s != "" {
 			s += "&"
 		}
@@ -340,17 +367,13 @@ func (f HotFilters) APIPath() string {
 
 // HotView is the home page.
 type HotView struct {
-	Since     []FilterOpt
-	Stage     []FilterOpt
-	Rejected  FilterOpt
-	Curl      CmdLine
-	APIPath   string
-	Rows      []HotRowView
-	NextHref  string
-	FirstHref string
-	OnCursor  bool
-	Window    string
-	MinCode   string
+	Since    []FilterOpt
+	Stage    []FilterOpt
+	Rejected FilterOpt
+	Rows     []HotRowView
+	Pager    *Pager // nil when the list fits on one page
+	Window   string
+	MinCode  string
 	// Tag filters: the active ?tag= chips (each removable), the link to the
 	// vocabulary, and on a tag page its heading.
 	Chips    []TagChip
@@ -362,9 +385,8 @@ type HotView struct {
 }
 
 // BuildHotView builds the home page view.
-func BuildHotView(l *i18n.Locale, f HotFilters, page *site.HotPage, api API) HotView {
-	hv := HotView{Curl: CurlCmd(api.URL(f.APIPath()), "."), APIPath: api.Href(f.APIPath()),
-		Window: formatSince(f.Since), MinCode: site.StageCode(f.MinStage),
+func BuildHotView(l *i18n.Locale, f HotFilters, page *site.HotPage, total *site.HotTotal, api API) HotView {
+	hv := HotView{Window: formatSince(f.Since), MinCode: site.StageCode(f.MinStage),
 		Custom: f.Since != defaultSince || f.MinStage != defaultMinStage || f.IncludeRejected || len(f.Tags) > 0}
 	for _, s := range sinceChoices {
 		d, _ := site.ParseSince(s)
@@ -411,17 +433,54 @@ func BuildHotView(l *i18n.Locale, f HotFilters, page *site.HotPage, api API) Hot
 			row.Tags = RowChips(r.Tags, addTag)
 			hv.Rows = append(hv.Rows, row)
 		}
-		if page.NextCursor != nil {
-			n := f
-			n.Cursor = *page.NextCursor
-			hv.NextHref = l.Path(n.Href(true))
-		}
-	}
-	if f.Cursor != "" {
-		hv.OnCursor = true
-		hv.FirstHref = l.Path(f.Href(false))
+		hv.Pager = hotPager(l, f, page, total)
 	}
 	return hv
+}
+
+// hotPager is the hot list's pager. The page is the first one when it has
+// no position, or when paging back reached the start (site.Store.Hot
+// returns the first page then, without PrevCursor). The first page holds
+// the pinned rows before its hotPageSize ordinary rows; later pages have
+// ordinary rows only, after those of the pages before. total (nil = not
+// known) is the list's length, counted a moment earlier (site.HotCount).
+func hotPager(l *i18n.Locale, f HotFilters, page *site.HotPage, total *site.HotTotal) *Pager {
+	first := f.Cursor == "" && (f.Before == "" || page.PrevCursor == nil)
+	cur := f.Page
+	if first {
+		cur = 1
+	}
+	pages, rows := 0, int64(-1)
+	if total != nil {
+		pages, rows = total.Pages(page.Limit), total.Rows+int64(total.Pins)
+	}
+	cur, pages = clampPage(cur, pages, first, page.NextCursor != nil)
+	at := func(cursor, before string, idx int) string {
+		g := f
+		g.Cursor, g.Before, g.Page = cursor, before, idx
+		return l.Path(g.Href(true))
+	}
+	var firstHref, prev, next string
+	if !first {
+		firstHref = l.Path(f.Href(false))
+		prev = firstHref // a later page without rows: back to the start
+		if page.PrevCursor != nil {
+			prev = at("", *page.PrevCursor, prevIndex(cur))
+		}
+	}
+	if page.NextCursor != nil {
+		next = at(*page.NextCursor, "", nextIndex(cur))
+	}
+	pg := newPager(firstHref, prev, next)
+	from := 0
+	switch {
+	case first:
+		from = 1
+	case cur > 1:
+		from = page.Pins + (cur-1)*page.Limit + 1
+	}
+	pg.position(l, cur, pages, from, len(page.Rows), rows)
+	return pg
 }
 
 // ChangeText says in words what a row's transition to code was (the code
@@ -441,7 +500,7 @@ func BuildHotRow(l *i18n.Locale, r site.HotRow, lastDate *string) HotRowView {
 		Time: StampAt(l, &at, r.Transition.Precision, stampShort), Prec: PrecisionShort(l, r.Transition.Precision),
 		Strip: BuildStrip(l, r.Slots), TPlus: FormatTPlus(r.DaysSinceDisclosure), TPlusTitle: TPlusTitle(l, r.DaysSinceDisclosure),
 		Poc: strconv.Itoa(r.PocSources) + "/" + strconv.Itoa(len(site.PocSourceNames)), PocZero: r.PocSources == 0}
-	v.Title, v.TitleMissing, v.TitleLang = rowTitle(l, r.TitleZh, r.Title, slotsRecord(r.Slots))
+	v.Title, v.TitleMissing, v.TitleLang, v.Mark = rowTitle(l, r.TitleZh, r.Title, r.TitleInfo, slotsRecord(r.Slots))
 	v.Vendor, _ = ProductLine(l, r.Products, r.ProductCount, 2)
 	v.Rsch = rschBadge(l, r.Researchers)
 	v.Pinned = r.Pinned

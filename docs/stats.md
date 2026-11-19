@@ -177,7 +177,7 @@ When `Top` reads a range of dates it adds up each day's top 100: only keys that 
   - Browser cache: back-navigation or reopening within `max-age=60` may not send a request, so pv is slightly low; a revisit after more than 60 seconds is a 304 and counts toward pv.
   - `/static/*` (`public, max-age=31536000, immutable`, `.css`/`.js`/fonts) and `/favicon.ico` can be cached at the edge by extension,
     so the request count and bytes for the `static` kind **only reflect what reached the origin** and are far below real download volume.
-  - The JSON API (`public, max-age=60`), `/raw/*.json` (`max-age=3600`), and `feed.xml` (`max-age=300`) aren't covered by the default cache-by-extension behaviour (again, an unverified default), so counted at the origin they should be complete.
+  - The JSON API (`private, max-age=60`), `/raw/*.json` (`private, max-age=3600`) and `feed.xml` (`private, no-store`) need an API token, a session or a private feed key, and must never be cached at the edge: a "Cache Everything"/Edge Cache TTL rule on `/api/*`, `/raw/*`, `/feed.xml`, `/<locale>/feed.xml` or the API host would hand gated responses to anyone (see `deploy/README.md`). Without such a rule every request reaches the origin, so these counts should be complete.
 - **`request_time`** is origin processing time; it doesn't include Cloudflare or the visitor's network.
 - **Timezone**: dates follow the offset carried by each line (the server's local timezone); a day is not a UTC day.
 - **Recompute scope**: only changed files are recomputed, and dates whose logs have been deleted can't be recomputed.

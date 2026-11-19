@@ -24,14 +24,16 @@ func TestSitemapShardLimit(t *testing.T) {
 }
 
 func TestParseSitemapShard(t *testing.T) {
-	for in, want := range map[string]site.SitemapBucket{"vuln-2026-0.xml": {Year: 2026, Bucket: 0}, "vuln-1999-20.xml": {Year: 1999, Bucket: 20}} {
+	for in, want := range map[string]site.SitemapBucket{"vuln-2026-0.xml": {Year: 2026, Bucket: 0}, "vuln-1999-20.xml": {Year: 1999, Bucket: 20},
+		"ghsa-g.xml": {GHSA: "g"}, "ghsa-2.xml": {GHSA: "2"}} {
 		b, ok := parseSitemapShard(in)
 		if !ok || b != want || sitemapShardPath(b) != "/sitemap/"+in {
 			t.Errorf("%s: %v %v", in, b, ok)
 		}
 	}
 	for _, in := range []string{"", "pages.xml", "vuln-2026-0", "vuln-2026-00.xml", "vuln-02026-0.xml", "vuln-2026--1.xml",
-		"vuln-2026-+1.xml", "vuln-999-0.xml", "vuln-10000-0.xml", "vuln-2026.xml", "vuln-2026-1-2.xml", "Vuln-2026-0.xml"} {
+		"vuln-2026-+1.xml", "vuln-999-0.xml", "vuln-10000-0.xml", "vuln-2026.xml", "vuln-2026-1-2.xml", "Vuln-2026-0.xml",
+		"ghsa-.xml", "ghsa-a.xml", "ghsa-0.xml", "ghsa-G.xml", "ghsa-gg.xml", "ghsa-g", "GHSA-g.xml", "vuln-g.xml"} {
 		if b, ok := parseSitemapShard(in); ok {
 			t.Errorf("%s: accepted as %v", in, b)
 		}

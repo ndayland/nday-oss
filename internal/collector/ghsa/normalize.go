@@ -131,23 +131,67 @@ func (c *Collector) Normalize(rec model.RawRecord) (*model.Normalized, error) {
 		return nil, collector.NormalizeErrorf("%s: references is not a list", gid)
 	}
 
+	// The vulnerability's id: the CVE when the advisory has one (the GHSA id
+	// is then an alias), else the GHSA id itself (docs/ghsa.md).
 	cve := collector.Text(p.Get("cve_id"))
+	var out *model.Normalized
+	var id string
 	if cve == nil {
-		return &model.Normalized{}, nil // vuln table is keyed by CVE; raw is kept
+		id = gid
+		out = &model.Normalized{}
+		// The advisory is this vulnerability's own record, the way the CVE
+		// record is for a CVE: it says when it was disclosed, and whether it
+		// was taken back. A withdrawn advisory brings no vuln upsert, so the
+		// pipeline writes its event only when the vuln row already exists
+		// (it never makes a stub for a GHSA id); the event then carries
+		// state REJECTED, which vuln_state reads as is_rejected.
+		published, _ := parseTS(p.Get("published_at")) // checked above
+		state := "PUBLISHED"
+		withdrawn := collector.Text(p.Get("withdrawn_at")) != nil
+		if withdrawn {
+			state = "REJECTED"
+		}
+		out.Events = append(out.Events, model.Event{
+			CVEID:      gid,
+			Type:       model.EventDisclosed,
+			Source:     Name,
+			OccurredAt: &published,
+			URL:        collector.Text(p.Get("html_url")),
+			Detail: map[string]any{
+				"ghsa_id":      gid,
+				"state":        state,
+				"withdrawn_at": p.Get("withdrawn_at"),
+			},
+			DedupeKey: gid,
+		})
+		if withdrawn {
+			return out, nil
+		}
+		updated, _ := parseTS(p.Get("updated_at"))
+		out.Vulns = append(out.Vulns, model.VulnUpsert{
+			CVEID:         gid,
+			Title:         collector.Text(p.Get("summary")),
+			Description:   collector.Text(p.Get("description")),
+			PublishedAt:   &published,
+			ModifiedAt:    &updated,
+			Authoritative: true,
+		})
+	} else {
+		if !cveIDRe.MatchString(*cve) {
+			return nil, collector.NormalizeErrorf("%s: bad cve_id %s", gid, pyStrRepr(*cve))
+		}
+		id = *cve
+		out = &model.Normalized{Aliases: []model.Alias{{CVEID: id, Alias: gid, AliasType: "ghsa"}}}
+		if collector.Text(p.Get("withdrawn_at")) != nil {
+			return out, nil
+		}
+		out.Vulns = append(out.Vulns, model.VulnUpsert{
+			CVEID:         id,
+			Title:         collector.Text(p.Get("summary")),
+			Description:   collector.Text(p.Get("description")),
+			Authoritative: false,
+		})
 	}
-	if !cveIDRe.MatchString(*cve) {
-		return nil, collector.NormalizeErrorf("%s: bad cve_id %s", gid, pyStrRepr(*cve))
-	}
-	out := &model.Normalized{Aliases: []model.Alias{{CVEID: *cve, Alias: gid, AliasType: "ghsa"}}}
-	if collector.Text(p.Get("withdrawn_at")) != nil {
-		return out, nil
-	}
-	out.Vulns = append(out.Vulns, model.VulnUpsert{
-		CVEID:         *cve,
-		Title:         collector.Text(p.Get("summary")),
-		Description:   collector.Text(p.Get("description")),
-		Authoritative: false,
-	})
 	packages := []any{}
 	anyPatched := false
 	for _, v := range vlist {
@@ -170,7 +214,7 @@ func (c *Collector) Normalize(rec model.RawRecord) (*model.Normalized, error) {
 		packages = append(packages, entry)
 	}
 	if !anyPatched {
-		return out, nil // no fix known yet: alias + stub only
+		return out, nil // no fix known yet: alias + stub only (or the GHSA-keyed vuln)
 	}
 
 	cvss := p.Get("cvss_severities")
@@ -201,7 +245,7 @@ func (c *Collector) Normalize(rec model.RawRecord) (*model.Normalized, error) {
 		"references":            references,
 	}
 	out.Events = append(out.Events, model.Event{
-		CVEID:      *cve,
+		CVEID:      id,
 		Type:       model.EventPatchReleased,
 		Source:     Name,
 		OccurredAt: nil,

@@ -6,10 +6,6 @@
 <h1 class="h1"><span class="h" aria-hidden="true"># </span>{{t "src.h1"}}</h1>
 <p class="lede">{{t "src.lede"}}</p>
 </div>
-<details class="apid">
-<summary>{{t "hot.api.summary"}}</summary>
-{{template "cmd" .Curl}}
-</details>
 <div class="srcs">
 {{- range .Collectors}}
 <div class="srcrow" id="{{.Name}}">
@@ -63,7 +59,7 @@
 <span><span class="b st-kev">+KEV</span> <span class="b st-poc">+POC</span></span><span class="d">{{t "src.read.plus"}}</span>
 <span><span class="b st-itw">~ITW</span></span><span class="d">{{t "src.read.tilde"}}</span>
 <span>T+8d</span><span class="d">{{t "src.read.tplus" "minus" (code "T-20d") "unknown" (code "T+?")}}</span>
-<span>2/3</span><span class="d">{{t "src.read.poc_count"}}</span>
+<span>2/4</span><span class="d">{{t "src.read.poc_count"}}</span>
 <span>{{t "src.read.live_label"}}</span><span class="d">{{t "src.read.live"}}</span>
 <span><span class="h"># </span>{{t "src.read.md_heading"}} <span class="h">## </span>{{t "src.read.md_group"}}</span><span class="d">{{t "src.read.md"}}</span>
 </div>

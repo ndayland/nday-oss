@@ -11,10 +11,16 @@ import (
 	"nday.land/nday/internal/site"
 )
 
-// Share cards: GET /og/vuln/{CVE}.png is the vulnerability's 1200x630 Open
-// Graph image (internal/ogcard), one per CVE for every locale. The detail
+// Share cards: GET /og/vuln/{id}.png is the vulnerability's 1200x630 Open
+// Graph image (internal/ogcard), one per vulnerability (CVE id, or the GHSA
+// id of an advisory without a CVE) for every locale. The detail
 // page links it as og:image with ?v=<ogcard.Card.Key>, so a change of what
 // the card shows yields a new URL and social caches fetch it again.
+//
+// ?addr=1 is the address card: the same card with the page's address
+// printed in place of the brand (ogcard.Card.Address; a different Key),
+// for a post that carries no link (the image forms of /admin/x/drafts,
+// docs/xposts.md "Forms"). Same route, caching and headers.
 
 const (
 	cardPrefix   = "/og/vuln/"
@@ -23,13 +29,13 @@ const (
 	cardProducts = 6                // pairs passed to the card (as the detail page's product line)
 )
 
-// cardFor is the card input of a vulnerability: the upstream English title
-// (never title_zh), the affected products, the strip slots as BuildStrip
+// cardFor is the card input of a vulnerability: the effective title in
+// English (staff, record or composed; never title_zh), the affected products, the strip slots as BuildStrip
 // classifies them and the detail page's T+ figure.
 func cardFor(v *site.VulnDetail) ogcard.Card {
 	c := ogcard.Card{CVE: v.CVEID, ProductTotal: len(v.Products), Rejected: v.IsRejected}
-	if v.Title != nil {
-		c.Title = strings.TrimSpace(*v.Title)
+	if v.EffectiveTitle != nil {
+		c.Title = strings.TrimSpace(*v.EffectiveTitle)
 	}
 	for i, p := range v.Products {
 		if i == cardProducts {
@@ -59,12 +65,23 @@ func cardPath(c ogcard.Card) string {
 	return cardPrefix + c.CVE + cardExt + "?v=" + c.Key()
 }
 
+// cardAddrParam asks the card route for the address card.
+const cardAddrParam = "addr"
+
+// addrCardPath is the site-relative URL of id's address card, without ?v=
+// (the drafts page does not load the card's data; such a URL is cached
+// briefly).
+func addrCardPath(id string) string {
+	return cardPrefix + id + cardExt + "?" + cardAddrParam + "=1"
+}
+
 // ogVuln serves a share card. It answers 404 exactly when the detail page
 // does for a canonical id (vulnDetail found=false) or the file name is not
-// "<CVE id>.png"; a non-canonical id redirects like the page does.
+// "<vulnerability id>.png" (a GHSA id that is only an alias of a CVE is a
+// 404: the card is the CVE's); a non-canonical id redirects like the page does.
 func (u *UI) ogVuln(w http.ResponseWriter, r *http.Request) {
 	raw, isPNG := strings.CutSuffix(r.PathValue("file"), cardExt)
-	id, ok := site.ParseCVEID(raw)
+	id, ok := site.ParseVulnID(raw)
 	if !isPNG || !ok {
 		u.notFound(w, r, u.locales.Primary())
 		return
@@ -87,6 +104,9 @@ func (u *UI) ogVuln(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := cardFor(v)
+	if r.URL.Query().Get(cardAddrParam) == "1" {
+		c.Address = u.cardAddress(id)
+	}
 	key := c.Key()
 	ttl := cardCacheTTL
 	if u.opts.CacheTTL < 0 { // caching disabled

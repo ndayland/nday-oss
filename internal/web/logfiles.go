@@ -323,19 +323,35 @@ func redactedURI(r *http.Request) string {
 	return u
 }
 
-// redactReferer logs a referer as sent, except that a referer on one of our
-// own hosts gets its query through RedactQuery (and loses any fragment).
+// redactReferer logs a referer as sent, except that its query goes
+// through RedactQuery: on one of our own hosts the whole URL is rebuilt
+// (and loses any fragment); on any other host, or when the URL does not
+// parse, the part between the first "?" and the first "#" after it is
+// redacted in place (so a credential in it never reaches the log).
 func redactReferer(v string, ours func(string) string) string {
 	if v == "" {
 		return ""
 	}
 	u, err := url.Parse(v)
-	if err != nil || u.Host == "" || ours(u.Host) == "" {
+	if err == nil && u.Host != "" && ours(u.Host) != "" {
+		out := u.Scheme + "://" + u.Host + u.EscapedPath()
+		if u.RawQuery != "" {
+			out += "?" + RedactQuery(u.Path, u.RawQuery)
+		}
+		return out
+	}
+	base, rest, ok := strings.Cut(v, "?")
+	if !ok {
 		return v
 	}
-	out := u.Scheme + "://" + u.Host + u.EscapedPath()
-	if u.RawQuery != "" {
-		out += "?" + RedactQuery(u.Path, u.RawQuery)
+	q, frag, hasFrag := strings.Cut(rest, "#")
+	path := ""
+	if err == nil {
+		path = u.Path
+	}
+	out := base + "?" + RedactQuery(path, q)
+	if hasFrag {
+		out += "#" + frag
 	}
 	return out
 }

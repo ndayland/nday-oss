@@ -7,17 +7,23 @@
 // English, "/zh-hans", "/ja", ... — see internal/webui/i18n/locales.json):
 //
 //	/  (alias /hot)       hot list: ?since=24h|7d|30d&min_stage=patch|poc|exploited&include_rejected=1&cursor=
-//	                      &tag=<slug> (repeatable, AND; unknown slugs ignored; docs/tags.md)
+//	                      &tag=<slug> (repeatable, AND; unknown slugs ignored; docs/tags.md); &before= pages
+//	                      back, &p= is the display-only page number of a later page (pager.go)
 //	/discussed            CVEs ranked by researchers posting about them on X (last 7 days): ?offset=
 //	/vuln                 catalogue of every vulnerability (catalogue.go): ?stage=&year=&include_rejected=1
-//	                      &tag=<slug> (repeatable, AND)&cursor=; with ?q= (&tag=) the search results
+//	                      &tag=<slug> (repeatable, AND)&cursor= (&before=, &p= as on /); with ?q= (&tag=)
+//	                      the search results
 //	/tags                 the tag vocabulary with counts
 //	/tag/{slug}           the hot list scoped to one tag (same parameters as /)
-//	/vuln/{cve}           vulnerability page (400 malformed id, 404 unknown)
+//	/vuln/{cve}           vulnerability page (400 malformed id, 404 unknown); {cve} is a
+//	                      CVE id or the GHSA id of an advisory without a CVE; a GHSA id
+//	                      that is only an alias redirects (302) to its CVE, or to the
+//	                      search if several
 //	/src                  data sources and how to read the data
 //	/stats                stage counts
-//	/about                what nday is, keys, API
-//	/feed.xml             Atom feed of the latest transitions (min stage patch)
+//	/about                what nday is, keys
+//	/feed.xml             Atom feed of the latest transitions (min stage patch); needs a
+//	                      session, an API token or the private feed key (?key=)
 //	/rules                community rules of the discussions (version line from
 //	                      the configured terms version, Accounts.TermsVersion)
 //	/login, /account      sign-in and account pages, only with Options.Accounts
@@ -180,7 +186,9 @@ func New(srv *web.Server, opts Options) (*UI, error) {
 		get(p+"/rules", h(u.rules))
 		get(p+"/tags", h(u.tagsPage))
 		get(p+"/tag/{slug}", h(u.tagPage))
-		get(p+"/feed.xml", h(u.feed))
+		// the feed needs a signed-in session, an API token or the reader's
+		// private feed key (?key=); see feed.go
+		get(p+"/feed.xml", u.srv.Gate(web.AuthSession|web.AuthFeedKey, h(u.feed)).ServeHTTP)
 		if opts.Accounts != nil {
 			get(p+"/login", h(u.login))
 			get(p+"/account", h(u.account))
@@ -198,7 +206,8 @@ func New(srv *web.Server, opts Options) (*UI, error) {
 	get("/sitemap.xml", u.sitemapIndex)    // sitemap.go
 	get("/sitemap/{file}", u.sitemapShard) // locale-independent like robots.txt
 	get("/favicon.ico", u.favicon)
-	get("/og/vuln/{file}", u.ogVuln) // share cards: locale-independent (ogcard.go)
+	get("/og/vuln/{file}", u.ogVuln)     // share cards: locale-independent (ogcard.go)
+	get(iconPrefix+"{host}", u.siteIcon) // site icons of outbound links: locale-independent (siteicons.go)
 	srv.Handle("/static/", web.GetOnly(assets))
 	if opts.I18nDebug {
 		get("/__i18n/{$}", u.i18nIndex)
@@ -280,11 +289,11 @@ func (u *UI) page(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, stat
 		if canon == "" {
 			canon = rel
 		}
-		p.Canonical = u.opts.BaseURL + loc.Path(canon)
+		p.Canonical = u.canonURL(loc, canon)
 		for _, l := range u.locales.Enabled {
-			p.Alternates = append(p.Alternates, Alternate{Tag: l.Tag, Href: u.opts.BaseURL + l.Path(canon)})
+			p.Alternates = append(p.Alternates, Alternate{Tag: l.Tag, Href: u.canonURL(l, canon)})
 		}
-		p.XDefault = u.opts.BaseURL + u.locales.Primary().Path(canon)
+		p.XDefault = u.canonURL(u.locales.Primary(), canon)
 	} else {
 		p.Canonical = ""
 	}
@@ -305,6 +314,9 @@ func (u *UI) page(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, stat
 		u.srv.Log.Error("render failed", "page", name, "locale", loc.Tag, "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+	if p.siteIcons {
+		body = u.withSiteIcons(r.Context(), body)
 	}
 	if p.Personal {
 		writePersonal(w, r, status, body)
@@ -420,7 +432,10 @@ func parseHotFilters(q url.Values) (HotFilters, error) {
 			return f, &site.InputError{Param: "include_rejected", Msg: "expected true or false"}
 		}
 	}
-	f.Cursor = q.Get("cursor")
+	f.Cursor, f.Before = q.Get("cursor"), q.Get("before")
+	if f.Cursor != "" || f.Before != "" {
+		f.Page = pageIndex(q.Get("p"))
+	}
 	f.Tags, _ = tags.ParseFilter(q["tag"]) // unknown slugs are ignored and dropped from links
 	return f, nil
 }
@@ -447,7 +462,7 @@ func (u *UI) hot(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 // set, f.Fixed its tag).
 func (u *UI) hotList(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, f HotFilters, head *TagHead) {
 	p, err := site.HotParams{Since: f.Since, MinStage: f.MinStage, IncludeRejected: f.IncludeRejected,
-		Limit: hotPageSize, Cursor: f.Cursor, Tags: f.AllTags()}.Normalize()
+		Limit: hotPageSize, Cursor: f.Cursor, Before: f.Before, Tags: f.AllTags()}.Normalize()
 	if err != nil {
 		u.fail(w, r, loc, err)
 		return
@@ -468,7 +483,20 @@ func (u *UI) hotList(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, f
 		u.fail(w, r, loc, err)
 		return
 	}
-	hv := BuildHotView(loc, f, page, u.api)
+	// the list's length, per filter combination (not per position); nil
+	// when not counted (a broad tag, site.TagCountMax)
+	n, err := u.cached(r.Context(), u.srv.Store.HotCountKey(p), func(ctx context.Context) (any, error) {
+		t, ok, err := u.srv.Store.HotCount(ctx, p)
+		if !ok {
+			return (*site.HotTotal)(nil), err
+		}
+		return &t, err
+	})
+	if err != nil {
+		u.fail(w, r, loc, err)
+		return
+	}
+	hv := BuildHotView(loc, f, page, n.(*site.HotTotal), u.api)
 	hv.Tag = head
 	data := HomeData{Hot: hv, Bars: StageBars(loc, st.ByStage, true), Collectors: BuildCollectors(loc, src),
 		Backlog: loc.Int(src.CvelistBackfillBacklog), BacklogN: src.CvelistBackfillBacklog}
@@ -486,11 +514,7 @@ func (u *UI) hotList(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, f
 		Title:       loc.Text("page.hot.title"),
 		Description: loc.Text("page.hot.description"),
 		Nav:         "hot", Path: "~/hot", Pos: pos, PosID: true, Hints: helpHints(loc), Status: BuildStatusLine(loc, src),
-		AutoSelect: true, RawHref: hv.APIPath, Canonical: f.Href(false), NoIndex: noIndex, Data: data}
-	if t := f.AllTags(); len(t) > 0 {
-		pg.Feed = loc.Path("/feed.xml") + "?" + tagQuery(t)
-		pg.FeedTitle = loc.Text("tag.feed.title", "tags", tagLabels(loc, t))
-	}
+		AutoSelect: true, Canonical: f.Href(false), NoIndex: noIndex, Data: data}
 	if head != nil {
 		pg.Title = loc.Text("tag.one.title", "tag", tagNameText(loc, head.Slug))
 		pg.Description = truncRunes(tagDescText(loc, head.Slug), 200)
@@ -510,7 +534,7 @@ func tagLabels(l *i18n.Locale, slugs []string) string {
 
 func (u *UI) vuln(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 	raw := r.PathValue("cve")
-	id, ok := site.ParseCVEID(raw)
+	id, ok := site.ParseVulnID(raw)
 	if !ok {
 		u.errorPage(w, r, loc, http.StatusBadRequest, ErrorView{Heading: loc.Text("err.bad_cve.heading"),
 			Message: loc.HTML("err.bad_cve.message", "example", codeHTML("CVE-2026-102895")),
@@ -528,14 +552,35 @@ func (u *UI) vuln(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 		return
 	}
 	if !found {
+		if site.IsGHSAID(id) {
+			u.vulnByGHSA(w, r, loc, id) // an alias of a CVE, or unknown
+			return
+		}
 		u.errorPage(w, r, loc, http.StatusNotFound, ErrorView{Heading: loc.Text("err.unknown_cve.heading", "id", id),
 			Message: loc.HTML("err.unknown_cve.message"), Search: true}, id)
 		return
 	}
 	vv := BuildVulnView(loc, v, u.opts.Now(), u.api)
+	vv.Share = u.shareView(loc, v) // public data only: the page is the same for everyone
 	vv.Discussion = u.discussion(r, loc, id)
 	vv.Research = u.research(r, loc, id)
+	if site.IsGHSAID(id) && vv.Research != nil && len(vv.Research.Entries) == 0 {
+		// X posts are collected by the CVE ids they name, so an advisory
+		// without a CVE has none: leave out a section that could only say
+		// "nothing mentions this CVE"
+		vv.Research = nil
+	}
 	vv.Resources = u.resources(r, id)
+	if items := ChartItems(vv.Resources, vv.Research); len(items) > 0 { // dots on the lifecycle chart (chartdots.go)
+		vv.Chart = BuildChart(loc, v, u.opts.Now(), items...)
+	}
+	// after the chart took its items: the PoC list and the unreviewed list
+	// show one page each (?pocp=, ?pocu=; the URL is the page's whole cache
+	// key, the server cache holds the unpaged resources). ?pocu= also opens
+	// the unreviewed list, so its pages work without script.
+	q := r.URL.Query()
+	vv.Resources.PagePoC(loc, pocPage(q.Get(PoCPageParam)), pocHref(loc, id, q))
+	vv.Resources.PageUnreviewed(loc, pocPage(q.Get(UnreviewedPageParam)), q.Has(UnreviewedPageParam), unreviewedHref(loc, id, q))
 	vv.Corrections = u.corrections(r, loc, id)
 	desc := loc.Text("page.vuln.description", "id", id, "title", i18n.Upstream(vv.Title), "sentence", vv.Sentence)
 	title := loc.Text("page.vuln.title", "id", id, "title", i18n.Upstream(truncRunes(vv.Title, 60)))
@@ -548,11 +593,35 @@ func (u *UI) vuln(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 		Description: truncRunes(desc, 200),
 		Nav:         "vuln", Path: "~/vuln/" + id, Pos: loc.Text("sbar.events", "n", vv.EventCount), Hints: helpHints(loc),
 		CopyID: id, DiscScript: u.opts.Accounts != nil, Data: vv,
-		OGImage: u.opts.BaseURL + cardPath(cardFor(v))})
+		OGImage: u.opts.BaseURL + cardPath(cardFor(v)), siteIcons: true})
 }
 
-// vulnDetail is the detail of one canonical CVE id through the shared
-// cache; found=false is the unknown CVE the detail page answers 404 for.
+// vulnByGHSA answers /vuln/{GHSA id} when no vulnerability is keyed by the
+// GHSA id: the one CVE the advisory is an alias of gets a temporary redirect
+// (the alias comes from upstream and can change; an advisory keyed by its
+// GHSA id also ends up here once it gets a CVE), several go to the search
+// for the advisory, none is the unknown-id page.
+func (u *UI) vulnByGHSA(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, ghsa string) {
+	got, err := u.cached(r.Context(), "ghsa|"+ghsa, func(ctx context.Context) (any, error) {
+		return u.srv.Store.VulnsByGHSA(ctx, ghsa)
+	})
+	if err != nil {
+		u.fail(w, r, loc, err)
+		return
+	}
+	switch cves := got.([]string); len(cves) {
+	case 0:
+		u.errorPage(w, r, loc, http.StatusNotFound, ErrorView{Heading: loc.Text("err.unknown_cve.heading", "id", ghsa),
+			Message: loc.HTML("err.unknown_cve.message"), Search: true}, ghsa)
+	case 1:
+		http.Redirect(w, r, loc.Path("/vuln/"+cves[0]), http.StatusFound)
+	default:
+		http.Redirect(w, r, loc.Path("/vuln?q="+url.QueryEscape(ghsa)), http.StatusFound)
+	}
+}
+
+// vulnDetail is the detail of one canonical vulnerability id through the
+// shared cache; found=false is the unknown id the detail page answers 404 for.
 // The share card (ogVuln) uses the same lookup, so it exists exactly when
 // the page does.
 func (u *UI) vulnDetail(ctx context.Context, id string) (*site.VulnDetail, bool, error) {
@@ -590,8 +659,9 @@ func (u *UI) search(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 			return
 		}
 		res = v.(*site.SearchResult)
-		// A complete CVE id that exists goes straight to its page.
-		if id, ok := site.ParseCVEID(q); ok && len(res.Rows) > 0 && res.Rows[0].CVEID == id {
+		// A complete vulnerability id that exists goes straight to its page
+		// (one keyed by a GHSA id sorts before the CVEs that alias it).
+		if id, ok := site.ParseVulnID(q); ok && len(res.Rows) > 0 && res.Rows[0].CVEID == id {
 			http.Redirect(w, r, loc.Path("/vuln/"+id), http.StatusFound)
 			return
 		}
@@ -606,9 +676,6 @@ func (u *UI) search(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 	p := &Page{Title: title, Description: loc.Text("page.search.description"),
 		Nav: "vuln", Path: "~/vuln", Pos: pos, PosID: true, Hints: helpHints(loc), Query: q, AutoSelect: true,
 		Canonical: "/vuln", Data: sv, SearchTags: ts}
-	if q != "" || len(ts) > 0 {
-		p.RawHref = u.api.Href(searchAPIPath(q, ts))
-	}
 	u.page(w, r, loc, http.StatusOK, "search", p)
 }
 
@@ -620,7 +687,6 @@ type SourcesData struct {
 	BacklogN   int64
 	StateAt    template.HTML // convertible <time>, "" when unknown
 	StateError string
-	Curl       CmdLine
 }
 
 func (u *UI) sources(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
@@ -635,11 +701,11 @@ func (u *UI) sources(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 	}
 	d := SourcesData{Collectors: BuildCollectors(loc, src), Status: full,
 		Backlog: loc.Int(src.CvelistBackfillBacklog), BacklogN: src.CvelistBackfillBacklog, StateAt: minuteHTML(src.StateRefreshedAt),
-		StateError: deref(src.StateError), Curl: CurlCmd(u.api.URL("/sources"), ".collectors")}
+		StateError: deref(src.StateError)}
 	u.page(w, r, loc, http.StatusOK, "src", &Page{Title: loc.Text("page.src.title"),
 		Description: loc.Text("page.src.description"),
 		Nav:         "src", Path: "~/src", Pos: loc.Text("sbar.sources", "n", len(d.Collectors)), Hints: helpHints(loc),
-		Status: full, RawHref: u.api.Href("/sources"), Data: d})
+		Status: full, Data: d})
 }
 
 func (u *UI) stats(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
@@ -650,15 +716,14 @@ func (u *UI) stats(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 	}
 	u.page(w, r, loc, http.StatusOK, "stats", &Page{Title: loc.Text("page.stats.title"),
 		Description: loc.Text("page.stats.description"),
-		Nav:         "stats", Path: "~/stats", Hints: helpHints(loc), RawHref: u.api.Href("/stats"),
+		Nav:         "stats", Path: "~/stats", Hints: helpHints(loc),
 		Data: BuildStatsView(loc, st, u.api)})
 }
 
 // AboutData is the about page's data.
 type AboutData struct {
-	Endpoints []Endpoint
-	Keys      []Hint
-	Rules     HotRules
+	Keys  []Hint
+	Rules HotRules
 }
 
 // HotRules are the numbers of the about page's section on how the home list
@@ -682,34 +747,10 @@ func BuildHotRules(c site.PinConfig) HotRules {
 		PinHours: int(c.Recent / time.Hour), PinDays: int(c.Wave / (24 * time.Hour))}
 }
 
-// Endpoint documents one API route.
-type Endpoint struct {
-	Path string // link (relative)
-	Name string
-	Desc template.HTML
-	Curl CmdLine
-}
-
 func (u *UI) about(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
-	b, a := u.opts.BaseURL, u.api
-	ep := func(example, name, key, filter string) Endpoint {
-		return Endpoint{a.Href(example), "GET " + a.Path(name), loc.HTML(key), CurlCmd(a.URL(example), filter)}
-	}
 	d := AboutData{
-		Endpoints: []Endpoint{
-			ep("/hot?since=7d&min_stage=patch", "/hot", "api.hot", ".rows"),
-			ep("/vuln/CVE-2026-102895", "/vuln/{cve}", "api.vuln", ".events"),
-			ep("/search?q=barracuda", "/search", "api.search", ".rows"),
-			ep("/tags", "/tags", "tag.api", ".tags"),
-			ep("/sources", "/sources", "api.sources", ".collectors"),
-			ep("/stats", "/stats", "api.stats", "."),
-			ep("/raw/kev/CVE-2026-102895.json", "/raw/{source}/{key}.json", "api.raw", "."),
-			ep("/healthz", "/healthz", "api.healthz", "."),
-			{loc.Path("/feed.xml"), "GET " + loc.Path("/feed.xml"), loc.HTML("api.feed"),
-				newCmd("curl -s "+ShellQuote(b+loc.Path("/feed.xml")), "")},
-		},
 		Keys: []Hint{{"j / k", loc.Text("about.key.jk")}, {"Enter", loc.Text("about.key.enter")},
-			{"/", loc.Text("about.key.slash")}, {"y", loc.Text("about.key.y")}, {"r", loc.Text("about.key.r")},
+			{"/", loc.Text("about.key.slash")}, {"y", loc.Text("about.key.y")},
 			{"o", loc.Text("about.key.o")}, {"u", loc.Text("about.key.u")}, {"?", loc.Text("about.key.help")}},
 		Rules: BuildHotRules(u.srv.Store.PinConfig()),
 	}

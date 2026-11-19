@@ -15,6 +15,8 @@ package pagefetch
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"io"
 	"mime"
@@ -48,6 +50,17 @@ type Options struct {
 	UserAgent string // sent with every request
 	Accept    string // "" = "text/html"
 
+	// HTTPSOnly refuses (ErrRefused) a URL, and any redirect, that is not
+	// https: nothing is sent over plain http.
+	HTTPSOnly bool
+	// AnyBody reads the body of every 200 response, whatever its content
+	// type (default: only HTML bodies are read; see Page.Body).
+	AnyBody bool
+	// MaxBody is the body cap in bytes; <= 0 means MaxBody.
+	MaxBody int
+	// Timeout bounds one Get, redirects included; <= 0 means Timeout.
+	Timeout time.Duration
+
 	// Tests only (set from code, never from the environment):
 	// DialControl replaces GuardControl as the dialer's Control hook.
 	DialControl func(network, address string, c syscall.RawConn) error
@@ -55,6 +68,9 @@ type Options struct {
 	// (to reach an httptest listener behind a name on a default port).
 	// The Control hook still sees the resolved address.
 	RewriteAddr func(addr string) string
+	// RootCAs replaces the system roots for TLS verification (to trust an
+	// httptest TLS listener). Verification itself stays on.
+	RootCAs *x509.CertPool
 }
 
 // Client fetches pages. Safe for concurrent use. No global state: each
@@ -63,6 +79,9 @@ type Client struct {
 	hc        *http.Client
 	userAgent string
 	accept    string
+	httpsOnly bool
+	anyBody   bool
+	maxBody   int
 }
 
 // Page is the result of a Get that reached a server.
@@ -72,9 +91,10 @@ type Page struct {
 	ContentType string // media type, lower case ("" when absent or invalid)
 	Charset     string // charset parameter of Content-Type, lower case
 	// Body is read only for status 200 with an HTML content type (IsHTML),
-	// at most MaxBody bytes; nil otherwise.
+	// or for any status 200 response with Options.AnyBody, at most MaxBody
+	// (or Options.MaxBody) bytes; nil otherwise.
 	Body      []byte
-	Truncated bool // the body was longer than MaxBody
+	Truncated bool // the body was longer than the cap
 }
 
 // IsHTML reports whether the page is a 200 response with an HTML content
@@ -106,18 +126,31 @@ func New(o Options) *Client {
 		DisableKeepAlives:      true,
 		MaxResponseHeaderBytes: 64 << 10,
 	}
+	if o.RootCAs != nil {
+		tr.TLSClientConfig = &tls.Config{RootCAs: o.RootCAs, MinVersion: tls.VersionTLS12}
+	}
 	accept := o.Accept
 	if accept == "" {
 		accept = "text/html"
 	}
-	c := &Client{userAgent: o.UserAgent, accept: accept}
-	c.hc = &http.Client{Transport: tr, Timeout: Timeout,
+	timeout := o.Timeout
+	if timeout <= 0 {
+		timeout = Timeout
+	}
+	c := &Client{userAgent: o.UserAgent, accept: accept, httpsOnly: o.HTTPSOnly, anyBody: o.AnyBody, maxBody: o.MaxBody}
+	if c.maxBody <= 0 {
+		c.maxBody = MaxBody
+	}
+	c.hc = &http.Client{Transport: tr, Timeout: timeout,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) > MaxRedirects {
 				return refused("more than %d redirects", MaxRedirects)
 			}
 			if _, err := CheckURL(req.URL.String()); err != nil {
 				return err
+			}
+			if c.httpsOnly && req.URL.Scheme != "https" {
+				return refused("redirect to scheme %q", req.URL.Scheme)
 			}
 			if req.Method != http.MethodGet {
 				return refused("redirect to method %s", req.Method)
@@ -176,15 +209,19 @@ func CheckURL(raw string) (*url.URL, error) {
 }
 
 // Get makes a GET of raw (CheckURL first; nothing is sent when it fails),
-// following at most MaxRedirects redirects that each pass CheckURL. It
-// returns the final page; the body is read only when IsHTML, capped at
-// MaxBody. Errors: ErrRefused-wrapping errors for refusals (no connection
+// following at most MaxRedirects redirects that each pass CheckURL (and
+// are https with Options.HTTPSOnly). It returns the final page; the body is
+// read only when IsHTML (or for any 200 with Options.AnyBody), capped at
+// MaxBody (Options.MaxBody). Errors: ErrRefused-wrapping errors for refusals (no connection
 // made for the refused hop), the context's error when it is done, else a
 // transport error.
 func (c *Client) Get(ctx context.Context, raw string) (*Page, error) {
 	u, err := CheckURL(raw)
 	if err != nil {
 		return nil, err
+	}
+	if c.httpsOnly && u.Scheme != "https" {
+		return nil, refused("scheme %q", u.Scheme)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
@@ -205,18 +242,18 @@ func (c *Client) Get(ctx context.Context, raw string) (*Page, error) {
 		p.ContentType = strings.ToLower(mt)
 		p.Charset = strings.ToLower(strings.TrimSpace(params["charset"]))
 	}
-	if !p.IsHTML() {
+	if !p.IsHTML() && !(c.anyBody && p.Status == http.StatusOK) {
 		return p, nil
 	}
-	b, err := io.ReadAll(io.LimitReader(resp.Body, MaxBody+1))
+	b, err := io.ReadAll(io.LimitReader(resp.Body, int64(c.maxBody)+1))
 	if err != nil && !errors.Is(err, io.EOF) {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 		return nil, err
 	}
-	if len(b) > MaxBody {
-		b, p.Truncated = b[:MaxBody], true
+	if len(b) > c.maxBody {
+		b, p.Truncated = b[:c.maxBody], true
 	}
 	p.Body = b
 	return p, nil

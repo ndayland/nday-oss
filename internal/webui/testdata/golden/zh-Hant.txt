@@ -4,83 +4,87 @@
 
 ### kev_t5_patch_0of3 (CVE-2026-102895 shape)
 keys: status.lead.after.kev + status.patch.fixed + status.poc.none
-揭露 5 天後列入 CISA KEV。已於 gpustack 2.2.0 修補。三個 PoC 來源皆未收錄。
+揭露 5 天後列入 CISA KEV。已於 gpustack 2.2.0 修補。四個 PoC 來源皆未收錄。
 
 ### stub_no_record_kev_no_patch
 keys: status.no_record + status.kev.at + status.patch.none + status.poc.none
-nday 尚未取得此編號的官方 CVE 紀錄，揭露時間不明。列入 CISA KEV 的日期：2026-11-09。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆未收錄。
+nday 尚未取得此編號的官方 CVE 紀錄，揭露時間不明。列入 CISA KEV 的日期：2026-11-09。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆未收錄。
 
 ### disclosed_only
 keys: status.disclosed_at + status.patch.none + status.poc.none + status.kev.not_listed
-揭露時間：2026-11-04T21:16Z。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆未收錄。目前未列入 CISA KEV。
+揭露時間：2026-11-04T21:16Z。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆未收錄。目前未列入 CISA KEV。
 
 ### kev_same_day
 keys: status.lead.same_day + status.patch.none + status.poc.none
-揭露當天即列入 CISA KEV。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆未收錄。
+揭露當天即列入 CISA KEV。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆未收錄。
 
 ### kev_1_day_after
 keys: status.lead.after.kev + status.patch.none + status.poc.none
-揭露 1 天後列入 CISA KEV。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆未收錄。
+揭露 1 天後列入 CISA KEV。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆未收錄。
 
 ### kev_before_record_20d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-CVE 紀錄發布前 20 天，即已列入 CISA KEV。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆未收錄。
+CVE 紀錄發布前 20 天，即已列入 CISA KEV。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆未收錄。
 
 ### kev_before_record_1d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-CVE 紀錄發布前 1 天，即已列入 CISA KEV。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆未收錄。
+CVE 紀錄發布前 1 天，即已列入 CISA KEV。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆未收錄。
 
-### poc_t7_2of3
+### poc_t7_2of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-揭露 7 天後出現公開 PoC。nday 尚未取得修補依據，不能據此認為沒有修補。3 個 PoC 來源中有 2 個收錄：exploitdb 與 nuclei。目前未列入 CISA KEV。
+揭露 7 天後出現公開 PoC。nday 尚未取得修補依據，不能據此認為沒有修補。4 個 PoC 來源中有 2 個收錄：exploitdb 與 nuclei。目前未列入 CISA KEV。
 
-### poc_t1_1of3
+### poc_t1_1of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-揭露 1 天後出現公開 PoC。nday 尚未取得修補依據，不能據此認為沒有修補。3 個 PoC 來源中有 1 個收錄：metasploit。目前未列入 CISA KEV。
+揭露 1 天後出現公開 PoC。nday 尚未取得修補依據，不能據此認為沒有修補。4 個 PoC 來源中有 1 個收錄：metasploit。目前未列入 CISA KEV。
 
-### poc_time_unknown_3of3
+### poc_time_unknown_4of4
 keys: status.disclosed_at + status.patch.none + status.poc.all + status.kev.not_listed
-揭露時間：2026-11-04T21:16Z。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆已收錄。目前未列入 CISA KEV。
+揭露時間：2026-11-04T21:16Z。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆已收錄。目前未列入 CISA KEV。
+
+### poc_t30_github_only
+keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
+揭露 30 天後出現公開 PoC。nday 尚未取得修補依據，不能據此認為沒有修補。4 個 PoC 來源中有 1 個收錄：github。目前未列入 CISA KEV。
 
 ### patch_t3_known
 keys: status.lead.after.pat + status.patch.fixed + status.poc.none + status.kev.not_listed
-揭露 3 天後出現修補紀錄。已於 a 1.0.1 與 b 2.0 修補。三個 PoC 來源皆未收錄。目前未列入 CISA KEV。
+揭露 3 天後出現修補紀錄。已於 a 1.0.1 與 b 2.0 修補。四個 PoC 來源皆未收錄。目前未列入 CISA KEV。
 
 ### patch_same_day
 keys: status.lead.same_day + status.patch.no_version + status.poc.none + status.kev.not_listed
-揭露當天即有修補紀錄。已有修補紀錄，但來源未提供修補版本。三個 PoC 來源皆未收錄。目前未列入 CISA KEV。
+揭露當天即有修補紀錄。已有修補紀錄，但來源未提供修補版本。四個 PoC 來源皆未收錄。目前未列入 CISA KEV。
 
 ### patch_before_record_2d
 keys: status.lead.before.pat + status.patch.no_version + status.poc.none + status.kev.not_listed
-CVE 紀錄發布前 2 天，即已有修補紀錄。已有修補紀錄，但來源未提供修補版本。三個 PoC 來源皆未收錄。目前未列入 CISA KEV。
+CVE 紀錄發布前 2 天，即已有修補紀錄。已有修補紀錄，但來源未提供修補版本。四個 PoC 來源皆未收錄。目前未列入 CISA KEV。
 
 ### analysis_t2
 keys: status.lead.after.ana + status.patch.none + status.poc.none + status.kev.not_listed
-揭露 2 天後出現技術分析。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆未收錄。目前未列入 CISA KEV。
+揭露 2 天後出現技術分析。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆未收錄。目前未列入 CISA KEV。
 
 ### itw_t12
 keys: status.lead.after.itw + status.patch.none + status.poc.none + status.kev.not_listed
-揭露 12 天後出現實際遭利用的紀錄。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆未收錄。目前未列入 CISA KEV。
+揭露 12 天後出現實際遭利用的紀錄。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆未收錄。目前未列入 CISA KEV。
 
 ### itw_before_record_3d
 keys: status.lead.before.itw + status.patch.none + status.poc.none + status.kev.not_listed
-CVE 紀錄發布前 3 天，即已有實際遭利用的紀錄。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆未收錄。目前未列入 CISA KEV。
+CVE 紀錄發布前 3 天，即已有實際遭利用的紀錄。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆未收錄。目前未列入 CISA KEV。
 
 ### patch_without_fixed_version
 keys: status.disclosed_at + status.patch.no_version + status.poc.none + status.kev.not_listed
-揭露時間：2026-11-04T21:16Z。已有修補紀錄，但來源未提供修補版本。三個 PoC 來源皆未收錄。目前未列入 CISA KEV。
+揭露時間：2026-11-04T21:16Z。已有修補紀錄，但來源未提供修補版本。四個 PoC 來源皆未收錄。目前未列入 CISA KEV。
 
 ### two_fixed_versions
 keys: status.disclosed_at + status.patch.fixed + status.poc.none + status.kev.not_listed
-揭露時間：2026-11-04T21:16Z。已於 a 1 與 b 2 修補。三個 PoC 來源皆未收錄。目前未列入 CISA KEV。
+揭露時間：2026-11-04T21:16Z。已於 a 1 與 b 2 修補。四個 PoC 來源皆未收錄。目前未列入 CISA KEV。
 
 ### many_fixed_versions
 keys: status.disclosed_at + status.patch.fixed_many + status.poc.none + status.kev.not_listed
-揭露時間：2026-11-04T21:16Z。已於 a 1、b 2 等 3 個版本修補。三個 PoC 來源皆未收錄。目前未列入 CISA KEV。
+揭露時間：2026-11-04T21:16Z。已於 a 1、b 2 等 3 個版本修補。四個 PoC 來源皆未收錄。目前未列入 CISA KEV。
 
 ### disclosure_unknown_kev_time_unknown
 keys: status.disclosure_unknown + status.kev.time_unknown + status.patch.none + status.poc.none
-揭露時間不明。已列入 CISA KEV，列入日期不明。nday 尚未取得修補依據，不能據此認為沒有修補。三個 PoC 來源皆未收錄。
+揭露時間不明。已列入 CISA KEV，列入日期不明。nday 尚未取得修補依據，不能據此認為沒有修補。四個 PoC 來源皆未收錄。
 
 ### rejected
 keys: status.rejected + status.disclosed_at
@@ -207,6 +211,10 @@ Nuclei 已有相關偵測範本：<span lang="en">X - Auth Bypass</span>。來�
 ### nuclei_bare
 keys: ev.nuclei.added + ev.nuclei.no_time
 Nuclei 已有相關偵測範本。來源未提供範本的釋出時間。
+
+### github_repo
+keys: ev.github.repo + ev.github.created
+GitHub 上的 PoC 儲存庫：acme/CVE-2026-1-poc。日期為儲存庫的建立日。
 
 ### generic_itw
 keys: ev.generic

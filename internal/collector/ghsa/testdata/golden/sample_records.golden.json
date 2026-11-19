@@ -198,8 +198,80 @@
    "normalized": {
     "affected": [],
     "aliases": [],
-    "events": [],
-    "vulns": []
+    "events": [
+     {
+      "cve_id": "GHSA-2cm2-m3w5-gp2f",
+      "dedupe_key": "GHSA-2cm2-m3w5-gp2f",
+      "detail": {
+       "ghsa_id": "GHSA-2cm2-m3w5-gp2f",
+       "state": "PUBLISHED",
+       "withdrawn_at": null
+      },
+      "occurred_at": "2026-05-08T16:22:52.000000Z",
+      "source": "ghsa",
+      "type": "disclosed",
+      "url": "https://github.com/advisories/GHSA-2cm2-m3w5-gp2f"
+     },
+     {
+      "cve_id": "GHSA-2cm2-m3w5-gp2f",
+      "dedupe_key": "GHSA-2cm2-m3w5-gp2f",
+      "detail": {
+       "advisory_published_at": "2026-05-08T16:22:52Z",
+       "advisory_updated_at": "2026-11-05T21:42:53Z",
+       "cvss": {
+        "cvss_v3": {
+         "score": 5.3,
+         "vector_string": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+        },
+        "cvss_v4": {
+         "score": 0.0,
+         "vector_string": null
+        }
+       },
+       "cwes": [
+        {
+         "cwe_id": "CWE-693",
+         "name": "Protection Mechanism Failure"
+        }
+       ],
+       "fix_commit_urls": [
+        "https://github.com/patriksimek/vm2/commit/99d410bb7e0d607c56e68b420720a586dc0dd300"
+       ],
+       "ghsa_id": "GHSA-2cm2-m3w5-gp2f",
+       "github_reviewed_at": "2026-05-08T16:22:52Z",
+       "packages": [
+        {
+         "ecosystem": "npm",
+         "first_patched_version": "3.11.2",
+         "name": "vm2",
+         "vulnerable_version_range": "< 3.11.2"
+        }
+       ],
+       "references": [
+        "https://github.com/patriksimek/vm2/security/advisories/GHSA-2cm2-m3w5-gp2f",
+        "https://github.com/patriksimek/vm2/releases/tag/v3.11.2",
+        "https://github.com/patriksimek/vm2/commit/99d410bb7e0d607c56e68b420720a586dc0dd300",
+        "https://github.com/advisories/GHSA-2cm2-m3w5-gp2f"
+       ],
+       "severity": "medium",
+       "source_code_location": "https://github.com/patriksimek/vm2"
+      },
+      "occurred_at": null,
+      "source": "ghsa",
+      "type": "patch_released",
+      "url": "https://github.com/advisories/GHSA-2cm2-m3w5-gp2f"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "GHSA-2cm2-m3w5-gp2f",
+      "description": "### Summary\n\nhttps://github.com/patriksimek/vm2/security/advisories/GHSA-wp5r-2gw5-m7q7 is not fully patched.\n\n### Details\n\nIt is still possible to get access to `VM2_INTERNAL_STATE_DO_NOT_USE_OR_PROGRAM_WILL_FAIL`.\n\n### PoC\n\n```js\nconst {VM} = require(\"vm2\");\nconst vm = new VM();\nconsole.log(vm.run(`\n globalThis['VM2_INTERNAL_STATE_DO_NOT_USE_OR_PROGRAM_WILL_FAIL']\n`));\n```",
+      "modified_at": "2026-11-05T21:42:53.000000Z",
+      "published_at": "2026-05-08T16:22:52.000000Z",
+      "title": "vm2 has access to `VM2_INTERNAL_STATE_DO_NOT_USE_OR_PROGRAM_WILL_FAIL`"
+     }
+    ]
    },
    "source_key": "GHSA-2cm2-m3w5-gp2f"
   },
@@ -209,7 +281,21 @@
    "normalized": {
     "affected": [],
     "aliases": [],
-    "events": [],
+    "events": [
+     {
+      "cve_id": "GHSA-jmqv-2mx7-544h",
+      "dedupe_key": "GHSA-jmqv-2mx7-544h",
+      "detail": {
+       "ghsa_id": "GHSA-jmqv-2mx7-544h",
+       "state": "REJECTED",
+       "withdrawn_at": "2026-11-06T18:06:05Z"
+      },
+      "occurred_at": "2026-06-21T15:31:24.000000Z",
+      "source": "ghsa",
+      "type": "disclosed",
+      "url": "https://github.com/advisories/GHSA-jmqv-2mx7-544h"
+     }
+    ],
     "vulns": []
    },
    "source_key": "GHSA-jmqv-2mx7-544h"

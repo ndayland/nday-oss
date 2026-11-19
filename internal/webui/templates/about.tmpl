@@ -47,20 +47,6 @@
 </dl>
 <p class="note">{{t "about.keys.note"}}</p>
 </section>
-
-<section class="sec" id="api" aria-labelledby="apih">
-<h2 class="h2" id="apih"><span class="h" aria-hidden="true"># </span>{{t "about.api.h2"}}</h2>
-<p class="note">{{t "about.api.note"}}</p>
-<div class="api">
-{{- range .Endpoints}}
-<div class="ep">
-<div><a href="{{.Path}}">{{.Name}}</a></div>
-<p class="d">{{.Desc}}</p>
-{{template "cmdsm" .Curl}}
-</div>
-{{- end}}
-</div>
-</section>
 </main>
 </div>
 </div>

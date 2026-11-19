@@ -20,6 +20,7 @@ import (
 //
 //	/sitemap/pages.xml           the indexable static pages
 //	/sitemap/vuln-YYYY-B.xml     CVE-YYYY-N with N / site.SitemapSpan == B
+//	/sitemap/ghsa-C.xml          vulnerabilities keyed by a GHSA id GHSA-Cxxx-…
 //
 // Every page appears once per enabled locale, at exactly the canonical URL
 // the page itself declares (BaseURL + locale.Path(path)). A vulnerability's
@@ -38,17 +39,29 @@ const (
 	sitemapType      = "application/xml; charset=utf-8"
 	sitemapPagesFile = "pages.xml"
 	sitemapVulnPre   = "vuln-"
+	sitemapGHSAPre   = "ghsa-"
 	sitemapExt       = ".xml"
 )
 
 // sitemapShardPath is the path of a vulnerability shard.
 func sitemapShardPath(b site.SitemapBucket) string {
+	if b.GHSA != "" {
+		return "/sitemap/" + sitemapGHSAPre + b.GHSA + sitemapExt
+	}
 	return "/sitemap/" + sitemapVulnPre + strconv.Itoa(b.Year) + "-" + strconv.Itoa(b.Bucket) + sitemapExt
 }
 
 // parseSitemapShard parses "vuln-YYYY-B.xml" (canonical numbers only, so
-// every shard has exactly one URL).
+// every shard has exactly one URL) or "ghsa-C.xml" (C one character of
+// site.GHSAAlphabet, lower case).
 func parseSitemapShard(file string) (site.SitemapBucket, bool) {
+	if rest, ok := strings.CutPrefix(file, sitemapGHSAPre); ok {
+		c, ok := strings.CutSuffix(rest, sitemapExt)
+		if !ok || len(c) != 1 || !strings.Contains(site.GHSAAlphabet, c) {
+			return site.SitemapBucket{}, false
+		}
+		return site.SitemapBucket{GHSA: c}, true
+	}
 	rest, ok := strings.CutPrefix(file, sitemapVulnPre)
 	if !ok {
 		return site.SitemapBucket{}, false
@@ -77,7 +90,7 @@ func (u *UI) sitemapBuckets(ctx context.Context) ([]site.SitemapBucket, error) {
 }
 
 func (u *UI) sitemapVulns(ctx context.Context, b site.SitemapBucket) ([]site.SitemapEntry, error) {
-	key := "sitemap|vuln|" + strconv.Itoa(b.Year) + "|" + strconv.Itoa(b.Bucket)
+	key := "sitemap|vuln|" + strconv.Itoa(b.Year) + "|" + strconv.Itoa(b.Bucket) + "|" + b.GHSA
 	v, err := u.cached(ctx, key, func(ctx context.Context) (any, error) { return u.srv.Store.SitemapVulns(ctx, b) })
 	if err != nil {
 		return nil, err

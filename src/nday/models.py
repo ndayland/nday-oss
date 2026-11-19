@@ -10,6 +10,9 @@ from datetime import datetime
 from typing import Any
 
 CVE_ID_RE = re.compile(r"CVE-\d{4}-\d{4,}")
+# A GHSA id in GitHub's canonical form (ASCII only): the id of a vulnerability
+# whose advisory has no CVE yet (docs/ghsa.md).
+GHSA_ID_RE = re.compile(r"GHSA(-[23456789cfghjmpqrvwx]{4}){3}")
 
 EVENT_TYPES = frozenset(
     {
@@ -27,9 +30,20 @@ def is_valid_cve_id(value: str) -> bool:
     return CVE_ID_RE.fullmatch(value) is not None
 
 
-def _require_cve(value: str) -> None:
-    if not is_valid_cve_id(value):
-        raise ValueError(f"invalid CVE id: {value!r}")
+def is_ghsa_id(value: str) -> bool:
+    return GHSA_ID_RE.fullmatch(value) is not None
+
+
+def is_valid_vuln_id(value: str) -> bool:
+    """A vulnerability's id: a CVE id (the main id) or, for a GitHub advisory
+    without a CVE, its GHSA id. Sources whose records are CVE records keep
+    checking is_valid_cve_id."""
+    return is_valid_cve_id(value) or is_ghsa_id(value)
+
+
+def _require_vuln_id(value: str) -> None:
+    if not is_valid_vuln_id(value):
+        raise ValueError(f"invalid vuln id: {value!r}")
 
 
 def _require_aware(dt: datetime | None, name: str) -> None:
@@ -87,7 +101,7 @@ class VulnUpsert:
     authoritative: bool = False
 
     def __post_init__(self) -> None:
-        _require_cve(self.cve_id)
+        _require_vuln_id(self.cve_id)
         _require_aware(self.published_at, "published_at")
         _require_aware(self.modified_at, "modified_at")
 
@@ -99,7 +113,7 @@ class Alias:
     alias_type: str
 
     def __post_init__(self) -> None:
-        _require_cve(self.cve_id)
+        _require_vuln_id(self.cve_id)
 
 
 @dataclass(frozen=True)
@@ -109,7 +123,7 @@ class Affected:
     product: str
 
     def __post_init__(self) -> None:
-        _require_cve(self.cve_id)
+        _require_vuln_id(self.cve_id)
 
 
 @dataclass(frozen=True)
@@ -131,7 +145,7 @@ class Event:
     dedupe_key: str = ""
 
     def __post_init__(self) -> None:
-        _require_cve(self.cve_id)
+        _require_vuln_id(self.cve_id)
         if self.type not in EVENT_TYPES:
             raise ValueError(f"invalid event type: {self.type!r}")
         _require_aware(self.occurred_at, "occurred_at")

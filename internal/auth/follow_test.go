@@ -220,6 +220,7 @@ func TestFollowsMatch(t *testing.T) {
 		{"CVE-2026-0003", "Fortinetx", "Fortinet-ish"}, // substring only: no
 		{"CVE-2026-0004", "Acme", "Widget"},            // unrelated
 		{"CVE-2026-0005", "PALO ALTO NETWORKS", "PAN-OS"},
+		{"GHSA-gpwc-27cw-rh9r", "fortinet", "fortisdk"}, // an advisory without a CVE: keyed by its GHSA id
 	} {
 		if _, err := h.db.Conn.Exec(ctx, `INSERT INTO vuln (cve_id) VALUES ($1) ON CONFLICT DO NOTHING`, r[0]); err != nil {
 			t.Fatal(err)
@@ -249,8 +250,13 @@ func TestFollowsMatch(t *testing.T) {
 	if st, _, out := match(other, "CVE-2026-0001", "CVE-2026-0004"); st != 200 || out != `{"matches":["CVE-2026-0004"]}` {
 		t.Errorf("other user's follows: %d %s", st, out)
 	}
-	if st, code, _ := match(a, "CVE-2026-0001", "not-a-cve"); st != 400 || code != "bad_request" {
-		t.Errorf("bad id: %d %s", st, code)
+	if st, _, out := match(a, "ghsa-GPWC-27cw-rh9r", "CVE-2026-0001"); st != 200 || out != `{"matches":["GHSA-gpwc-27cw-rh9r","CVE-2026-0001"]}` {
+		t.Errorf("GHSA id: %d %s", st, out)
+	}
+	for _, bad := range []string{"not-a-cve", "GHSA-aaaa-27cw-rh9r"} {
+		if st, code, _ := match(a, "CVE-2026-0001", bad); st != 400 || code != "bad_request" {
+			t.Errorf("bad id %s: %d %s", bad, st, code)
+		}
 	}
 	ids := make([]string, auth.MaxMatchCVEs)
 	for i := range ids {

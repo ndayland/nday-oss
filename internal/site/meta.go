@@ -142,6 +142,10 @@ type Stats struct {
 	// StateRefreshedAt: the counts are as of this instant.
 	StateRefreshedAt *time.Time `json:"state_refreshed_at"`
 	GeneratedAt      time.Time  `json:"generated_at"`
+	// ByStageLive: the ByStage counts without rejected CVEs (DIS..KEV), for
+	// the catalogue's position text (its default leaves rejected CVEs
+	// out); counted in the same scan. Not in the JSON.
+	ByStageLive [6]int64 `json:"-"`
 }
 
 const statsSQL = `
@@ -159,7 +163,13 @@ SELECT (SELECT count(*) FROM vuln),
        count(*) FILTER (WHERE stage_rank = 4),
        count(*) FILTER (WHERE stage_rank = 5),
        count(*) FILTER (WHERE stage_rank = 6),
-       (SELECT refreshed_at FROM vuln_state_refresh WHERE id = 1)
+       (SELECT refreshed_at FROM vuln_state_refresh WHERE id = 1),
+       count(*) FILTER (WHERE stage_rank = 1 AND NOT is_rejected),
+       count(*) FILTER (WHERE stage_rank = 2 AND NOT is_rejected),
+       count(*) FILTER (WHERE stage_rank = 3 AND NOT is_rejected),
+       count(*) FILTER (WHERE stage_rank = 4 AND NOT is_rejected),
+       count(*) FILTER (WHERE stage_rank = 5 AND NOT is_rejected),
+       count(*) FILTER (WHERE stage_rank = 6 AND NOT is_rejected)
 FROM vuln_state_mat`
 
 // Stats returns stage counts and feature counts.
@@ -169,7 +179,8 @@ func (s *Store) Stats(ctx context.Context) (*Stats, error) {
 	err := s.db.WithConn(ctx, func(conn *pgx.Conn) error {
 		return conn.QueryRow(ctx, statsSQL).Scan(&st.Vulns, &st.WithEvents, &st.Rejected, &st.WithPatch,
 			&st.WithAnalysis, &st.WithPoc, &st.Exploited, &st.InKEV,
-			&by[0], &by[1], &by[2], &by[3], &by[4], &by[5], &st.StateRefreshedAt)
+			&by[0], &by[1], &by[2], &by[3], &by[4], &by[5], &st.StateRefreshedAt,
+			&st.ByStageLive[0], &st.ByStageLive[1], &st.ByStageLive[2], &st.ByStageLive[3], &st.ByStageLive[4], &st.ByStageLive[5])
 	})
 	if err != nil {
 		return nil, err

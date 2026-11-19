@@ -40,9 +40,11 @@ func (p DiscussedParams) CacheKey() string { return fmt.Sprintf("discussed|%d|%d
 // lifecycle state (Stage, StageCode and Transition are null for a CVE known
 // only from posts), plus the researcher count.
 type DiscussedRow struct {
-	CVEID               string      `json:"cve_id"`
-	Title               *string     `json:"title"`
-	TitleZh             *string     `json:"title_zh"`
+	CVEID   string  `json:"cve_id"`
+	Title   *string `json:"title"`
+	TitleZh *string `json:"title_zh"`
+	// the effective title and its origin (titles.go)
+	TitleInfo
 	Products            []Product   `json:"products"`
 	ProductCount        int         `json:"product_count"`
 	Stage               *string     `json:"stage"`
@@ -57,6 +59,7 @@ type DiscussedRow struct {
 	// Researchers: distinct allow-listed researchers who posted about the
 	// CVE in the last 7 days (the ranking key; always >= 1 here).
 	Researchers int `json:"researchers_7d"`
+	total       int // the ranking's length (DiscussedPage.Total)
 }
 
 // DiscussedPage is one page of the list.
@@ -68,10 +71,16 @@ type DiscussedPage struct {
 	// NextOffset is set when more rows follow.
 	NextOffset  *int      `json:"next_offset"`
 	GeneratedAt time.Time `json:"generated_at"`
+	// Total: how many CVEs the whole ranking has (0 when the page has no
+	// rows); counted by the same aggregate the ranking sorts, so it costs
+	// nothing extra. For the pages' position text; not in the JSON.
+	Total int `json:"-"`
 }
 
 // discussedSelect ranks the aggregate (researcherAggSQL) and joins the
-// hot-row data of the page's rows only. $3 limit, $4 offset.
+// hot-row data of the page's rows only. $3 limit, $4 offset. The last
+// column is the number of ranked CVEs (a window count over the aggregate,
+// taken before LIMIT).
 var discussedSelect = `
 SELECT m.cve_id, m.researchers, v.title, v.title_zh, s.stage, s.stage_rank, COALESCE(s.is_rejected, false),
        s.last_transition_at, s.last_transition_type,
@@ -79,14 +88,14 @@ SELECT m.cve_id, m.researchers, v.title, v.title_zh, s.stage, s.stage_rank, COAL
        COALESCE(s.has_disclosed, false), s.disclosed_at, COALESCE(s.has_patch, false), s.patch_at,
        COALESCE(s.has_analysis, false), s.analysis_at, COALESCE(s.has_poc, false), s.poc_at,
        COALESCE(s.has_itw, false), s.itw_at, COALESCE(s.in_kev, false), s.kev_at, COALESCE(s.poc_sources, 0),
-       COALESCE(af.n, 0), COALESCE(af.vendors, '{}'), COALESCE(af.products, '{}')
-FROM (SELECT a.* FROM (` + researcherAggSQL("") + `) a
+       COALESCE(af.n, 0), COALESCE(af.vendors, '{}'), COALESCE(af.products, '{}'), m.total::int, ` + titleCols + `
+FROM (SELECT a.*, count(*) OVER () AS total FROM (` + researcherAggSQL("") + `) a
       ORDER BY a.researchers DESC, a.last_at DESC, a.cve_id
       LIMIT $3 OFFSET $4) m
 JOIN vuln v ON v.cve_id = m.cve_id
 LEFT JOIN vuln_state_mat s ON s.cve_id = m.cve_id
 LEFT JOIN event e ON e.id = s.last_transition_event_id
-LEFT JOIN LATERAL (` + strings.ReplaceAll(productsLateral, "s.cve_id", "m.cve_id") + `) af ON true
+LEFT JOIN LATERAL (` + strings.ReplaceAll(productsLateral, "s.cve_id", "m.cve_id") + `) af ON true` + titleJoinM + `
 ORDER BY m.researchers DESC, m.last_at DESC, m.cve_id`
 
 // Discussed returns a page of CVEs ranked by researcher count (last 7
@@ -107,6 +116,9 @@ func (s *Store) Discussed(ctx context.Context, p DiscussedParams) (*DiscussedPag
 		page.Rows, err = pgx.CollectRows(rows, scanDiscussedRow)
 		if err != nil {
 			return err
+		}
+		if len(page.Rows) > 0 {
+			page.Total = page.Rows[0].total
 		}
 		ids := make([]string, len(page.Rows))
 		for i, r := range page.Rows {
@@ -144,15 +156,17 @@ func scanDiscussedRow(r pgx.CollectableRow) (DiscussedRow, error) {
 	var backfill *bool
 	var in SlotInput
 	var vendors, products []string
-	err := r.Scan(&d.CVEID, &d.Researchers, &d.Title, &d.TitleZh, &stage, &rank, &d.IsRejected,
+	var ts titleScan
+	err := r.Scan(append([]any{&d.CVEID, &d.Researchers, &d.Title, &d.TitleZh, &stage, &rank, &d.IsRejected,
 		&trAt, &trType,
 		&evID, &evSource, &occ, &backfill, &prec,
 		&in.Exists[0], &in.FirstAt[0], &in.Exists[1], &in.FirstAt[1], &in.Exists[2], &in.FirstAt[2],
 		&in.Exists[3], &in.FirstAt[3], &in.Exists[4], &in.FirstAt[4], &in.Exists[5], &in.FirstAt[5],
-		&d.PocSources, &d.ProductCount, &vendors, &products)
+		&d.PocSources, &d.ProductCount, &vendors, &products, &d.total}, ts.dest()...)...)
 	if err != nil {
 		return d, err
 	}
+	d.TitleInfo = ts.info(d.Title)
 	if stage != nil {
 		code := StageCode(*stage)
 		d.Stage, d.StageCode = stage, &code
@@ -188,7 +202,7 @@ func scanDiscussedRow(r pgx.CollectableRow) (DiscussedRow, error) {
 // HotRow is d as a hot-list row (for shared rendering); ok is false for a
 // CVE without a lifecycle state.
 func (d DiscussedRow) HotRow() (HotRow, bool) {
-	h := HotRow{CVEID: d.CVEID, Title: d.Title, TitleZh: d.TitleZh, Products: d.Products, ProductCount: d.ProductCount,
+	h := HotRow{CVEID: d.CVEID, Title: d.Title, TitleZh: d.TitleZh, TitleInfo: d.TitleInfo, Products: d.Products, ProductCount: d.ProductCount,
 		IsRejected: d.IsRejected, Slots: d.Slots, DisclosedAt: d.DisclosedAt, DaysSinceDisclosure: d.DaysSinceDisclosure,
 		PocSources: d.PocSources, Tags: d.Tags, Researchers: d.Researchers}
 	if d.Stage == nil || d.Transition == nil {

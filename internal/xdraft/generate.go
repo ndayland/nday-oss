@@ -47,7 +47,10 @@ import (
 // behind it). Overlapping runs are serialised by the watermark row (SELECT …
 // FOR UPDATE, same waiting rule; "another_run" when busy). A deferral of the
 // table lock is recorded in x_draft_state.last_run (deferred, deferred_at)
-// without touching the watermark or the last run's counts.
+// without touching the watermark or the last run's counts. So is
+// "vuln_busy": the vuln rows of the drafts to create are locked NOWAIT
+// while the run holds the event table, because a merge (docs/ghsa.md)
+// holds vuln rows and then needs the event table.
 //
 // Bounds: at most MaxDraftsPerRun drafts per run, and events observed more
 // than MaxEventAge before the run are skipped for good (skipped_old). When
@@ -191,9 +194,39 @@ func Generate(ctx context.Context, conn *pgx.Conn, o Options) (*Result, error) {
 		}
 		res.Candidates = len(cands)
 		qualifying := 0
+		var cves []string
 		for _, c := range cands {
 			if !c.existing && now.Sub(c.observed) <= MaxEventAge {
 				qualifying++
+				cves = append(cves, c.cve)
+			}
+		}
+		// The vuln rows of the drafts this run may create (their foreign
+		// key), FOR KEY SHARE NOWAIT: this run holds the event table, and a
+		// merge of a GHSA-keyed vuln into its CVE (docs/ghsa.md) holds both
+		// vuln rows FOR UPDATE before it moves the events. Waiting for such
+		// a row here would deadlock with it; the run defers instead
+		// ("vuln_busy", recorded like "lock_busy", watermark unchanged).
+		if len(cves) > 0 {
+			sp2, err := tx.Begin(ctx)
+			if err != nil {
+				return err
+			}
+			if _, err := sp2.Exec(ctx, `SELECT 1 FROM vuln WHERE cve_id = ANY($1) ORDER BY cve_id FOR KEY SHARE NOWAIT`, cves); err != nil {
+				_ = sp2.Rollback(ctx)
+				if !lockBusy(err) {
+					return err
+				}
+				res.Deferred = "vuln_busy"
+				if o.DryRun {
+					return errRollback
+				}
+				_, err := tx.Exec(ctx, `UPDATE x_draft_state SET last_run = last_run || jsonb_build_object('deferred', 'vuln_busy',
+					'deferred_at', $1::timestamptz), updated_at = $1 WHERE id = 1`, now)
+				return err
+			}
+			if err := sp2.Commit(ctx); err != nil { // RELEASE SAVEPOINT: the locks stay
+				return err
 			}
 		}
 		to := hi
@@ -301,18 +334,20 @@ func candidates(ctx context.Context, tx pgx.Tx, from, to int64) ([]candidate, er
 	})
 }
 
-// loadInput reads what the text needs: the title, the affected pairs in the
-// order first reported, and the T+ figure by the site's rule
-// (site.CalendarDays from the first effective disclosure to the first
-// effective time of this stage; effective = event_effective).
+// loadInput reads what the text needs: the effective title in English
+// (the staff title, else the record's, else the composed one; site.TitleInfo,
+// docs/titles.md), the affected pairs in the order first reported, and the
+// T+ figure by the site's rule (site.CalendarDays from the first effective
+// disclosure to the first effective time of this stage; effective =
+// event_effective).
 func loadInput(ctx context.Context, tx pgx.Tx, c candidate) (Input, error) {
 	in := Input{CVE: c.cve, Stage: c.stage, Source: c.source}
 	var title *string
 	var disc, at *time.Time
-	err := tx.QueryRow(ctx, `SELECT v.title,
+	err := tx.QueryRow(ctx, `SELECT COALESCE(t.staff_title, NULLIF(btrim(v.title), ''), t.composed_en),
 			(SELECT min(effective_at) FROM event_effective WHERE cve_id = v.cve_id AND type = 'disclosed'),
 			(SELECT min(effective_at) FROM event_effective WHERE cve_id = v.cve_id AND type = $2)
-		FROM vuln v WHERE v.cve_id = $1`, c.cve, c.stage).Scan(&title, &disc, &at)
+		FROM vuln v LEFT JOIN vuln_title t ON t.cve_id = v.cve_id WHERE v.cve_id = $1`, c.cve, c.stage).Scan(&title, &disc, &at)
 	if err != nil {
 		return in, err
 	}

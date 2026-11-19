@@ -172,9 +172,12 @@ func saveState(ctx context.Context, db execer, source string, runAt time.Time, s
 
 // missingCVEsSQL: numeric-aware "newest CVE first": year, then sequence number
 // (CVE-2026-100000 sorts before CVE-2026-99999). Identical to Python.
+// GHSA-keyed vulns (docs/ghsa.md) are not CVEs: they are left out, which
+// also keeps the casts from seeing them.
 const missingCVEsSQL = `
 SELECT v.cve_id FROM vuln v
-WHERE NOT EXISTS (SELECT 1 FROM raw_record r
+WHERE v.cve_id LIKE 'CVE-%'
+  AND NOT EXISTS (SELECT 1 FROM raw_record r
                   WHERE r.source = $1 AND r.source_key = v.cve_id)
 ORDER BY split_part(v.cve_id, '-', 2)::int DESC,
          split_part(v.cve_id, '-', 3)::numeric DESC
@@ -326,8 +329,19 @@ func ensureStub(ctx context.Context, db execer, cveID string, observedAt time.Ti
 // --------------------------------------------------------------------- apply
 
 // ApplyNormalized writes one Normalized result (Python apply_normalized).
+//
+// GHSA-keyed vulns (Go only, docs/ghsa.md): rows for a GHSA id that is
+// already an alias of a CVE go to that CVE (redirectGHSA); a GHSA id never
+// gets a stub vuln, so rows for one without a vuln row are skipped (a
+// withdrawn advisory that was never stored stores nothing); writing the
+// alias (ghsa, G) -> C while G has a vuln row moves G to C (mergeVuln); and
+// a disclosed event of the CVE record replaces the advisory's.
 func ApplyNormalized(ctx context.Context, db execer, norm *model.Normalized, observedAt time.Time,
 	isBackfill bool, st *Stats) error {
+	norm, err := redirectGHSA(ctx, db, norm)
+	if err != nil {
+		return err
+	}
 	for _, v := range norm.Vulns {
 		if err := upsertVuln(ctx, db, v, observedAt, st); err != nil {
 			return err
@@ -354,13 +368,25 @@ func ApplyNormalized(ctx context.Context, db execer, norm *model.Normalized, obs
 			stubs = append(stubs, id)
 		}
 	}
-	sort.Strings(stubs) // Python sorted(): code point order == UTF-8 byte order
+	sort.Strings(stubs)       // Python sorted(): code point order == UTF-8 byte order
+	skip := map[string]bool{} // GHSA ids without a vuln row: their rows are not written
 	for _, id := range stubs {
+		if model.IsGHSAID(id) {
+			var ok bool
+			if err := db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM vuln WHERE cve_id = $1)`, id).Scan(&ok); err != nil {
+				return err
+			}
+			skip[id] = !ok
+			continue
+		}
 		if err := ensureStub(ctx, db, id, observedAt, st); err != nil {
 			return err
 		}
 	}
 	for _, a := range norm.Aliases {
+		if skip[a.CVEID] {
+			continue
+		}
 		tag, err := db.Exec(ctx, `INSERT INTO vuln_alias (cve_id, alias, alias_type) VALUES ($1, $2, $3)
                ON CONFLICT (alias_type, alias) DO NOTHING`, a.CVEID, a.Alias, a.AliasType)
 		if err != nil {
@@ -368,7 +394,13 @@ func ApplyNormalized(ctx context.Context, db execer, norm *model.Normalized, obs
 		}
 		st.AliasInserted += int(tag.RowsAffected())
 	}
+	if err := mergeGHSAAliases(ctx, db, norm); err != nil {
+		return err
+	}
 	for _, af := range norm.Affected {
+		if skip[af.CVEID] {
+			continue
+		}
 		tag, err := db.Exec(ctx, `INSERT INTO affected (cve_id, vendor, product) VALUES ($1, $2, $3)
                ON CONFLICT (cve_id, vendor, product) DO NOTHING`, af.CVEID, af.Vendor, af.Product)
 		if err != nil {
@@ -377,6 +409,9 @@ func ApplyNormalized(ctx context.Context, db execer, norm *model.Normalized, obs
 		st.AffectedInserted += int(tag.RowsAffected())
 	}
 	for _, e := range norm.Events {
+		if skip[e.CVEID] {
+			continue
+		}
 		detail, err := pyjson.Encode(e.Detail, pyjson.Options{SortKeys: true, Compact: true})
 		if err != nil {
 			return fmt.Errorf("event detail for %s: %w", e.CVEID, err)
@@ -405,6 +440,11 @@ func ApplyNormalized(ctx context.Context, db execer, norm *model.Normalized, obs
 		}
 		if inserted {
 			st.EventInserted++
+			if e.Type == model.EventDisclosed && e.Source != ghsaSource {
+				if err := dropGHSADisclosed(ctx, db, e.CVEID); err != nil {
+					return err
+				}
+			}
 		} else {
 			st.EventUpdated++
 		}
@@ -560,6 +600,13 @@ func RunCollector(ctx context.Context, conn *pgx.Conn, c collector.Collector, op
 			if err != nil {
 				return err
 			}
+			// Raw records first, then the GHSA-id locks of every record to
+			// apply, before the first vuln row lock (merge.go,
+			// "Concurrency"), then the records. Normalizing is pure: the
+			// second loop normalizes again rather than keep every result in
+			// memory.
+			var apply []model.RawRecord
+			var locks []*model.Normalized
 			for _, rec := range res.Records {
 				h, err := rec.ContentHash()
 				if err != nil {
@@ -579,6 +626,15 @@ func RunCollector(ctx context.Context, conn *pgx.Conn, c collector.Collector, op
 						st.RawNew++
 					}
 				}
+				apply = append(apply, rec)
+				if norm, _, err := normalizeOne(c, rec); err == nil && norm != nil {
+					locks = append(locks, ghsaOnly(norm))
+				}
+			}
+			if err := LockGHSAIDs(ctx, tx, locks); err != nil {
+				return err
+			}
+			for _, rec := range apply {
 				norm, nerr, err := normalizeOne(c, rec)
 				if err != nil {
 					return err
@@ -674,6 +730,18 @@ func Renormalize(ctx context.Context, conn *pgx.Conn, c collector.Collector, opt
 		return nil, err
 	}
 	db := tx
+	// the GHSA-id locks first (see RunCollector)
+	var locks []*model.Normalized
+	for _, r := range recs {
+		if payload, err := pyjson.DecodeString(r.payload); err == nil {
+			if norm, _, err := normalizeOne(c, model.RawRecord{Source: c.Name(), SourceKey: r.key, Payload: payload}); err == nil && norm != nil {
+				locks = append(locks, ghsaOnly(norm))
+			}
+		}
+	}
+	if err := LockGHSAIDs(ctx, tx, locks); err != nil {
+		return nil, err
+	}
 	for _, r := range recs {
 		payload, err := pyjson.DecodeString(r.payload)
 		if err != nil {

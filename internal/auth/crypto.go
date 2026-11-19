@@ -15,14 +15,17 @@ var b64 = base64.RawURLEncoding
 
 // keyset holds the keys derived from each configured server secret
 // (index 0 = current). Separate HKDF "info" labels give independent keys
-// for sealing, CSRF tokens, session tags and the identities of deleted
-// suspended accounts.
+// for sealing, CSRF tokens, session tags, the identities of deleted
+// suspended accounts and private feed keys.
 type keyset struct {
 	seal []cipher.AEAD
 	ids  [][]byte // 8-byte key fingerprints, prefixed to sealed blobs
 	csrf [][]byte
 	stag [][]byte // session cookie tag keys
 	susp [][]byte // suspended identity hash keys
+	feed [][]byte // private feed key MAC keys
+	atag [][]byte // API token tag keys
+	ftag [][]byte // feed key tag keys
 }
 
 func newKeyset(secrets [][]byte) (*keyset, error) {
@@ -47,6 +50,18 @@ func newKeyset(secrets [][]byte) (*keyset, error) {
 		if err != nil {
 			return nil, err
 		}
+		fk, err := hkdf.Key(sha256.New, s, nil, "nday auth feed key v1", 32)
+		if err != nil {
+			return nil, err
+		}
+		atk, err := hkdf.Key(sha256.New, s, nil, "nday auth api token tag v1", 32)
+		if err != nil {
+			return nil, err
+		}
+		ftk, err := hkdf.Key(sha256.New, s, nil, "nday auth feed key tag v1", 32)
+		if err != nil {
+			return nil, err
+		}
 		blk, err := aes.NewCipher(sk)
 		if err != nil {
 			return nil, err
@@ -61,6 +76,9 @@ func newKeyset(secrets [][]byte) (*keyset, error) {
 		ks.csrf = append(ks.csrf, ck)
 		ks.stag = append(ks.stag, tk)
 		ks.susp = append(ks.susp, uk)
+		ks.feed = append(ks.feed, fk)
+		ks.atag = append(ks.atag, atk)
+		ks.ftag = append(ks.ftag, ftk)
 	}
 	return ks, nil
 }
@@ -160,6 +178,75 @@ func (k *keyset) suspendedIdentity(provider, subject string) [][]byte {
 		out[i] = m.Sum(nil)
 	}
 	return out
+}
+
+// feedKeyMACLen is the length of a feed key MAC (128 bits).
+const feedKeyMACLen = 16
+
+// feedMAC is the MAC of a private feed key: HMAC-SHA256 over
+// "feed-key|" + user id + "|" + salt, truncated to feedKeyMACLen.
+func feedMAC(key []byte, user string, salt []byte) []byte {
+	m := hmac.New(sha256.New, key)
+	m.Write([]byte("feed-key|" + user + "|"))
+	m.Write(salt)
+	return m.Sum(nil)[:feedKeyMACLen]
+}
+
+// feedKey is the private feed key of user with salt, made with the
+// current key: "<user id>.<base64url MAC>.<base64url tag>", where the tag
+// (feedKeyTag) lets a forged key be refused before any lookup.
+func (k *keyset) feedKey(user string, salt []byte) string {
+	v := user + "." + b64.EncodeToString(feedMAC(k.feed[0], user, salt))
+	return v + "." + b64.EncodeToString(tagMAC(k.ftag[0], "feed-key-tag|", []byte(v)))
+}
+
+// tagLen is the length of the API token and feed key tags (128 bits).
+const tagLen = 16
+
+// tagMAC is a truncated HMAC-SHA256 of label || b.
+func tagMAC(key []byte, label string, b []byte) []byte {
+	m := hmac.New(sha256.New, key)
+	m.Write([]byte(label))
+	m.Write(b)
+	return m.Sum(nil)[:tagLen]
+}
+
+// apiTokenTag authenticates the random part of an API token (current key).
+func (k *keyset) apiTokenTag(raw []byte) []byte { return tagMAC(k.atag[0], "api-token|", raw) }
+
+// checkAPITokenTag accepts a tag made with any configured key (constant
+// time, every key tried).
+func (k *keyset) checkAPITokenTag(raw, tag []byte) bool {
+	ok := false
+	for _, key := range k.atag {
+		if hmac.Equal(tag, tagMAC(key, "api-token|", raw)) {
+			ok = true
+		}
+	}
+	return ok
+}
+
+// checkFeedKeyTag checks the tag of "<user id>.<mac>" with every key.
+func (k *keyset) checkFeedKeyTag(userDotMAC string, tag []byte) bool {
+	ok := false
+	for _, key := range k.ftag {
+		if hmac.Equal(tag, tagMAC(key, "feed-key-tag|", []byte(userDotMAC))) {
+			ok = true
+		}
+	}
+	return ok
+}
+
+// checkFeedMAC accepts a MAC made with any configured key (constant time,
+// every key tried).
+func (k *keyset) checkFeedMAC(user string, salt, mac []byte) bool {
+	ok := false
+	for _, key := range k.feed {
+		if hmac.Equal(mac, feedMAC(key, user, salt)) {
+			ok = true
+		}
+	}
+	return ok
 }
 
 func sessionMAC(key, token []byte) []byte {

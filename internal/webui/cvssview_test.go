@@ -80,7 +80,7 @@ func TestBuildCVSSView(t *testing.T) {
 			t.Errorf("item %d: %+v, want %+v", i, cv.Items[i], w)
 		}
 	}
-	if got := string(cv.Source); got != `CVSS 3.1 vector from the CVE record, scored by the CNA <a href="https://www.cve.org/CVERecord?id=CVE-2026-1" rel="noopener noreferrer">GitHub_M</a>.` {
+	if got := string(cv.Source); got != `CVSS 3.1 vector from the CVE record, scored by the CNA <a href="https://www.cve.org/CVERecord?id=CVE-2026-1" target="_blank" rel="noopener noreferrer">GitHub_M</a>.` {
 		t.Errorf("source: %s", got)
 	}
 	if cz := BuildCVSSView(zh, v); cz.Items[0].Label != "攻击途径" || !strings.HasPrefix(cz.Items[0].Text, "网络：") {
@@ -100,7 +100,7 @@ func TestBuildCVSSView(t *testing.T) {
 	v.CVSS = &site.CVSS{Vector: s("CVSS:4.0/AV:P/AC:L/AT:N/PR:H/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"), Version: s("4.0"), Source: "ghsa", EventID: 9}
 	cv = BuildCVSSView(zh, v)
 	if len(cv.Items) != 5 || cv.Items[2].Label != "攻击前提" || cv.Items[2].Code != "AT:N" ||
-		string(cv.Source) != `CVSS 4.0 向量，来自 GitHub 安全公告 <a href="https://github.com/advisories/GHSA-aaaa-bbbb-cccc" rel="noopener noreferrer">GHSA-aaaa-bbbb-cccc</a>。` {
+		string(cv.Source) != `CVSS 4.0 向量，来自 GitHub 安全公告 <a href="https://github.com/advisories/GHSA-aaaa-bbbb-cccc" target="_blank" rel="noopener noreferrer">GHSA-aaaa-bbbb-cccc</a>。` {
 		t.Errorf("4.0: %+v %s", cv.Items, cv.Source)
 	}
 

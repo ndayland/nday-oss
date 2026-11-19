@@ -65,7 +65,7 @@ Set `NDAY_TEST_SKIP_DB=1` to skip the database tests.
 ## Derived state and the website (Go only)
 
 - `migrations/0003_vuln_state_mat.sql`: `vuln_state_mat` is `vuln_state` plus a few columns the website needs
-  (`has_disclosed`, `has_itw`/`itw_at`, `poc_sources`, `last_transition_event_id`). Its unique index supports
+  (`has_disclosed`, `has_itw`/`itw_at`, `poc_sources` — exploitdb, metasploit, nuclei and, since 0032, github —, `last_transition_event_id`). Its unique index supports
   `REFRESH ... CONCURRENTLY`, so readers are never blocked. The single-row table `vuln_state_refresh` records request/completion sequence numbers.
   Search uses a `vuln (cve_id COLLATE "C")` index and a pg_trgm GIN index (skipped if you lack permission to create the extension, in which case search falls back to a sequential scan).
   `vuln_state` is still the definition.
@@ -132,6 +132,11 @@ and in that `RawRecord.is_backfill` isn't stored in the database, so events this
 - The log formats differ (Go uses slog text format, all to stderr); stdout is the same.
 - When `NDAY_MIGRATIONS_DIR` is set to an empty string, Python uses the current directory and Go treats it as unset (it uses the embedded migrations).
 - The migration filename regex is ASCII in Go (Python's `\w` supports Unicode); don't use non-ASCII filenames.
+- GHSA-keyed vulnerabilities ([ghsa.md](ghsa.md)): both sides normalize an advisory without a CVE the same way (the goldens check it),
+  and neither makes a stub vuln for a GHSA id. Only Go redirects rows written under a GHSA id that's already an alias, merges a GHSA-keyed
+  vuln into its CVE when the alias appears (`internal/pipeline/merge.go`), drops the advisory's `disclosed` event when the CVE record's
+  arrives, and leaves GHSA ids out of `missing_cves` (Python leaves them out too, but only so the casts don't fail). On a database where
+  an advisory gained a CVE, the Python pipeline leaves both the GHSA-keyed row and the alias in place.
 - Python behaviours kept as they are (not fixed):
   - `is_valid_cve_id`'s `\d` matches any Unicode digit (for example the full-width `CVE-２０２４-1234` counts as valid),
     and the database CHECK constraint then rejects it on write, so the whole run fails. Go uses `\p{Nd}` to stay consistent.

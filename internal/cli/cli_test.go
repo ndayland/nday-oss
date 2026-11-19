@@ -33,7 +33,7 @@ func TestMigrateCollectStatusHot(t *testing.T) {
 	now := time.Now().UTC()
 	env := kevEnv(t, now)
 
-	if code, out, _ := runCLI(t, env, "migrate"); code != 0 || out != "applied: 0001_init, 0002_vuln_state, 0003_vuln_state_mat, 0004_auth, 0005_discuss, 0006_stats, 0007_admin, 0008_xposts, 0009_classify, 0010_follows, 0011_tags, 0012_xdrafts, 0013_affected_tags, 0014_settings, 0015_xposts_no_cve, 0016_comment_purpose, 0017_corrections, 0018_correction_audit_details, 0019_xposts_links_candidates, 0020_web_page, 0021_catalogue_indexes, 0022_suspended_identities\n" {
+	if code, out, _ := runCLI(t, env, "migrate"); code != 0 || out != "applied: 0001_init, 0002_vuln_state, 0003_vuln_state_mat, 0004_auth, 0005_discuss, 0006_stats, 0007_admin, 0008_xposts, 0009_classify, 0010_follows, 0011_tags, 0012_xdrafts, 0013_affected_tags, 0014_settings, 0015_xposts_no_cve, 0016_comment_purpose, 0017_corrections, 0018_correction_audit_details, 0019_xposts_links_candidates, 0020_web_page, 0021_catalogue_indexes, 0022_suspended_identities, 0023_github_repo, 0024_api_tokens, 0025_github_discovery, 0026_vuln_id_ghsa, 0027_ghsa_vuln_classify, 0028_site_icon, 0029_web_page_published, 0030_x_account_profile, 0031_vuln_title, 0032_github_poc, 0033_github_poc_gap, 0034_xdraft_form, 0035_job_run, 0036_github_trusted_owner\n" {
 		t.Fatalf("migrate: %d %q", code, out)
 	}
 	if code, out, _ := runCLI(t, env, "migrate"); code != 0 || out != "applied: (none, up to date)\n" {

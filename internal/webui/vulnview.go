@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"nday.land/nday/internal/site"
+	"nday.land/nday/internal/titles"
 	"nday.land/nday/internal/webui/i18n"
 )
 
@@ -71,6 +72,9 @@ type CreditRow struct {
 
 // RejectView describes a REJECTED record.
 type RejectView struct {
+	// Withdrawn: the record is a GitHub advisory that GitHub withdrew (a
+	// vulnerability keyed by its GHSA id), not a rejected CVE record.
+	Withdrawn  bool
 	Date       template.HTML // convertible <time>, "" when not given
 	Reasons    []string
 	ReplacedBy []Link
@@ -84,11 +88,11 @@ type VulnView struct {
 	Title         string
 	TitleMissing  bool
 	TitleLang     string
-	HasRecord     bool          // the CVE record is collected (DIS event; only cvelist emits one)
+	Mark          *TitleMark    // a composed or staff title's origin marker (titleview.go)
+	HasRecord     bool          // the record is collected (DIS event: the CVE record, or the advisory of a GHSA-keyed vuln)
 	Original      string        // English title when a Chinese one is shown
 	Sentence      string        // plain text (meta description)
 	SentenceHTML  template.HTML // the same with convertible <time> elements
-	Curl          CmdLine
 	Facts         []Fact
 	Rejected      *RejectView
 	Chart         Chart
@@ -119,6 +123,9 @@ type VulnView struct {
 	Tags          *VulnTags     // nil = no tags (tagview.go)
 	Credits       []CreditRow   // empty = the panel is left out
 
+	// Share: the share control next to the id (share.go); nil = none.
+	Share *ShareView
+
 	// Resources: the public links of the researcher posts (resources.go);
 	// nil = none or unavailable (the section is left out).
 	Resources *ResourcesView
@@ -127,7 +134,6 @@ type VulnView struct {
 // BuildVulnView turns a site.VulnDetail into the page view model.
 func BuildVulnView(l *i18n.Locale, v *site.VulnDetail, now time.Time, api API) VulnView {
 	vv := VulnView{ID: v.CVEID, Sentence: StatusSentence(l, v), SentenceHTML: StatusSentenceHTML(l, v),
-		Curl:       CurlCmd(api.URL("/vuln/"+v.CVEID), ".events"),
 		EventCount: len(v.Events)}
 	for _, a := range v.Aliases {
 		vv.Aliases = append(vv.Aliases, AliasLink(a.Alias, a.Type))
@@ -135,6 +141,8 @@ func BuildVulnView(l *i18n.Locale, v *site.VulnDetail, now time.Time, api API) V
 	vv.HasRecord = hasSlot(v, iDIS)
 	zh := l.Tag == "zh-Hans" // title_zh / summary_zh exist for Simplified Chinese only
 	switch {
+	case v.Origin() == titles.OriginStaff:
+		vv.Title, vv.Mark = *v.EffectiveTitle, titleMark(l, titles.OriginStaff)
 	case zh && v.TitleZh != nil && strings.TrimSpace(*v.TitleZh) != "":
 		vv.Title = *v.TitleZh
 		if v.Title != nil {
@@ -143,6 +151,9 @@ func BuildVulnView(l *i18n.Locale, v *site.VulnDetail, now time.Time, api API) V
 	case v.Title != nil && strings.TrimSpace(*v.Title) != "":
 		vv.Title = *v.Title
 		vv.TitleLang = upstreamLang(l)
+	case v.Origin() == titles.OriginComposed:
+		vv.Title, vv.TitleLang = composedTitle(l, v.TitleInfo)
+		vv.Mark = titleMark(l, titles.OriginComposed)
 	default:
 		vv.TitleMissing = true
 		if vv.HasRecord {
@@ -174,7 +185,7 @@ func BuildVulnView(l *i18n.Locale, v *site.VulnDetail, now time.Time, api API) V
 	}
 
 	if v.IsRejected {
-		r := &RejectView{Lang: upstreamLang(l)}
+		r := &RejectView{Lang: upstreamLang(l), Withdrawn: site.IsGHSAID(v.CVEID)}
 		if v.Rejection != nil {
 			if v.Rejection.DateRejected != nil {
 				r.Date = isoStamp(*v.Rejection.DateRejected).HTML()
@@ -298,8 +309,10 @@ func buildFacts(l *i18n.Locale, v *site.VulnDetail) []Fact {
 }
 
 // BuildChart lays out the lifecycle chart: rows are the six stages, x is
-// time from the earliest known event to now.
-func BuildChart(l *i18n.Locale, v *site.VulnDetail, now time.Time) Chart {
+// time from the earliest known event to now. ext are the external items
+// drawn as dots (chartdots.go); those drawn may move the start of the axis
+// back by at most MaxDotLead.
+func BuildChart(l *i18n.Locale, v *site.VulnDetail, now time.Time, ext ...ChartItem) Chart {
 	byCode := map[string][]site.Event{}
 	earliest := now
 	for _, e := range v.Events {
@@ -313,7 +326,18 @@ func BuildChart(l *i18n.Locale, v *site.VulnDetail, now time.Time) Chart {
 			earliest = *s.NotAfter
 		}
 	}
-	sc := ComputeScale(earliest, now)
+	var disclosed *time.Time
+	if len(v.Slots) > iDIS && v.Slots[iDIS].State == site.SlotKnown {
+		disclosed = v.Slots[iDIS].At
+	}
+	dots := dotItems(ext, earliest, disclosed)
+	start := earliest
+	for _, it := range dots {
+		if it.At.Before(start) {
+			start = it.At
+		}
+	}
+	sc := ComputeScale(start, now)
 	longSpan := sc.Start.Year() != now.UTC().Year()
 	c := Chart{Scale: sc, Ticks: sc.Ticks, NowX: pctAttr(sc.NowPct)}
 	for _, t := range sc.Ticks {
@@ -373,6 +397,7 @@ func BuildChart(l *i18n.Locale, v *site.VulnDetail, now time.Time) Chart {
 		}
 		c.Rows = append(c.Rows, row)
 	}
+	placeDots(l, &c, dots)
 	return c
 }
 

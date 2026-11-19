@@ -51,7 +51,8 @@ type CatalogueParams struct {
 	// the full event type). "" = every stage.
 	Stage string
 	// Year: only CVE ids CVE-<Year>-…; 0 = every year
-	// (MinCatalogueYear..current UTC year + 1).
+	// (MinCatalogueYear..current UTC year + 1). A vulnerability keyed by a
+	// GHSA id has no year and is left out whenever Year is set.
 	Year int
 	// Tags: only CVEs that have every one of these tags (as HotParams.Tags).
 	Tags []string
@@ -62,6 +63,11 @@ type CatalogueParams struct {
 	// Cursor continues after the last row of a previous page
 	// (CataloguePage.NextCursor, opaque).
 	Cursor string
+	// Before pages backwards: the Limit rows just before a position
+	// (CataloguePage.PrevCursor), in the usual order. When no row comes
+	// before those, the page is the first page exactly as without Before.
+	// Not combined with Cursor.
+	Before string
 }
 
 // CataloguePage is one catalogue page. Rows are hot-list rows (Pinned is
@@ -79,7 +85,10 @@ type CataloguePage struct {
 	Limit           int      `json:"limit"`
 	Rows            []HotRow `json:"rows"`
 	// NextCursor is set when more rows follow; pass it as CatalogueParams.Cursor.
-	NextCursor  *string   `json:"next_cursor"`
+	NextCursor *string `json:"next_cursor"`
+	// PrevCursor is set when rows come before this page (any page but the
+	// first); pass it as CatalogueParams.Before.
+	PrevCursor  *string   `json:"prev_cursor"`
 	GeneratedAt time.Time `json:"generated_at"`
 }
 
@@ -111,6 +120,14 @@ func (p CatalogueParams) Normalize() (CatalogueParams, error) {
 			return p, err
 		}
 	}
+	if p.Before != "" {
+		if p.Cursor != "" {
+			return p, &InputError{Param: "before", Msg: "not combined with cursor"}
+		}
+		if _, err := decodeCatCursor(p.Before); err != nil {
+			return p, &InputError{Param: "before", Msg: "invalid cursor"}
+		}
+	}
 	var err error
 	if p.Tags, err = NormalizeTags(p.Tags); err != nil {
 		return p, err
@@ -123,8 +140,12 @@ func (p CatalogueParams) Normalize() (CatalogueParams, error) {
 
 // CacheKey is a canonical string for normalized params.
 func (p CatalogueParams) CacheKey() string {
-	return fmt.Sprintf("vulns|%s|%d|%t|%d|%s|%s", p.Stage, p.Year, p.IncludeRejected, p.Limit, p.Cursor,
+	k := fmt.Sprintf("vulns|%s|%d|%t|%d|%s|%s", p.Stage, p.Year, p.IncludeRejected, p.Limit, p.Cursor,
 		strings.Join(p.Tags, ","))
+	if p.Before != "" {
+		k += "|before=" + p.Before
+	}
+	return k
 }
 
 // catCursor is the position after a row: its transition time (nil for the
@@ -167,7 +188,7 @@ func decodeCatCursor(s string) (catCursor, error) {
 		c.at = &t
 	}
 	rank, err := strconv.Atoi(parts[2])
-	cve, ok := ParseCVEID(parts[3])
+	cve, ok := ParseVulnID(parts[3])
 	if err != nil || !ok || rank < 1 || rank > len(StageInfos) || cve != parts[3] {
 		return catCursor{}, bad
 	}
@@ -183,43 +204,43 @@ SELECT s.cve_id, v.title, v.title_zh, s.stage, s.stage_rank, s.is_rejected,
        e.id, e.source, e.occurred_at, e.is_backfill, e.detail->>'precision',
        s.has_disclosed, s.disclosed_at, s.has_patch, s.patch_at, s.has_analysis, s.analysis_at,
        s.has_poc, s.poc_at, s.has_itw, s.itw_at, s.in_kev, s.kev_at, s.poc_sources,
-       COALESCE(af.n, 0), COALESCE(af.vendors, '{}'), COALESCE(af.products, '{}')
+       COALESCE(af.n, 0), COALESCE(af.vendors, '{}'), COALESCE(af.products, '{}'), ` + titleCols + `
 FROM (%s) s
 JOIN vuln v USING (cve_id)
 LEFT JOIN event e ON e.id = s.last_transition_event_id
-LEFT JOIN LATERAL (` + productsLateral + `) af ON true
+LEFT JOIN LATERAL (` + productsLateral + `) af ON true` + titleJoinS + `
 ORDER BY s.last_transition_at DESC NULLS LAST, s.stage_rank DESC, s.cve_id DESC`
 
-// catalogueBranch is one ordered index walk. Both parts order by the hot
-// index order (at DESC, rank DESC, cve DESC; at is constant within each
-// part), so each part is a backward walk of the chosen index.
+// catalogueBranch is one ordered index walk (%s: the conditions, then the
+// order). Both parts order by the hot index order (at DESC, rank DESC, cve
+// DESC; at is constant within each part), so each part is a backward walk
+// of the chosen index; a Before page walks it forwards (catUp) from its
+// position.
 const catalogueBranch = `(SELECT m.*
       FROM vuln_state_mat m
       WHERE %s
-      ORDER BY m.last_transition_at DESC, m.stage_rank DESC, m.cve_id DESC
+      ORDER BY %s
       LIMIT $1)`
+
+const (
+	catDown = "m.last_transition_at DESC, m.stage_rank DESC, m.cve_id DESC"
+	catUp   = "m.last_transition_at, m.stage_rank, m.cve_id"
+)
 
 // catalogueRows builds the inner row source for normalized p and returns
 // it with its arguments ($1 = LIMIT+1, then the cursor and tag values).
+// For p.Before it yields the at most LIMIT+1 rows nearest before that
+// position (catalogueRowsBefore).
 func catalogueRows(p CatalogueParams) (string, []any) {
+	if p.Before != "" {
+		return catalogueRowsBefore(p)
+	}
 	args := []any{p.Limit + 1}
 	arg := func(v any) string {
 		args = append(args, v)
 		return fmt.Sprintf("$%d", len(args))
 	}
-	var common []string
-	stageRank := 0
-	if p.Stage != "" {
-		stageRank = stageIndex(p.Stage) + 1
-		common = append(common, fmt.Sprintf("m.stage_rank = %d", stageRank))
-	}
-	if p.Year != 0 {
-		// same expression as the year indexes; the literal is a validated year
-		common = append(common, fmt.Sprintf("substr(m.cve_id, 5, 4) = '%04d'", p.Year))
-	}
-	if !p.IncludeRejected {
-		common = append(common, "NOT m.is_rejected")
-	}
+	common, stageRank := catalogueCommon(p)
 	var c *catCursor
 	if p.Cursor != "" {
 		cc, _ := decodeCatCursor(p.Cursor) // validated by Normalize
@@ -265,10 +286,10 @@ func catalogueRows(p CatalogueParams) (string, []any) {
 	}
 	var parts []string
 	if includeDated {
-		parts = append(parts, fmt.Sprintf(catalogueBranch, where(dated)))
+		parts = append(parts, fmt.Sprintf(catalogueBranch, where(dated), catDown))
 	}
 	if includeUndated {
-		parts = append(parts, fmt.Sprintf(catalogueBranch, where(undated)))
+		parts = append(parts, fmt.Sprintf(catalogueBranch, where(undated), catDown))
 	}
 	switch len(parts) {
 	case 0:
@@ -280,15 +301,100 @@ func catalogueRows(p CatalogueParams) (string, []any) {
 	return strings.Join(parts, "\nUNION ALL\n") + "\nLIMIT $1", args
 }
 
+// catalogueRowsBefore is catalogueRows for p.Before: the rows before the
+// position, nearest first — the undated tail upwards from the position
+// when it lies in the tail, then the dated part upwards from its oldest
+// row (or from the position when it is dated). Each part is a forward walk
+// of the same index; the outer query puts the rows back in list order.
+func catalogueRowsBefore(p CatalogueParams) (string, []any) {
+	args := []any{p.Limit + 1}
+	arg := func(v any) string {
+		args = append(args, v)
+		return fmt.Sprintf("$%d", len(args))
+	}
+	common, stageRank := catalogueCommon(p)
+	c, _ := decodeCatCursor(p.Before) // validated by Normalize
+	dated := []string{"m.last_transition_at IS NOT NULL"}
+	undated := []string{"m.last_transition_at IS NULL"}
+	includeUndated := c.at == nil
+	if c.at != nil {
+		// before a dated row: dated rows only, the mirror of catalogueRows
+		switch {
+		case stageRank == 0:
+			dated = append(dated, fmt.Sprintf("(m.last_transition_at, m.stage_rank, m.cve_id) > (%s, %s, %s)",
+				arg(*c.at), arg(c.rank), arg(c.cve)))
+		case stageRank == c.rank:
+			dated = append(dated, fmt.Sprintf("(m.last_transition_at, m.cve_id) > (%s, %s)", arg(*c.at), arg(c.cve)))
+		case stageRank < c.rank:
+			dated = append(dated, "m.last_transition_at > "+arg(*c.at))
+		default:
+			dated = append(dated, "m.last_transition_at >= "+arg(*c.at))
+		}
+	} else {
+		// before an undated row: the tail rows above it, then every dated row
+		switch {
+		case stageRank == 0:
+			undated = append(undated, fmt.Sprintf("(m.stage_rank, m.cve_id) > (%s, %s)", arg(c.rank), arg(c.cve)))
+		case stageRank == c.rank:
+			undated = append(undated, "m.cve_id > "+arg(c.cve))
+		case stageRank < c.rank:
+			includeUndated = false
+		}
+	}
+	tf, targs := tagFilterSQL("m.cve_id", p.Tags, len(args)+1)
+	args = append(args, targs...)
+	where := func(own []string) string {
+		return strings.Join(append(append([]string{}, own...), common...), "\n        AND ") + tf
+	}
+	d := fmt.Sprintf(catalogueBranch, where(dated), catUp)
+	if !includeUndated {
+		return d, args
+	}
+	return fmt.Sprintf(catalogueBranch, where(undated), catUp) + "\nUNION ALL\n" + d + "\nLIMIT $1", args
+}
+
+// catalogueCommon is the filter conditions of p that both parts share, and
+// the stage filter's rank (0 = every stage).
+func catalogueCommon(p CatalogueParams) (common []string, stageRank int) {
+	if p.Stage != "" {
+		stageRank = stageIndex(p.Stage) + 1
+		common = append(common, fmt.Sprintf("m.stage_rank = %d", stageRank))
+	}
+	if p.Year != 0 {
+		// same expression as the year indexes; the literal is a validated
+		// year. A GHSA id ("GHSA-xxxx-…") never matches, which is intended.
+		common = append(common, fmt.Sprintf("substr(m.cve_id, 5, 4) = '%04d'", p.Year))
+	}
+	if !p.IncludeRejected {
+		common = append(common, "NOT m.is_rejected")
+	}
+	return common, stageRank
+}
+
 // Catalogue returns one page of every vulnerability, most recent change
 // first (package comment above). Pinning does not apply.
+//
+// With p.Before, the page is the p.Limit rows just before that position;
+// when no row precedes them, it is the first page itself (computed
+// afresh), so paging back always ends on the page a first visit shows.
 func (s *Store) Catalogue(ctx context.Context, p CatalogueParams) (*CataloguePage, error) {
 	p, err := p.Normalize()
 	if err != nil {
 		return nil, err
 	}
+	page, atStart, err := s.catalogue(ctx, p)
+	if err == nil && atStart {
+		p.Before = ""
+		page, _, err = s.catalogue(ctx, p)
+	}
+	return page, err
+}
+
+// catalogue is Catalogue for normalized p; atStart reports a Before page
+// that reached the start of the list.
+func (s *Store) catalogue(ctx context.Context, p CatalogueParams) (page *CataloguePage, atStart bool, err error) {
 	now := s.clock()
-	page := &CataloguePage{IncludeRejected: p.IncludeRejected, Limit: p.Limit, Tags: p.Tags, Rows: []HotRow{}, GeneratedAt: now}
+	page = &CataloguePage{IncludeRejected: p.IncludeRejected, Limit: p.Limit, Tags: p.Tags, Rows: []HotRow{}, GeneratedAt: now}
 	if p.Stage != "" {
 		st, code := p.Stage, StageCode(p.Stage)
 		page.Stage, page.StageCode = &st, &code
@@ -307,16 +413,28 @@ func (s *Store) Catalogue(ctx context.Context, p CatalogueParams) (*CataloguePag
 		if err != nil {
 			return err
 		}
-		if len(page.Rows) > p.Limit {
-			page.Rows = page.Rows[:p.Limit]
-			last := page.Rows[p.Limit-1]
-			c := catCursor{rank: stageIndex(last.Stage) + 1, cve: last.CVEID}
-			if !last.Transition.At.IsZero() {
-				at := last.Transition.At
-				c.at = &at
+		switch {
+		case p.Before != "":
+			// in list order; the extra row, if any, is the farthest from
+			// the position (the first). Without it nothing precedes these
+			// rows: the caller shows the first page instead.
+			if len(page.Rows) <= p.Limit {
+				atStart = true
+				return nil
 			}
-			cur := encodeCatCursor(c)
-			page.NextCursor = &cur
+			page.Rows = page.Rows[1:]
+			prev, next := catRowCursor(page.Rows[0]), catRowCursor(page.Rows[len(page.Rows)-1])
+			page.PrevCursor, page.NextCursor = &prev, &next
+		default:
+			if len(page.Rows) > p.Limit {
+				page.Rows = page.Rows[:p.Limit]
+				c := catRowCursor(page.Rows[p.Limit-1])
+				page.NextCursor = &c
+			}
+			if p.Cursor != "" && len(page.Rows) > 0 {
+				c := catRowCursor(page.Rows[0])
+				page.PrevCursor = &c
+			}
 		}
 		ids := make([]string, len(page.Rows))
 		for i, r := range page.Rows {
@@ -336,9 +454,19 @@ func (s *Store) Catalogue(ctx context.Context, p CatalogueParams) (*CataloguePag
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return page, nil
+	return page, atStart, nil
+}
+
+// catRowCursor is the catalogue position of r.
+func catRowCursor(r HotRow) string {
+	c := catCursor{rank: stageIndex(r.Stage) + 1, cve: r.CVEID}
+	if !r.Transition.At.IsZero() {
+		at := r.Transition.At
+		c.at = &at
+	}
+	return encodeCatCursor(c)
 }
 
 // MarshalJSON writes "at": null for a row without a known transition

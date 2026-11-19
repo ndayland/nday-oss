@@ -19,8 +19,15 @@ func ComposeText(body, link string) string { return body + "\n" + link }
 
 // ComposeURL is the compose intent pre-filled with ComposeText, every byte
 // outside [A-Za-z0-9-_.~] percent-encoded (spaces as %20, newlines as %0A).
-func ComposeURL(body, link string) string {
-	return ComposeBase + "?text=" + strings.ReplaceAll(url.QueryEscape(ComposeText(body, link)), "+", "%20")
+func ComposeURL(body, link string) string { return intent(ComposeText(body, link)) }
+
+// ComposeTextURL is the compose intent with the body alone: no link in the
+// text and no url parameter (the "image" forms of /admin/x/drafts, where
+// the share card carries the address instead; docs/xposts.md "Forms").
+func ComposeTextURL(body string) string { return intent(body) }
+
+func intent(text string) string {
+	return ComposeBase + "?text=" + strings.ReplaceAll(url.QueryEscape(text), "+", "%20")
 }
 
 var postURLRe = regexp.MustCompile(`^https://(?:www\.|mobile\.)?(?:x|twitter)\.com/([A-Za-z0-9_]{1,15})/status/([1-9][0-9]{0,19})/?(?:[?#][^\s]*)?$`)
@@ -37,4 +44,26 @@ func NormalizePostURL(s string) (string, bool) {
 		return "", false
 	}
 	return "https://x.com/" + m[1] + "/status/" + m[2], true
+}
+
+// Forms a draft can be posted in (x_draft.form, migration 0034;
+// docs/xposts.md "Forms"): staff try whether X holds back posts that carry
+// an outside link.
+const (
+	FormLink       = "link"        // text and link in the compose window
+	FormImage      = "image"       // text only; the share card with the address attached by hand
+	FormImageReply = "image_reply" // as image, then a reply to the post with the link
+)
+
+// Forms lists them, the default first.
+var Forms = []string{FormLink, FormImage, FormImageReply}
+
+// ValidForm reports whether s is one of Forms.
+func ValidForm(s string) bool {
+	for _, f := range Forms {
+		if f == s {
+			return true
+		}
+	}
+	return false
 }

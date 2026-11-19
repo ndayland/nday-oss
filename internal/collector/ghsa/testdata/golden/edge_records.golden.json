@@ -1963,8 +1963,85 @@
    "normalized": {
     "affected": [],
     "aliases": [],
-    "events": [],
-    "vulns": []
+    "events": [
+     {
+      "cve_id": "GHSA-7ph3-grqh-pv9v",
+      "dedupe_key": "GHSA-7ph3-grqh-pv9v",
+      "detail": {
+       "ghsa_id": "GHSA-7ph3-grqh-pv9v",
+       "state": "PUBLISHED",
+       "withdrawn_at": null
+      },
+      "occurred_at": "2026-06-30T15:30:46.000000Z",
+      "source": "ghsa",
+      "type": "disclosed",
+      "url": "https://github.com/advisories/GHSA-7ph3-grqh-pv9v"
+     },
+     {
+      "cve_id": "GHSA-7ph3-grqh-pv9v",
+      "dedupe_key": "GHSA-7ph3-grqh-pv9v",
+      "detail": {
+       "advisory_published_at": "2026-06-30T15:30:46Z",
+       "advisory_updated_at": "2026-11-05T18:05:13Z",
+       "cvss": {
+        "cvss_v3": {
+         "score": 5.4,
+         "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"
+        },
+        "cvss_v4": {
+         "score": 0.0,
+         "vector_string": null
+        }
+       },
+       "cwes": [
+        {
+         "cwe_id": "CWE-89",
+         "name": "Improper Neutralization of Special Elements used in an SQL Command"
+        }
+       ],
+       "fix_commit_urls": [
+        "https://github.com/apache/gravitino/pull/8000",
+        "https://github.com/apache/gravitino/commit/5355bd075d54cad1323606723e72cc32ca564f24"
+       ],
+       "ghsa_id": "GHSA-7ph3-grqh-pv9v",
+       "github_reviewed_at": "2026-11-05T18:05:11Z",
+       "packages": [
+        {
+         "ecosystem": "maven",
+         "first_patched_version": "1.0.0",
+         "name": "org.apache.gravitino:catalog-jdbc-common",
+         "vulnerable_version_range": ">= 0.5.0, < 1.0.0"
+        }
+       ],
+       "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-53648",
+        "https://lists.apache.org/thread/s0hytcv17z52dwp5dojjjwgrtqtyh2xk",
+        "http://www.openwall.com/lists/oss-security/2026/06/30/2",
+        "https://github.com/apache/gravitino/pull/8000",
+        "https://github.com/github/advisory-database/pull/10102",
+        "https://github.com/apache/gravitino/commit/5355bd075d54cad1323606723e72cc32ca564f24",
+        "https://github.com/apache/gravitino/releases/tag/v1.0.0",
+        "https://github.com/advisories/GHSA-7ph3-grqh-pv9v"
+       ],
+       "severity": "medium",
+       "source_code_location": "https://github.com/apache/gravitino"
+      },
+      "occurred_at": null,
+      "source": "ghsa",
+      "type": "patch_released",
+      "url": "https://github.com/advisories/GHSA-7ph3-grqh-pv9v"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "GHSA-7ph3-grqh-pv9v",
+      "description": "SQL misconfiguration in the Gravitino UI, in versions 0.5.0 until 1.0.0, can allow a malicious user to read or truncate files.\nUsers are recommended to upgrade to version 1.0.0, which fixes this issue.",
+      "modified_at": "2026-11-05T18:05:13.000000Z",
+      "published_at": "2026-06-30T15:30:46.000000Z",
+      "title": "Apache Gravitino JDBC configuration validation bypass can allow file reads or truncation"
+     }
+    ]
    },
    "source_key": "GHSA-7ph3-grqh-pv9v"
   },
@@ -1974,8 +2051,85 @@
    "normalized": {
     "affected": [],
     "aliases": [],
-    "events": [],
-    "vulns": []
+    "events": [
+     {
+      "cve_id": "GHSA-7ph3-grqh-pv9v",
+      "dedupe_key": "GHSA-7ph3-grqh-pv9v",
+      "detail": {
+       "ghsa_id": "GHSA-7ph3-grqh-pv9v",
+       "state": "PUBLISHED",
+       "withdrawn_at": null
+      },
+      "occurred_at": "2026-06-30T15:30:46.000000Z",
+      "source": "ghsa",
+      "type": "disclosed",
+      "url": "https://github.com/advisories/GHSA-7ph3-grqh-pv9v"
+     },
+     {
+      "cve_id": "GHSA-7ph3-grqh-pv9v",
+      "dedupe_key": "GHSA-7ph3-grqh-pv9v",
+      "detail": {
+       "advisory_published_at": "2026-06-30T15:30:46Z",
+       "advisory_updated_at": "2026-11-05T18:05:13Z",
+       "cvss": {
+        "cvss_v3": {
+         "score": 5.4,
+         "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:L/A:N"
+        },
+        "cvss_v4": {
+         "score": 0.0,
+         "vector_string": null
+        }
+       },
+       "cwes": [
+        {
+         "cwe_id": "CWE-89",
+         "name": "Improper Neutralization of Special Elements used in an SQL Command"
+        }
+       ],
+       "fix_commit_urls": [
+        "https://github.com/apache/gravitino/pull/8000",
+        "https://github.com/apache/gravitino/commit/5355bd075d54cad1323606723e72cc32ca564f24"
+       ],
+       "ghsa_id": "GHSA-7ph3-grqh-pv9v",
+       "github_reviewed_at": "2026-11-05T18:05:11Z",
+       "packages": [
+        {
+         "ecosystem": "maven",
+         "first_patched_version": "1.0.0",
+         "name": "org.apache.gravitino:catalog-jdbc-common",
+         "vulnerable_version_range": ">= 0.5.0, < 1.0.0"
+        }
+       ],
+       "references": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2025-53648",
+        "https://lists.apache.org/thread/s0hytcv17z52dwp5dojjjwgrtqtyh2xk",
+        "http://www.openwall.com/lists/oss-security/2026/06/30/2",
+        "https://github.com/apache/gravitino/pull/8000",
+        "https://github.com/github/advisory-database/pull/10102",
+        "https://github.com/apache/gravitino/commit/5355bd075d54cad1323606723e72cc32ca564f24",
+        "https://github.com/apache/gravitino/releases/tag/v1.0.0",
+        "https://github.com/advisories/GHSA-7ph3-grqh-pv9v"
+       ],
+       "severity": "medium",
+       "source_code_location": "https://github.com/apache/gravitino"
+      },
+      "occurred_at": null,
+      "source": "ghsa",
+      "type": "patch_released",
+      "url": "https://github.com/advisories/GHSA-7ph3-grqh-pv9v"
+     }
+    ],
+    "vulns": [
+     {
+      "authoritative": true,
+      "cve_id": "GHSA-7ph3-grqh-pv9v",
+      "description": "SQL misconfiguration in the Gravitino UI, in versions 0.5.0 until 1.0.0, can allow a malicious user to read or truncate files.\nUsers are recommended to upgrade to version 1.0.0, which fixes this issue.",
+      "modified_at": "2026-11-05T18:05:13.000000Z",
+      "published_at": "2026-06-30T15:30:46.000000Z",
+      "title": "Apache Gravitino JDBC configuration validation bypass can allow file reads or truncation"
+     }
+    ]
    },
    "source_key": "GHSA-7ph3-grqh-pv9v"
   },

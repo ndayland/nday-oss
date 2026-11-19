@@ -1,0 +1,29 @@
+[Unit]
+Description=nday GitHub discovery: find PoC repositories with the GitHub search API
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=nday
+Group=nday
+EnvironmentFile=/etc/nday/nday.env
+WorkingDirectory=/opt/nday
+# At most 40 search requests to https://api.github.com, 7 s apart without a
+# token (2.5 s with NDAY_GITHUB_TOKEN), so about 5 minutes; the run stops
+# itself after 15 minutes (ghrepo.MaxRunTime), below TimeoutStartSec; see
+# docs/github.md.
+ExecStart=/opt/nday/bin/nday github-discover
+TimeoutStartSec=20min
+MemoryMax=1G
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes

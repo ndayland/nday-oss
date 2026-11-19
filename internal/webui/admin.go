@@ -45,7 +45,7 @@ import (
 
 // adminKeys are the messages admin.js needs.
 var adminKeys = []string{"acct.busy", "acct.reauth.done", "acct.err.webauthn_cancelled",
-	"admin.msg.done", "admin.msg.confirm", "admin.msg.reason_needed",
+	"admin.msg.done", "admin.msg.reason_needed",
 	"admin.err.reauth_required", "admin.err.self", "admin.err.protected", "admin.err.no_change", "admin.err.not_found",
 	"admin.err.forbidden", "admin.err.bad_reason", "admin.err.bad_duration", "admin.err.bad_role", "admin.err.rate_limited",
 	"admin.err.csrf", "admin.err.cross_site", "admin.err.not_signed_in", "admin.err.wrong_status", "admin.err.suspended",
@@ -59,21 +59,31 @@ var adminKeys = []string{"acct.busy", "acct.reauth.done", "acct.err.webauthn_can
 	"admin.err.not_secret", "admin.err.bad_secret", "admin.err.invalid_config", "admin.err.sign_in_off", "admin.err.not_applied",
 	"admin.set.source", "admin.set.secret_state", "admin.set.secret_set_hint", "admin.set.saved", "admin.set.saved_restart",
 	"admin.set.unchanged", "admin.set.secret_empty", "admin.set.field_err",
-	"admin.corr.note_needed"}
+	"admin.corr.note_needed", "admin.err.too_many", "admin.err.duplicate",
+	"admin.bulk.selected", "admin.bulk.result", "admin.bulk.result_failed", "admin.x.profiles_done", "admin.err.bad_title",
+	"admin.xd.length_alone", "admin.xd.copied", "admin.xd.copy_failed", "admin.err.bad_form",
+	"admin.err.link_too_long", "admin.xd.over_link", "admin.xd.body_label", "admin.xd.body_label_alone",
+	"admin.err.bad_login", "admin.err.no_owner", "admin.err.x_not_listed", "admin.err.owner_exists", "admin.err.github_not_found"}
 
 // AdminTab is one entry of the back office navigation.
 type AdminTab struct {
-	Key     string // stats | moderation | corrections | users | system | settings | x | xdrafts | audit
+	Key     string // stats | moderation | corrections | titles | users | system | settings | xgh | audit; in SubTabs x | xdrafts | github
 	Href    string
 	Current bool
 }
+
+// adminGroups are the menu items that stand for several pages: the item
+// links to the first page, is current on each of them, and those pages
+// show the group's pages as a second-level menu (AdminView.SubTabs).
+var adminGroups = map[string][]string{"xgh": {"x", "xdrafts", "github"}}
 
 // AdminView is the frame every admin page shares.
 type AdminView struct {
 	Title   string // h1
 	Tab     string
 	Tabs    []AdminTab
-	Handle  string // the signed-in staff member
+	SubTabs []AdminTab // the current page's group, nil outside a group
+	Handle  string     // the signed-in staff member
 	Role    string
 	IsAdmin bool
 	Actions bool // moderation actions are available (discussions on)
@@ -97,7 +107,9 @@ func (u *UI) adminRoutes(p string, loc *i18n.Locale) {
 	h(p+"/admin/settings", admin.AdminOnly, u.adminSettings)
 	h(p+"/admin/x", admin.AdminOnly, u.adminX)
 	h(p+"/admin/x/drafts", admin.AdminOnly, u.adminXDrafts)
+	h(p+"/admin/github", admin.AdminOnly, u.adminGitHub)
 	h(p+"/admin/audit", admin.AdminOnly, u.adminAudit)
+	h(p+"/admin/titles", admin.AdminOnly, u.adminTitles)
 }
 
 type adminFunc func(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me *auth.User)
@@ -144,16 +156,37 @@ func (u *UI) adminRender(w http.ResponseWriter, r *http.Request, loc *i18n.Local
 	if me.Handle != nil {
 		v.Handle = *me.Handle
 	}
-	for _, t := range []struct {
-		key, path string
-		admin     bool
-	}{{"stats", "/admin", true}, {"moderation", "/admin/moderation", false}, {"corrections", "/admin/corrections", false}, {"users", "/admin/users", true},
-		{"system", "/admin/system", true}, {"settings", "/admin/settings", true}, {"x", "/admin/x", true}, {"xdrafts", "/admin/x/drafts", true},
-		{"audit", "/admin/audit", true}} {
-		if t.admin && !v.IsAdmin {
+	pages := map[string]struct {
+		path  string
+		admin bool
+	}{"stats": {"/admin", true}, "moderation": {"/admin/moderation", false}, "corrections": {"/admin/corrections", false},
+		"users": {"/admin/users", true}, "system": {"/admin/system", true}, "settings": {"/admin/settings", true},
+		"x": {"/admin/x", true}, "xdrafts": {"/admin/x/drafts", true}, "github": {"/admin/github", true}, "audit": {"/admin/audit", true},
+		"titles": {"/admin/titles", true}}
+	visible := func(key string) bool { return !pages[key].admin || v.IsAdmin }
+	for _, key := range []string{"stats", "moderation", "corrections", "titles", "users", "system", "settings", "xgh", "audit"} {
+		members, group := adminGroups[key]
+		if !group {
+			if visible(key) {
+				v.Tabs = append(v.Tabs, AdminTab{Key: key, Href: loc.Path(pages[key].path), Current: key == tab})
+			}
 			continue
 		}
-		v.Tabs = append(v.Tabs, AdminTab{Key: t.key, Href: loc.Path(t.path), Current: t.key == tab})
+		var subs []AdminTab
+		current := false
+		for _, m := range members {
+			if visible(m) {
+				subs = append(subs, AdminTab{Key: m, Href: loc.Path(pages[m].path), Current: m == tab})
+				current = current || m == tab
+			}
+		}
+		if len(subs) == 0 {
+			continue // the group disappears when none of its pages is visible
+		}
+		v.Tabs = append(v.Tabs, AdminTab{Key: key, Href: subs[0].Href, Current: current})
+		if current {
+			v.SubTabs = subs
+		}
 	}
 	p := &Page{Title: loc.Text("admin.page_title", "section", title), Description: loc.Text("admin.description"),
 		Path: "~" + neutralPath(loc, r.URL.Path), Hints: helpHints(loc), NoIndex: true, Personal: true, AdminScript: true, Data: v}
@@ -214,10 +247,12 @@ type TopRow struct {
 	Value string
 }
 
-// TopTable is one top list.
+// TopTable is one top list, paged in memory (?<Param>=).
 type TopTable struct {
 	ID, Key, Col string // admin.stats.top.<Key>, admin.stats.col.<Col>
 	Rows         []TopRow
+	Region       string // r-<ID>
+	Pager        *Pager
 }
 
 // AdminStatsView is the statistics page.
@@ -310,7 +345,7 @@ func (u *UI) adminStats(w http.ResponseWriter, r *http.Request, loc *i18n.Locale
 	}
 	v.Tables = []TopTable{
 		top("t-vuln", "vulns", "vuln", d.TopVulns, func(e stats.TopEntry) TopRow {
-			if id, ok := site.ParseCVEID(e.Key); ok && id == e.Key {
+			if id, ok := site.ParseVulnID(e.Key); ok && id == e.Key {
 				return TopRow{Key: e.Key, Href: loc.Path("/vuln/" + id)}
 			}
 			return TopRow{Key: plain(e.Key)}
@@ -327,6 +362,24 @@ func (u *UI) adminStats(w http.ResponseWriter, r *http.Request, loc *i18n.Locale
 		}),
 		top("t-ep", "endpoints", "endpoint", d.Endpoints, nil),
 		top("t-bot", "bots", "agent", d.BotUA, nil),
+	}
+	// each top list pages on its own parameter: the table id without "-" (tvuln, tref …)
+	q := r.URL.Query()
+	keys := []string{"days"}
+	for _, t := range v.Tables {
+		keys = append(keys, strings.ReplaceAll(t.ID, "-", ""))
+	}
+	links := newAdminLinks(loc.Path("/admin"), q, keys...)
+	if d.Days > 0 {
+		links.set("days", strconv.Itoa(d.Days))
+	}
+	for i := range v.Tables {
+		t := &v.Tables[i]
+		param := strings.ReplaceAll(t.ID, "-", "")
+		var w admin.Window
+		t.Rows, w = memPage(t.Rows, pageParam(q, param))
+		t.Region = "r-" + t.ID
+		t.Pager = links.numbered(loc, w, param, t.Region)
 	}
 	v.Map = BuildWorldMap(loc, d.CountriesHuman)
 	v.Reqs, v.Bots = num(loc, d.Requests), num(loc, d.BotRequests)
@@ -476,7 +529,8 @@ type ModItem struct {
 	Reporters int
 	Reasons   []ReasonCount
 	OpenRep   int
-	Act       bool // moderation actions are available
+	Act       bool   // moderation actions are available
+	Pfx       string // the list's prefix of the item's ids inside its region (q, r, u)
 }
 
 // ReasonCount is a report reason with its count.
@@ -487,15 +541,14 @@ type ReasonCount struct {
 
 // AdminModView is the moderation page.
 type AdminModView struct {
-	Queue      []ModItem
-	QueueNext  string
-	QueueFirst string
-	Recent     []ModItem
-	RecentNext string
-	RecentTop  string
-	Status     string
-	Filters    []AdminFilter
-	MaxReason  int
+	Queue       []ModItem
+	QueueTotal  int
+	QueuePager  *Pager
+	Recent      []ModItem
+	RecentPager *Pager
+	Status      string
+	Filters     []AdminFilter
+	MaxReason   int
 }
 
 // AdminFilter is one choice of the status filter.
@@ -511,8 +564,8 @@ func (u *UI) modItem(loc *i18n.Locale, c *admin.Comment, history []admin.Revisio
 		Permalink: link(c.CVE) + "?" + discComment1 + "=" + c.ID + "#c-" + c.ID, Revisions: c.Revisions, OpenRep: c.OpenReports,
 		Act: u.opts.Admin.Discussions()}
 	// the renderer's output is allowlisted (package md); <br> becomes <br/>
-	// as on the vulnerability pages
-	m.Body = template.HTML(strings.ReplaceAll(md.Render(c.Body, md.Options{Links: c.Links, CVELink: link}), "<br>", "<br/>"))
+	// as on the vulnerability pages; off-site links open in a new tab
+	m.Body = template.HTML(strings.ReplaceAll(md.Render(c.Body, md.Options{Links: c.Links, CVELink: link, NewTab: u.offSite}), "<br>", "<br/>"))
 	if c.AuthorID != nil {
 		m.AuthorHref = loc.Path("/admin/users/" + *c.AuthorID)
 		if c.Handle != nil {
@@ -544,8 +597,22 @@ func (u *UI) adminModeration(w http.ResponseWriter, r *http.Request, loc *i18n.L
 	q := r.URL.Query()
 	base := loc.Path("/admin/moderation")
 	v := AdminModView{MaxReason: 200}
-	qc := admin.DecodeCursor(q.Get("qc"))
-	groups, qnext, err := a.ReportQueue(r.Context(), qc)
+	status := q.Get("status")
+	known := status == ""
+	for _, s := range admin.CommentStatuses {
+		known = known || s == status
+	}
+	if !known {
+		status = ""
+	}
+	v.Status = status
+	// the queue is numbered (?qp=), the patrol list keyset (?rc= older, ?rb= newer, ?rp= its page number)
+	links := newAdminLinks(base, q, "qp", "rp")
+	links.set("status", status)
+	pos := admin.Keyset[admin.Cursor]{Older: admin.DecodeCursor(q.Get("rc")), Newer: admin.DecodeCursor(q.Get("rb"))}
+	links.set("rc", admin.EncodeCursor(pos.Older)) // a position that does not decode is dropped
+	links.set("rb", admin.EncodeCursor(pos.Newer))
+	groups, qw, err := a.ReportQueue(r.Context(), pageParam(q, "qp"))
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
@@ -568,38 +635,17 @@ func (u *UI) adminModeration(w http.ResponseWriter, r *http.Request, loc *i18n.L
 				m.Reasons = append(m.Reasons, ReasonCount{reason, n})
 			}
 		}
+		m.Pfx = "q"
 		v.Queue = append(v.Queue, m)
 	}
-	status := q.Get("status")
-	known := status == ""
-	for _, s := range admin.CommentStatuses {
-		known = known || s == status
+	v.QueueTotal = qw.Total
+	v.QueuePager = links.numbered(loc, qw, "qp", "r-queue")
+	recent, rprev, rnext, err := a.RecentComments(r.Context(), status, pos)
+	if err != nil {
+		u.adminFail(w, r, loc, err)
+		return
 	}
-	if !known {
-		status = ""
-	}
-	v.Status = status
-	keep := func(extra url.Values) string {
-		vs := url.Values{}
-		if status != "" {
-			vs.Set("status", status)
-		}
-		for k, x := range extra {
-			vs[k] = x
-		}
-		if len(vs) == 0 {
-			return base
-		}
-		return base + "?" + vs.Encode()
-	}
-	if qnext != nil {
-		v.QueueNext = keep(url.Values{"qc": {admin.EncodeCursor(qnext)}}) + "#queue"
-	}
-	if qc != nil {
-		v.QueueFirst = keep(nil) + "#queue"
-	}
-	rc := admin.DecodeCursor(q.Get("rc"))
-	recent, rnext, err := a.RecentComments(r.Context(), status, "", rc, admin.RecentPage)
+	recentN, err := a.RecentCommentsCount(r.Context(), status)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
@@ -612,20 +658,14 @@ func (u *UI) adminModeration(w http.ResponseWriter, r *http.Request, loc *i18n.L
 				return
 			}
 		}
-		v.Recent = append(v.Recent, u.modItem(loc, c, hist))
+		m := u.modItem(loc, c, hist)
+		m.Pfx = "r"
+		v.Recent = append(v.Recent, m)
 	}
-	if rnext != nil {
-		v.RecentNext = keep(url.Values{"rc": {admin.EncodeCursor(rnext)}}) + "#recent"
-	}
-	if rc != nil {
-		v.RecentTop = keep(nil) + "#recent"
-	}
+	v.RecentPager = links.keyset(loc, "r-recent", "rc", "rb", "rp", admin.EncodeCursor(rprev), admin.EncodeCursor(rnext), recentN)
 	for _, s := range append([]string{""}, admin.CommentStatuses...) {
-		href := base
-		if s != "" {
-			href += "?status=" + s
-		}
-		v.Filters = append(v.Filters, AdminFilter{Value: s, Href: href + "#recent", Current: s == status})
+		v.Filters = append(v.Filters, AdminFilter{Value: s, Href: links.href("r-recent", "status", s, "rc", "", "rb", "", "rp", ""),
+			Current: s == status})
 	}
 	u.adminRender(w, r, loc, me, "moderation", "admin_mod", loc.Text("admin.nav", "tab", "moderation"), v)
 }
@@ -648,8 +688,7 @@ type AdminUserRow struct {
 type AdminUsersView struct {
 	Query string
 	Rows  []AdminUserRow
-	Next  string
-	First string
+	Pager *Pager
 }
 
 func (u *UI) adminUsers(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me *auth.User) {
@@ -659,8 +698,14 @@ func (u *UI) adminUsers(w http.ResponseWriter, r *http.Request, loc *i18n.Locale
 	if len([]rune(query)) > 64 {
 		query = string([]rune(query)[:64])
 	}
-	after := admin.DecodeUserCursor(q.Get("after"))
-	rows, next, err := a.Users(r.Context(), query, after)
+	// keyset: ?after= older, ?before= newer, ?p= the page number
+	pos := admin.Keyset[auth.UserCursor]{Older: admin.DecodeUserCursor(q.Get("after")), Newer: admin.DecodeUserCursor(q.Get("before"))}
+	rows, prev, next, err := a.Users(r.Context(), query, pos)
+	if err != nil {
+		u.adminFail(w, r, loc, err)
+		return
+	}
+	total, err := a.UsersCount(r.Context(), query)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
@@ -677,21 +722,11 @@ func (u *UI) adminUsers(w http.ResponseWriter, r *http.Request, loc *i18n.Locale
 		}
 		v.Rows = append(v.Rows, row)
 	}
-	base := loc.Path("/admin/users")
-	vs := url.Values{}
-	if query != "" {
-		vs.Set("q", query)
-	}
-	if after != nil {
-		v.First = base
-		if len(vs) > 0 {
-			v.First += "?" + vs.Encode()
-		}
-	}
-	if next != nil {
-		vs.Set("after", admin.EncodeUserCursor(next))
-		v.Next = base + "?" + vs.Encode()
-	}
+	links := newAdminLinks(loc.Path("/admin/users"), q, "p")
+	links.set("q", query)
+	links.set("after", admin.EncodeUserCursor(pos.Older))
+	links.set("before", admin.EncodeUserCursor(pos.Newer))
+	v.Pager = links.keyset(loc, "r-users", "after", "before", "p", admin.EncodeUserCursor(prev), admin.EncodeUserCursor(next), total)
 	u.adminRender(w, r, loc, me, "users", "admin_users", loc.Text("admin.nav", "tab", "users"), v)
 }
 
@@ -706,6 +741,7 @@ type AdminIdentity struct {
 
 // AdminReportRow is a report in a user's history.
 type AdminReportRow struct {
+	Detail    string // id of its detail row (the row pattern)
 	At        Stamp
 	Reason    string
 	Note      string
@@ -717,6 +753,7 @@ type AdminReportRow struct {
 
 // AdminAuditRow is one audit entry as shown.
 type AdminAuditRow struct {
+	Detail     string // id of its detail row (the row pattern)
 	At         Stamp
 	Actor      string // handle, "" for the CLI
 	ActorHref  string
@@ -750,10 +787,13 @@ type AdminUserView struct {
 	Sessions       int
 	CommentCount   int
 	Comments       []ModItem
-	CommentsMore   string
+	CommentsPager  *Pager
 	ReportsAbout   []AdminReportRow
+	AboutPager     *Pager
 	ReportsFiled   []AdminReportRow
+	FiledPager     *Pager
 	Audit          []AdminAuditRow
+	AuditPager     *Pager
 	Self           bool
 	Protected      bool // the target is an admin
 	CanAct         bool
@@ -779,7 +819,10 @@ func (u *UI) adminUser(w http.ResponseWriter, r *http.Request, loc *i18n.Locale,
 		return
 	}
 	full := a.IsAdmin(me)
-	d, err := a.UserDetail(r.Context(), id, full)
+	q := r.URL.Query()
+	// four numbered lists: comments ?cp=, reports about ?rap=, reports filed ?rfp=, audit ?ap=
+	d, err := a.UserDetail(r.Context(), id, full, admin.UserPages{Comments: pageParam(q, "cp"), About: pageParam(q, "rap"),
+		Filed: pageParam(q, "rfp"), Audit: pageParam(q, "ap")})
 	if errors.Is(err, admin.ErrNoUser) {
 		u.notFound(w, r, loc)
 		return
@@ -828,15 +871,24 @@ func (u *UI) adminUser(w http.ResponseWriter, r *http.Request, loc *i18n.Locale,
 			}
 		}
 		for _, x := range d.ReportsFiled {
-			v.ReportsFiled = append(v.ReportsFiled, u.reportRow(loc, x))
+			v.ReportsFiled = append(v.ReportsFiled, u.reportRow(loc, x, "rf"))
 		}
-		v.Audit = u.auditRows(loc, d.Audit)
+		v.Audit = u.auditRows(loc, d.Audit, "ua")
 	}
 	for _, c := range d.Comments {
-		v.Comments = append(v.Comments, u.modItem(loc, c, nil))
+		m := u.modItem(loc, c, nil)
+		m.Pfx = "u"
+		v.Comments = append(v.Comments, m)
 	}
 	for _, x := range d.ReportsAbout {
-		v.ReportsAbout = append(v.ReportsAbout, u.reportRow(loc, x))
+		v.ReportsAbout = append(v.ReportsAbout, u.reportRow(loc, x, "ra"))
+	}
+	links := newAdminLinks(loc.Path("/admin/users/"+t.ID), q, "cp", "rap", "rfp", "ap")
+	v.CommentsPager = links.numbered(loc, d.CommentsW, "cp", "r-ucomments")
+	v.AboutPager = links.numbered(loc, d.AboutW, "rap", "r-rabout")
+	if full {
+		v.FiledPager = links.numbered(loc, d.FiledW, "rfp", "r-rfiled")
+		v.AuditPager = links.numbered(loc, d.AuditW, "ap", "r-uaudit")
 	}
 	title := v.Handle
 	if title == "" {
@@ -849,8 +901,8 @@ func (u *UI) adminUser(w http.ResponseWriter, r *http.Request, loc *i18n.Locale,
 	u.adminRender(w, r, loc, me, tab, "admin_user", title, v)
 }
 
-func (u *UI) reportRow(loc *i18n.Locale, x admin.ReportRow) AdminReportRow {
-	rr := AdminReportRow{At: instant(x.CreatedAt, stampShort), Reason: x.Reason, State: reportState(x), Excerpt: plain(x.Excerpt),
+func (u *UI) reportRow(loc *i18n.Locale, x admin.ReportRow, pfx string) AdminReportRow {
+	rr := AdminReportRow{Detail: "dt-" + pfx + "-" + x.ID, At: instant(x.CreatedAt, stampShort), Reason: x.Reason, State: reportState(x), Excerpt: plain(x.Excerpt),
 		CVE: x.CVE, Permalink: loc.Path("/vuln/"+x.CVE) + "?" + discComment1 + "=" + x.CommentID + "#c-" + x.CommentID}
 	if x.Note != nil {
 		rr.Note = plain(*x.Note)
@@ -858,10 +910,10 @@ func (u *UI) reportRow(loc *i18n.Locale, x admin.ReportRow) AdminReportRow {
 	return rr
 }
 
-func (u *UI) auditRows(loc *i18n.Locale, rows []audit.Row) []AdminAuditRow {
+func (u *UI) auditRows(loc *i18n.Locale, rows []audit.Row, pfx string) []AdminAuditRow {
 	var out []AdminAuditRow
 	for _, x := range rows {
-		ar := AdminAuditRow{At: instant(x.At, stampLong), ActorRole: x.ActorRole, Action: strings.ReplaceAll(x.Action, ".", "_"),
+		ar := AdminAuditRow{Detail: "dt-" + pfx + "-" + strconv.FormatInt(x.ID, 10), At: instant(x.At, stampLong), ActorRole: x.ActorRole, Action: strings.ReplaceAll(x.Action, ".", "_"),
 			TargetType: x.TargetType, TargetID: x.TargetID, Source: x.Source}
 		if x.ActorHandle != nil {
 			ar.Actor = plain(*x.ActorHandle)
@@ -880,6 +932,15 @@ func (u *UI) auditRows(loc *i18n.Locale, rows []audit.Row) []AdminAuditRow {
 			} else {
 				ar.TargetHref = loc.Path("/admin/settings")
 			}
+		case audit.TargetXAccount:
+			// a github.repo.* row is stored under x_account (audit.GitHubRepoTarget)
+			if strings.HasPrefix(x.Action, "github.repo.") && strings.HasPrefix(x.TargetID, audit.GitHubRepoTarget) {
+				ar.TargetType, ar.TargetHref = "github_repo", loc.Path("/admin/github")
+			}
+			// and a github.owner.* row (audit.GitHubOwnerTarget)
+			if strings.HasPrefix(x.Action, "github.owner.") && strings.HasPrefix(x.TargetID, audit.GitHubOwnerTarget) {
+				ar.TargetType, ar.TargetHref = "github_owner", loc.Path("/admin/github")+"#owners"
+			}
 		case audit.TargetXDraft:
 			if admin.ValidDraftID(x.TargetID) {
 				ar.TargetHref = loc.Path("/admin/x/drafts") + "#d-" + x.TargetID
@@ -888,13 +949,17 @@ func (u *UI) auditRows(loc *i18n.Locale, rows []audit.Row) []AdminAuditRow {
 			if admin.ValidID(x.TargetID) {
 				ar.TargetHref = loc.Path("/admin/corrections") + "?state=decided#k-" + x.TargetID
 			}
+		case audit.TargetVuln:
+			if id, ok := site.ParseVulnID(x.TargetID); ok && id == x.TargetID {
+				ar.TargetHref = loc.Path("/admin/titles") + "?cve=" + id
+			}
 		case audit.TargetComment, audit.TargetReport:
 			cve, _ := x.Details["cve"].(string)
 			cid := x.TargetID
 			if x.TargetType == audit.TargetReport {
 				cid, _ = x.Details["comment_id"].(string)
 			}
-			if id, ok := site.ParseCVEID(cve); ok && id == cve && admin.ValidID(cid) {
+			if id, ok := site.ParseVulnID(cve); ok && id == cve && admin.ValidID(cid) {
 				ar.TargetHref = loc.Path("/vuln/"+id) + "?" + discComment1 + "=" + cid + "#c-" + cid
 			}
 		}
@@ -981,6 +1046,17 @@ type AdminCollector struct {
 	Name, Status, Class string
 	LastRun, LastOK     Stamp
 	Error               string
+	Detail              string // id of its detail row (the row pattern)
+}
+
+// AdminJob is one background job row (same columns as AdminCollector,
+// plus the backlog).
+type AdminJob struct {
+	Name, Status, Class string
+	LastRun, LastOK     Stamp
+	Error               string
+	Backlog             string // "" = none shown
+	Detail              string // id of its detail row (the row pattern)
 }
 
 // AdminTable is one table row.
@@ -992,11 +1068,17 @@ type AdminTable struct {
 // AdminLog is one error record.
 type AdminLog struct {
 	File, Time, Level, Msg, Attrs string
+	Detail                        string // id of its detail row (the row pattern)
 }
 
 // AdminSystemView is the system page.
 type AdminSystemView struct {
 	Collectors   []AdminCollector
+	Jobs         []AdminJob
+	CollPager    *Pager
+	TablesPager  *Pager
+	LogsPager    *Pager
+	LogsN        int // records read in all (every page)
 	StateAt      template.HTML
 	StateError   string
 	Tables       []AdminTable
@@ -1082,6 +1164,34 @@ func (u *UI) adminSystem(w http.ResponseWriter, r *http.Request, loc *i18n.Local
 		}
 		v.Collectors = append(v.Collectors, ac)
 	}
+	// the other background jobs (job_run): a job with no record yet is
+	// neutral, not an error (an empty table right after a deploy)
+	for i, j := range sys.Jobs {
+		code := strings.ReplaceAll(j.Name, "-", "_")
+		aj := AdminJob{Name: loc.Text("admin.sys.job", "job", code), Status: loc.Text("admin.sys.job_status", "status", j.Status),
+			Class: "weak", LastRun: Stamp{Text: "—"}, LastOK: Stamp{Text: "—"}, Detail: "dt-j-" + strconv.Itoa(i)}
+		switch j.Status {
+		case "ok":
+			aj.Class = "ok"
+		case "error", "unfinished":
+			aj.Class = "bad"
+		case "stale", "running", "limited":
+			aj.Class = "warn"
+		}
+		if j.StartedAt != nil {
+			aj.LastRun = shortStamp(*j.StartedAt)
+		}
+		if j.LastSuccessAt != nil {
+			aj.LastOK = shortStamp(*j.LastSuccessAt)
+		}
+		if j.Error != nil {
+			aj.Error = plain(*j.Error)
+		}
+		if j.BacklogKind != "" {
+			aj.Backlog = loc.Text("admin.sys.backlog", "kind", j.BacklogKind, "n", j.Backlog)
+		}
+		v.Jobs = append(v.Jobs, aj)
+	}
 	if src := sys.Sources; src != nil {
 		v.StateAt = minuteHTML(src.StateRefreshedAt)
 		v.StateError = plain(deref(src.StateError))
@@ -1100,6 +1210,23 @@ func (u *UI) adminSystem(w http.ResponseWriter, r *http.Request, loc *i18n.Local
 	for _, rec := range sys.Logs.Records {
 		v.Logs = append(v.Logs, AdminLog{File: rec.File, Time: plain(rec.Time), Level: rec.Level, Msg: plain(rec.Msg), Attrs: plain(rec.Attrs)})
 	}
+	// three lists paged in memory: collectors ?cp=, tables ?tp=, log records ?lp= (pools: a few, never paged)
+	q := r.URL.Query()
+	links := newAdminLinks(loc.Path("/admin/system"), q, "cp", "tp", "lp")
+	var cw, tw, lw admin.Window
+	for i := range v.Collectors {
+		v.Collectors[i].Detail = "dt-c-" + strconv.Itoa(i)
+	}
+	for i := range v.Logs {
+		v.Logs[i].Detail = "dt-l-" + strconv.Itoa(i)
+	}
+	v.LogsN = len(v.Logs)
+	v.Collectors, cw = memPage(v.Collectors, pageParam(q, "cp"))
+	v.Tables, tw = memPage(v.Tables, pageParam(q, "tp"))
+	v.Logs, lw = memPage(v.Logs, pageParam(q, "lp"))
+	v.CollPager = links.numbered(loc, cw, "cp", "r-coll")
+	v.TablesPager = links.numbered(loc, tw, "tp", "r-tables")
+	v.LogsPager = links.numbered(loc, lw, "lp", "r-logs")
 	for _, p := range sys.Pools {
 		v.Pools = append(v.Pools, AdminPool{Name: p.Name, Size: strconv.Itoa(p.Size), InUse: strconv.Itoa(p.InUse),
 			Idle: strconv.Itoa(p.Idle), Known: p.Known})
@@ -1114,7 +1241,7 @@ type AdminAuditView struct {
 	Action, Actor, Target string
 	Actions               []string // select values (codes with "_")
 	Rows                  []AdminAuditRow
-	Next, First           string
+	Pager                 *Pager
 }
 
 func (u *UI) adminAudit(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me *auth.User) {
@@ -1127,41 +1254,42 @@ func (u *UI) adminAudit(w http.ResponseWriter, r *http.Request, loc *i18n.Locale
 			f.Action = a
 		}
 	}
-	before, _ := strconv.ParseInt(q.Get("before"), 10, 64)
-	if before < 0 {
-		before = 0
+	// keyset on the id: ?before= older, ?after= newer, ?p= the page number
+	id := func(k string) *int64 {
+		n, err := strconv.ParseInt(q.Get(k), 10, 64)
+		if err != nil || n <= 0 {
+			return nil
+		}
+		return &n
 	}
-	rows, next, err := u.opts.Admin.AuditLog(r.Context(), f, before)
+	rows, prev, next, err := u.opts.Admin.AuditLog(r.Context(), f, admin.Keyset[int64]{Older: id("before"), Newer: id("after")})
+	if err != nil {
+		u.adminFail(w, r, loc, err)
+		return
+	}
+	total, err := u.opts.Admin.AuditCount(r.Context(), f)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
 	}
 	v := AdminAuditView{Action: strings.ReplaceAll(f.Action, ".", "_"), Actor: f.ActorHandle, Target: f.TargetID,
-		Rows: u.auditRows(loc, rows)}
+		Rows: u.auditRows(loc, rows, "a")}
 	for _, a := range audit.Actions {
 		v.Actions = append(v.Actions, strings.ReplaceAll(a, ".", "_"))
 	}
-	vs := url.Values{}
-	if v.Action != "" {
-		vs.Set("action", v.Action)
-	}
-	if f.ActorHandle != "" {
-		vs.Set("actor", f.ActorHandle)
-	}
-	if f.TargetID != "" {
-		vs.Set("target", f.TargetID)
-	}
-	base := loc.Path("/admin/audit")
-	if before > 0 {
-		v.First = base
-		if len(vs) > 0 {
-			v.First += "?" + vs.Encode()
+	idText := func(p *int64) string {
+		if p == nil {
+			return ""
 		}
+		return strconv.FormatInt(*p, 10)
 	}
-	if next > 0 {
-		vs.Set("before", strconv.FormatInt(next, 10))
-		v.Next = base + "?" + vs.Encode()
-	}
+	links := newAdminLinks(loc.Path("/admin/audit"), q, "p")
+	links.set("before", idText(id("before")))
+	links.set("after", idText(id("after")))
+	links.set("action", v.Action)
+	links.set("actor", f.ActorHandle)
+	links.set("target", f.TargetID)
+	v.Pager = links.keyset(loc, "r-audit", "before", "after", "p", idText(prev), idText(next), total)
 	u.adminRender(w, r, loc, me, "audit", "admin_audit", loc.Text("admin.nav", "tab", "audit"), v)
 }
 

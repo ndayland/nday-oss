@@ -21,7 +21,9 @@ import (
 // page was rendered with (a newer one answers 409 stale_version).
 //
 //	POST /api/admin/x/drafts/{id}/save     {"version":N,"body":"…"}
-//	POST /api/admin/x/drafts/{id}/posted   {"version":N,"post_url":"https://x.com/<handle>/status/<id>"|""}
+//	POST /api/admin/x/drafts/{id}/posted   {"version":N,"post_url":"https://x.com/<handle>/status/<id>"|"",
+//	                                        "form":"link"|"image"|"image_reply"}  (form optional: "link";
+//	                                        link with a text over xdraft.BodyBudget: 400 link_too_long)
 //	POST /api/admin/x/drafts/{id}/discard  {"version":N}
 //	POST /api/admin/x/drafts/{id}/restore  {"version":N}
 
@@ -60,6 +62,7 @@ type draftIn struct {
 	Version *int    `json:"version"`
 	Body    *string `json:"body"`
 	PostURL *string `json:"post_url"`
+	Form    *string `json:"form"`
 }
 
 // readDraft decodes the body and checks the fields an action needs.
@@ -75,6 +78,10 @@ func readDraft(w http.ResponseWriter, r *http.Request, body, postURL bool) (*dra
 		web.WriteError(w, http.StatusBadRequest, "bad_request", "this endpoint takes no body text", "body")
 	case !postURL && in.PostURL != nil:
 		web.WriteError(w, http.StatusBadRequest, "bad_request", "this endpoint takes no post_url", "post_url")
+	case !postURL && in.Form != nil: // the form goes with marking posted only
+		web.WriteError(w, http.StatusBadRequest, "bad_request", "this endpoint takes no form", "form")
+	case in.Form != nil && !xdraft.ValidForm(*in.Form):
+		web.WriteError(w, http.StatusBadRequest, "bad_form", "form must be link, image or image_reply", "form")
 	case body && in.Body == nil:
 		web.WriteError(w, http.StatusBadRequest, "bad_body", "the text is required", "body")
 	default:
@@ -95,6 +102,8 @@ func (s *Service) draftDone(w http.ResponseWriter, op, actor, id string, version
 		web.WriteError(w, http.StatusConflict, "stale_version", "the draft was changed since the page was loaded", "version")
 	case errors.Is(err, ErrDraftState):
 		web.WriteError(w, http.StatusConflict, "wrong_status", "the draft is not in a state that allows this", "")
+	case errors.Is(err, ErrDraftLinkTooLong):
+		web.WriteError(w, http.StatusBadRequest, "link_too_long", "the text is too long to post with the link; use an image form", "form")
 	case errors.Is(err, ErrNoXChange):
 		web.WriteError(w, http.StatusConflict, "no_change", "nothing to change", "")
 	case errors.Is(err, auth.ErrNotAdmin):
@@ -117,9 +126,12 @@ func (s *Service) xDraftSave(w http.ResponseWriter, r *http.Request, u *auth.Use
 		web.WriteError(w, http.StatusBadRequest, "bad_body", "the text must be 1 to 1000 characters without control characters", "body")
 		return
 	}
-	if n := xdraft.WeightedLength(body); n > xdraft.BodyBudget {
-		writeErrorWith(w, http.StatusBadRequest, "too_long", "the text with the link is longer than X allows", "body",
-			map[string]any{"weighted_length": n, "max": xdraft.BodyBudget})
+	// up to the whole post: the image forms post the text alone; a text
+	// over xdraft.BodyBudget cannot be posted in the link form (the page
+	// hides that form's compose link, and posted refuses form link)
+	if n := xdraft.WeightedLength(body); n > xdraft.MaxWeighted {
+		writeErrorWith(w, http.StatusBadRequest, "too_long", "the text is longer than X allows", "body",
+			map[string]any{"weighted_length": n, "max": xdraft.MaxWeighted})
 		return
 	}
 	v, err := s.XDraftSave(r.Context(), u.ID, draftID(id), *in.Version, body)
@@ -140,7 +152,11 @@ func (s *Service) xDraftPosted(w http.ResponseWriter, r *http.Request, u *auth.U
 		}
 		pu = &n
 	}
-	v, err := s.XDraftPosted(r.Context(), u.ID, draftID(id), *in.Version, pu)
+	form := xdraft.FormLink
+	if in.Form != nil {
+		form = *in.Form
+	}
+	v, err := s.XDraftPosted(r.Context(), u.ID, draftID(id), *in.Version, pu, form)
 	s.draftDone(w, "posted", u.ID, id, v, err)
 }
 

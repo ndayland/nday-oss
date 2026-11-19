@@ -3,7 +3,6 @@ package webui
 import (
 	"html/template"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"nday.land/nday/internal/admin"
 	"nday.land/nday/internal/auth"
+	"nday.land/nday/internal/ghrepo"
 	"nday.land/nday/internal/site"
 	"nday.land/nday/internal/webui/i18n"
 	"nday.land/nday/internal/xconfig"
@@ -34,11 +34,15 @@ type AdminXField struct {
 	EffectiveIsSet bool
 }
 
-// AdminXAccount is one allowlisted account.
+// AdminXAccount is one allowlisted account. The user id is never shown:
+// it is in data attributes only, for the actions.
 type AdminXAccount struct {
 	UserID   string
 	Handle   string
 	Href     string // https://x.com/<handle> when the handle is valid
+	Name     string // the display name on X ("" not known)
+	Bio      string // the profile description on X ("" not known or empty)
+	Detail   string // id of its detail row (the row pattern)
 	Note     string
 	Enabled  bool
 	State    string // on | off
@@ -46,6 +50,14 @@ type AdminXAccount struct {
 	Updated  Stamp
 	Posts    string
 	FormNote string // the note for the edit form
+	// GitHub: the trusted GitHub accounts linked to it (admin only; a
+	// small marker next to the handle)
+	GitHub []AdminXGitHub
+}
+
+// AdminXGitHub is a trusted GitHub account linked to an X account.
+type AdminXGitHub struct {
+	Login, Href string // Href: the trusted accounts on /admin/github
 }
 
 // AdminXPost is one collected post.
@@ -64,6 +76,7 @@ type AdminXPost struct {
 // AdminXCandidate is one allowlist candidate (xconfig.Candidate).
 type AdminXCandidate struct {
 	UserID    string
+	Label     string // id of the cell that names the row (its checkbox's label)
 	Handle    string // "" when the stored handle is missing or not valid
 	Href      string // https://x.com/<handle> when Handle is set
 	Referrers string
@@ -74,8 +87,12 @@ type AdminXCandidate struct {
 // AdminXCandTable is one candidates table: Open (add, dismiss) or the
 // dismissed ones (restore).
 type AdminXCandTable struct {
-	Rows []AdminXCandidate
-	Open bool
+	Rows   []AdminXCandidate
+	Open   bool
+	State  string // the rows' status as rendered (xconfig.CandidatePending, CandidateDismissed)
+	Region string // r-xcand, r-xcand-dismissed
+	Pager  *Pager
+	Bulk   *BulkBar
 }
 
 // AdminXCount is posts per author.
@@ -123,20 +140,21 @@ type AdminXView struct {
 	Matched     int           // accounts whose handle contains Q (Total when Q is "")
 	Page, Pages int           // 1-based page after clamping; page count (≥ 1)
 	From, To    int           // 1-based positions of the first and last row shown
-	AccPrev     string        // pager links ("" when there is none)
-	AccNext     string
-	AccClear    string // the page without the search (other filters kept)
-	PageParam   int    // Page when it goes into URLs and forms (0 when it is 1)
-	Before      string // the posts cursor, for the accounts links
-	// allowlist candidates (each list capped at admin.XCandidatesPage)
+	AccPager    *Pager        // the allowlist's pager (nil on one page)
+	AccClear    string        // the page without the search (other filters kept)
+	AccKeep     []KV          // hidden inputs of the search form (the other lists' positions, the posts filters)
+	// allowlist candidates (numbered, ?cp= open, ?dp= dismissed)
 	Cands, CandsDismissed AdminXCandTable
 	CandN, CandDismissedN int // totals
-	// posts
+	DismissedOpen         bool
+	// posts (keyset: ?before= older, ?after= newer, ?pp= its page number)
 	Author, CVE string
+	PostKeep    []KV // hidden inputs of the posts filter form
 	PostList    []AdminXPost
-	Next, First string
+	PostsPager  *Pager
 	Chart       DayChart
-	PerAccount  []AdminXCount
+	PerAccount  []AdminXCount // posts per author, paged in memory (?ap=)
+	PerPager    *Pager
 	// re-verification panel
 	Providers []ProviderLink
 	Passkeys2 bool
@@ -215,31 +233,10 @@ func xPageParam(s string) int {
 	return n
 }
 
-// xQuery is the query string of /admin/x links: the accounts search and
-// page and the posts filters and cursor, each left out when unset (page 1
-// is no page). It starts with '?' unless it is empty.
-func xQuery(q string, page int, author, cve, before string) string {
-	vs := url.Values{}
-	if q != "" {
-		vs.Set("q", q)
-	}
-	if page > 1 {
-		vs.Set("page", strconv.Itoa(page))
-	}
-	if author != "" {
-		vs.Set("author", author)
-	}
-	if cve != "" {
-		vs.Set("cve", cve)
-	}
-	if before != "" {
-		vs.Set("before", before)
-	}
-	if len(vs) == 0 {
-		return ""
-	}
-	return "?" + vs.Encode()
-}
+// xParams are the query parameters of /admin/x: the accounts search and
+// page, the candidates' pages, the posts filters and position, the
+// per-account page.
+var xParams = []string{"q", "page", "cp", "dp", "author", "cve", "before", "after", "pp", "ap"}
 
 func (u *UI) adminX(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me *auth.User) {
 	a := u.opts.Admin
@@ -260,11 +257,16 @@ func (u *UI) adminX(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me
 		author = "" // an invalid handle matches nothing anyway
 	}
 	cve := ""
-	if id, ok := site.ParseCVEID(strings.TrimSpace(q.Get("cve"))); ok {
+	if id, ok := site.ParseVulnID(strings.TrimSpace(q.Get("cve"))); ok {
 		cve = id
 	}
-	before := admin.DecodeXCursor(q.Get("before"))
-	posts, next, err := a.XPosts(ctx, author, cve, before)
+	pos := admin.Keyset[admin.Cursor]{Older: admin.DecodeXCursor(q.Get("before")), Newer: admin.DecodeXCursor(q.Get("after"))}
+	posts, prev, next, err := a.XPosts(ctx, author, cve, pos)
+	if err != nil {
+		u.adminFail(w, r, loc, err)
+		return
+	}
+	postsN, err := a.XPostsCount(ctx, author, cve)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
@@ -280,7 +282,7 @@ func (u *UI) adminX(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me
 		u.adminFail(w, r, loc, err)
 		return
 	}
-	cands, err := a.XCandidates(ctx)
+	cands, err := a.XCandidates(ctx, pageParam(q, "cp"), pageParam(q, "dp"))
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
@@ -361,13 +363,28 @@ func (u *UI) adminX(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me
 			v.EnabledN++
 		}
 	}
+	var ids []string
+	for _, x := range accs.Accounts {
+		ids = append(ids, x.UserID)
+	}
+	gh, err := a.GitHubOwnersOfX(ctx, ids)
+	if err != nil {
+		u.adminFail(w, r, loc, err)
+		return
+	}
 	for _, x := range accs.Accounts {
 		row := AdminXAccount{UserID: x.UserID, Handle: plain(x.Handle), Href: xProfile(x.Handle), Note: plain(x.Note),
+			Name: plain(deref(x.Name)), Bio: plain(deref(x.Description)), Detail: "dt-xa-" + x.UserID,
 			FormNote: plain(x.Note), Enabled: x.Enabled, Created: instant(x.CreatedAt, stampShort), Updated: instant(x.UpdatedAt, stampShort),
 			Posts: num(loc, postsBy[x.UserID])}
 		row.State = "off"
 		if x.Enabled {
 			row.State = "on"
+		}
+		for _, o := range gh[x.UserID] {
+			if ghrepo.ValidLogin(o.Login) {
+				row.GitHub = append(row.GitHub, AdminXGitHub{Login: o.Login, Href: loc.Path("/admin/github") + "#owners"})
+			}
 		}
 		v.List = append(v.List, row)
 	}
@@ -376,16 +393,36 @@ func (u *UI) adminX(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me
 		v.From = (accs.Page-1)*admin.XAccountsPage + 1
 		v.To = v.From + len(v.List) - 1
 	}
-	if v.Page > 1 {
-		v.PageParam = v.Page
-	}
-	if before != nil {
-		v.Before = admin.EncodeXCursor(before)
-	}
+	links := newAdminLinks(loc.Path("/admin/x"), q, xParams...)
+	links.set("q", term)
+	links.set("page", pageStr(v.Page))
+	links.set("author", author)
+	links.set("cve", cve)
+	links.set("before", admin.EncodeXCursor(pos.Older)) // a position that does not decode is dropped
+	links.set("after", admin.EncodeXCursor(pos.Newer))
+	links.set("pp", pageStr(pageIndex(q.Get("pp"))))
 	// candidates
-	v.Cands = AdminXCandTable{Rows: xCandRows(loc, cands.Open), Open: true}
-	v.CandsDismissed = AdminXCandTable{Rows: xCandRows(loc, cands.Dismissed)}
+	cand := func(rows []xconfig.Candidate, open bool, param, region string, w admin.Window) AdminXCandTable {
+		t := AdminXCandTable{Rows: xCandRows(loc, rows), Open: open, State: xconfig.CandidateDismissed, Region: region}
+		if open {
+			t.State = xconfig.CandidatePending
+		}
+		for i := range t.Rows {
+			t.Rows[i].Label = "lb-" + region + "-" + t.Rows[i].UserID
+		}
+		t.Pager = links.numbered(loc, w, param, region)
+		if open {
+			t.Bulk = newBulkBar("xcand", []BulkAction{{Act: "add", Label: loc.Text("admin.x.cand_add")},
+				{Act: "dismiss", Label: loc.Text("admin.x.cand_dismiss"), Danger: true}})
+		} else {
+			t.Bulk = newBulkBar("xcand", []BulkAction{{Act: "restore", Label: loc.Text("admin.x.cand_restore")}})
+		}
+		return t
+	}
+	v.Cands = cand(cands.Open, true, "cp", "r-xcand", cands.OpenW)
+	v.CandsDismissed = cand(cands.Dismissed, false, "dp", "r-xcand-dismissed", cands.DismissedW)
 	v.CandN, v.CandDismissedN = cands.OpenN, cands.DismissedN
+	v.DismissedOpen = q.Get("dp") != ""
 	// posts
 	for _, p := range posts {
 		ap := AdminXPost{Seen: instant(p.ObservedAt, stampShort), At: Stamp{Text: "—"}, Handle: plain(p.Handle), Profile: xProfile(p.Handle),
@@ -400,7 +437,7 @@ func (u *UI) adminX(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me
 			ap.URL = p.URL
 		}
 		for _, c := range p.CVEs {
-			if id, ok := site.ParseCVEID(c); ok && id == c {
+			if id, ok := site.ParseVulnID(c); ok && id == c {
 				ap.CVEs = append(ap.CVEs, Link{Text: id, Href: loc.Path("/vuln/" + id)})
 			} else {
 				ap.CVEs = append(ap.CVEs, Link{Text: plain(c)})
@@ -408,29 +445,22 @@ func (u *UI) adminX(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me
 		}
 		v.PostList = append(v.PostList, ap)
 	}
-	base := loc.Path("/admin/x")
-	// posts pager: keeps the posts filters and the accounts search and page
-	if before != nil {
-		v.First = base + xQuery(term, v.Page, author, cve, "") + "#posts"
-	}
-	if next != nil {
-		v.Next = base + xQuery(term, v.Page, author, cve, admin.EncodeXCursor(next)) + "#posts"
-	}
-	// accounts pager and the clear link: keep the posts filters and cursor
-	if v.Page > 1 {
-		v.AccPrev = base + xQuery(term, v.Page-1, author, cve, v.Before) + "#accounts"
-	}
-	if v.Page < v.Pages {
-		v.AccNext = base + xQuery(term, v.Page+1, author, cve, v.Before) + "#accounts"
-	}
+	v.PostsPager = links.keyset(loc, "r-posts", "before", "after", "pp", admin.EncodeXCursor(prev), admin.EncodeXCursor(next), postsN)
+	v.PostKeep = links.hidden("author", "cve", "before", "after", "pp")
+	// accounts pager and the clear link
+	v.AccPager = numberedPager(loc, v.Page, v.Pages, func(p int) string { return links.href("r-accounts", "page", pageStr(p)) })
 	if term != "" {
-		v.AccClear = base + xQuery("", 1, author, cve, v.Before) + "#accounts"
+		v.AccClear = links.href("r-accounts", "q", "", "page", "")
 	}
+	v.AccKeep = links.hidden("q", "page")
 	v.Chart = buildDayChart(loc, "ch-x", "x_posts", false, []chartSeries{{"s1", "x_posts", daily}})
 	for _, c := range per {
 		v.PerAccount = append(v.PerAccount, AdminXCount{AuthorID: plain(c.AuthorID), Handle: plain(c.Handle), Profile: xProfile(c.Handle),
 			Posts: num(loc, c.Posts)})
 	}
+	var pw admin.Window
+	v.PerAccount, pw = memPage(v.PerAccount, pageParam(q, "ap"))
+	v.PerPager = links.numbered(loc, pw, "ap", "r-xper")
 	if acc := u.opts.Accounts.Current(); acc != nil {
 		for _, p := range acc.Providers {
 			v.Providers = append(v.Providers, ProviderLink{ID: p, Name: providerNames[p]})

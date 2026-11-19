@@ -7,7 +7,7 @@
 //	/api/hot                     ?since=7d&min_stage=patch&include_rejected=0&limit=50&offset=0|cursor=
 //	/api/vulns                   ?stage=&year=&tag=&include_rejected=0&limit=50&cursor= (catalogue: every CVE)
 //	/api/discussed               ?limit=50&offset=0 (CVEs by researcher count, last 7 days)
-//	/api/vuln/{cve}              case-insensitive CVE id
+//	/api/vuln/{cve}              case-insensitive CVE id, or GHSA id (site.ParseVulnID)
 //	/api/sources                 collector health and totals
 //	/api/stats                   stage and feature counts
 //	/api/search                  ?q=...&limit=20
@@ -15,6 +15,9 @@
 //	                             site host in two-host mode: the welcome page calls it)
 //	/raw/{source}/{key}.json     latest stored upstream record (key may contain "/")
 //
+// Every route above except /healthz needs a personal access token
+// (Authorization: Bearer, see Gate and SetAPIAuth); /api/affected/suggest
+// and /raw/... on the site host also accept a signed-in session cookie.
 // See docs/api.md for the response shapes.
 //
 // # Two-host mode (Config.APIURL, NDAY_API_URL)
@@ -27,7 +30,8 @@
 // robots.txt and JSON 404s, with CORS for any origin (APIHeaders). Routes
 // registered with Handle (pages, sign-in) are never reachable there. On every
 // other host the data routes above answer 308 to the API host, except
-// /api/affected/suggest, which page scripts call (CSP connect-src 'self');
+// /api/affected/suggest, which page scripts call (CSP connect-src 'self'),
+// and /raw/..., which signed-in readers open from vulnerability pages;
 // /healthz and everything registered with Handle stay as they are.
 //
 // # Adding HTML routes
@@ -107,6 +111,10 @@ type Server struct {
 	apiMux    http.Handler // everything the API host serves
 
 	publicScheme string // scheme of cfg.PublicURL
+
+	// apiAuth authenticates the gated routes (SetAPIAuth); nil = every
+	// gated route answers 401.
+	apiAuth APIAuth
 }
 
 // New builds a server with the API routes registered.
@@ -133,7 +141,11 @@ func New(cfg Config) *Server {
 	s.handle("/healthz", GetOnly(http.HandlerFunc(s.healthz)))
 	for _, rt := range s.apiRoutes() {
 		if s.apiOrigin == "" || rt.page {
-			s.handle(rt.site, GetOnly(rt.h))
+			mode := AuthBearer
+			if rt.page {
+				mode = AuthSession
+			}
+			s.handle(rt.site, GetOnly(s.Gate(mode, rt.h)))
 		} else {
 			s.handle(rt.site, GetOnly(http.HandlerFunc(s.redirectToAPI)))
 		}

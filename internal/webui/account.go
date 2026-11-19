@@ -1,6 +1,7 @@
 package webui
 
 import (
+	"html/template"
 	"net/http"
 	"net/url"
 	"sort"
@@ -94,13 +95,15 @@ type AcctView struct {
 	Disc        bool // the page loads discuss.js
 	Admin       bool // the page loads admin.js
 	// AdminPath is the localized /admin when the back office exists: the
-	// slot script adds a link there for staff accounts (the HTML is the
+	// slot script adds it to the account menu of staff accounts (the HTML is the
 	// same for everyone).
 	AdminPath string
 }
 
 // slotKeys are the messages app.js needs on every page.
 var slotKeys = []string{"acct.slot.signin", "acct.slot.account", "acct.role.badge", "admin.slot",
+	// the account menu (signed in)
+	"acct.profile.h2", "acct.follows.h2", "acct.security.h2", "acct.developer.h2", "acct.menu.signout",
 	"acct.banner.ok", "acct.banner.linked", "acct.banner.denied", "acct.banner.conflict", "acct.banner.error",
 	"acct.banner.signed_in_as_other", "acct.banner.reauth_required", "acct.banner.suspended", "acct.banner.dismiss"}
 
@@ -112,7 +115,8 @@ var pageKeys = []string{"acct.busy", "acct.save", "acct.cancel", "acct.yes", "ac
 	"acct.handle.next", "acct.handle.saved",
 	"acct.methods.linked", "acct.methods.linked_as", "acct.methods.not_linked", "acct.methods.unlinked",
 	"acct.passkeys.never", "acct.passkeys.added", "acct.passkeys.rename", "acct.passkeys.rename_label",
-	"acct.passkeys.renamed", "acct.passkeys.delete", "acct.passkeys.delete_confirm", "acct.passkeys.deleted",
+	"acct.passkeys.renamed", "acct.passkeys.delete", "acct.passkeys.deleted",
+	"btn.confirm", // the two-step confirm of the buttons account.js builds (app.js confirmStep)
 	"acct.passkeys.unsupported",
 	"acct.sessions.current", "acct.sessions.recent", "acct.sessions.not_recent", "acct.sessions.signed_out",
 	"acct.sessions.signed_out_all",
@@ -126,6 +130,9 @@ var pageKeys = []string{"acct.busy", "acct.save", "acct.cancel", "acct.yes", "ac
 	"acct.err.not_signed_in", "acct.err.webauthn_cancelled", "acct.err.ceremony_invalid", "acct.err.passkey_rejected",
 	"acct.err.not_linked", "acct.err.not_found", "acct.err.terms_version_mismatch", "acct.err.network",
 	"acct.err.generic",
+	// API section (account page)
+	"acct.api.deleted", "acct.api.feed_reset_done",
+	"acct.err.token_limit",
 	// follows (account page, welcome page)
 	"acct.follows.remove", "acct.follows.remove_label", "acct.follows.saved",
 	"acct.err.invalid_follow", "acct.err.too_many_follows",
@@ -272,13 +279,50 @@ type AccountData struct {
 	LoginHref   string
 	Home        string
 	WelcomeHref string // the welcome page (where follows are picked), back to here
+	// Endpoints: the data API reference of the API section (the same for
+	// every reader; the token and the feed address are loaded by account.js).
+	Endpoints []Endpoint
+}
+
+// Passkeys2 is Passkeys under the name the admin views use, for the shared
+// re-verification dialog (parts.tmpl "reauthpanel").
+func (d AccountData) Passkeys2() bool { return d.Passkeys }
+
+// Endpoint documents one API route.
+type Endpoint struct {
+	Path string // link
+	Name string
+	Desc template.HTML
+	Curl CmdLine
+}
+
+// apiEndpoints is the data API reference: each example sends the reader's
+// token (CurlCmd). The feed takes the token too; readers use the private
+// address instead.
+func (u *UI) apiEndpoints(loc *i18n.Locale) []Endpoint {
+	a := u.api
+	ep := func(example, name, key, filter string) Endpoint {
+		return Endpoint{a.Href(example), "GET " + a.Path(name), loc.HTML(key), CurlCmd(a.URL(example), filter)}
+	}
+	feed := loc.Path("/feed.xml")
+	return []Endpoint{
+		ep("/hot?since=7d&min_stage=patch", "/hot", "api.hot", ".rows"),
+		ep("/vuln/CVE-2026-102895", "/vuln/{cve}", "api.vuln", ".events"),
+		ep("/search?q=barracuda", "/search", "api.search", ".rows"),
+		ep("/tags", "/tags", "tag.api", ".tags"),
+		ep("/sources", "/sources", "api.sources", ".collectors"),
+		ep("/stats", "/stats", "api.stats", "."),
+		ep("/raw/kev/CVE-2026-102895.json", "/raw/{source}/{key}.json", "api.raw", "."),
+		{feed, "GET " + feed, loc.HTML("api.feed"), CurlCmd(u.opts.BaseURL+feed, "")},
+	}
 }
 
 func (u *UI) account(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 	a := u.opts.Accounts.Current()
 	d := AccountData{Passkeys: a.Passkeys, MaxPasskeys: a.MaxPasskeys, Home: loc.Home(),
 		LoginHref:   loc.Path("/login") + "?return=" + url.QueryEscape(loc.Path("/account")),
-		WelcomeHref: loc.Path(auth.WelcomePath) + "?next=" + url.QueryEscape(loc.Path("/account"))}
+		WelcomeHref: loc.Path(auth.WelcomePath) + "?next=" + url.QueryEscape(loc.Path("/account")),
+		Endpoints:   u.apiEndpoints(loc)}
 	for _, p := range a.Providers {
 		d.Providers = append(d.Providers, ProviderLink{ID: p, Name: providerNames[p]})
 	}

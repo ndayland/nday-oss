@@ -28,9 +28,9 @@ func TestSummarySource(t *testing.T) {
 		want string
 	}{
 		{&site.DescSource{Source: "cvelist", Key: "CVE-2026-1"},
-			`Original text of the CVE record (<a href="https://www.cve.org/CVERecord?id=CVE-2026-1" rel="noopener noreferrer">cvelist</a>), shown as published.`},
+			`Original text of the CVE record (<a href="https://www.cve.org/CVERecord?id=CVE-2026-1" target="_blank" rel="noopener noreferrer">cvelist</a>), shown as published.`},
 		{&site.DescSource{Source: "ghsa", Key: "GHSA-aaaa"},
-			`Original text of GitHub advisory <a href="https://github.com/advisories/GHSA-aaaa" rel="noopener noreferrer">GHSA-aaaa</a>, shown as published.`},
+			`Original text of GitHub advisory <a href="https://github.com/advisories/GHSA-aaaa" target="_blank" rel="noopener noreferrer">GHSA-aaaa</a>, shown as published.`},
 		{&site.DescSource{Source: "ghsa", Key: "GHSA-zzzz"}, // no event, no raw record: plain text
 			`Original text of GitHub advisory <span>GHSA-zzzz</span>, shown as published.`},
 		{&site.DescSource{Source: "kev", Key: "CVE-2026-1"}, // unsafe upstream URL: the raw record

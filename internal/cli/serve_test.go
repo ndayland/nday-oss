@@ -11,6 +11,8 @@ import (
 
 	"nday.land/nday/internal/cli"
 	"nday.land/nday/internal/testutil"
+	"nday.land/nday/internal/web"
+	"nday.land/nday/internal/web/webtest"
 )
 
 func TestRefreshStateAndServe(t *testing.T) {
@@ -27,6 +29,10 @@ func TestRefreshStateAndServe(t *testing.T) {
 	addrc := make(chan net.Addr, 1)
 	cli.ServeReady = func(a net.Addr) { addrc <- a }
 	t.Cleanup(func() { cli.ServeReady = nil })
+	// no sign-in configured here, so no real API token exists: the stand-in
+	// authenticator accepts the test token (internal/auth has the real one)
+	cli.ServeHook = func(s *web.Server) { s.SetAPIAuth(webtest.BearerAuth{}) }
+	t.Cleanup(func() { cli.ServeHook = nil })
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan int, 1)
 	go func() {
@@ -48,7 +54,15 @@ func TestRefreshStateAndServe(t *testing.T) {
 	if resp.StatusCode != 200 || !strings.Contains(string(b), `"db":"ok"`) || !strings.Contains(string(b), `"status":"stale"`) {
 		t.Errorf("healthz %d %s", resp.StatusCode, b)
 	}
-	resp, err = http.Get("http://" + addr.String() + "/api/hot?since=30d&min_stage=patch")
+	hot := "http://" + addr.String() + "/api/hot?since=30d&min_stage=patch"
+	resp, err = http.Get(hot)
+	if err != nil || resp.StatusCode != 401 || resp.Header.Get("WWW-Authenticate") != `Bearer realm="nday"` {
+		t.Errorf("hot without a token %v %v", resp, err)
+	}
+	resp.Body.Close()
+	req, _ := http.NewRequest(http.MethodGet, hot, nil)
+	req.Header.Set("Authorization", "Bearer "+webtest.TestAPIToken)
+	resp, err = http.DefaultClient.Do(req)
 	if err != nil || resp.StatusCode != 200 {
 		t.Errorf("hot %v %v", resp, err)
 	}

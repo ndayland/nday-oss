@@ -71,14 +71,15 @@ func TestXDraftAccess(t *testing.T) {
 	if _, body := mod.do("GET", "/admin/moderation", ""); strings.Contains(string(body), `href="/admin/x/drafts"`) {
 		t.Error("moderator sees the drafts nav item")
 	}
-	if _, body := adm.do("GET", "/admin/moderation", ""); !strings.Contains(string(body), `href="/admin/x/drafts"`) {
+	// the drafts page is in the X · GitHub group: its link is in the group's second-level menu
+	if _, body := adm.do("GET", "/admin/x", ""); !strings.Contains(string(body), `href="/admin/x/drafts"`) {
 		t.Error("admin lacks the drafts nav item")
 	}
 	want := map[string]string{"signed out": "401 not_signed_in", "user": "404 not_found", "suspended moderator": "404 not_found",
 		"suspended admin": "404 not_found", "moderator": "403 forbidden", "admin": "200 "}
 	// one draft per action so that every admin call succeeds (restore: a
 	// discarded draft)
-	for i, ep := range []struct{ verb, body string }{{"save", `"body":"edited text"`}, {"posted", `"post_url":""`}, {"discard", ``},
+	for i, ep := range []struct{ verb, body string }{{"save", `"body":"edited text"`}, {"posted", `"post_url":"","form":"image"`}, {"discard", ``},
 		{"restore", ``}} {
 		id := h.draft(fmt.Sprintf("CVE-2026-01%02d", i), "kev_added", "CVE +KEV")
 		if ep.verb == "restore" {
@@ -150,13 +151,14 @@ func TestXDraftActions(t *testing.T) {
 	}
 	check(t, "same text", 409, "no_change")(adm.post(u+"save", jbody(map[string]any{"version": 2, "body": "New text\nline two"})))
 	check(t, "stale version (second admin)", 409, "stale_version")(adm2.post(u+"save", jbody(map[string]any{"version": 1, "body": "older page"})))
-	over := strings.Repeat("a", xdraft.BodyBudget+1)
+	// up to the whole post (the image forms post the text alone)
+	over := strings.Repeat("a", xdraft.MaxWeighted+1)
 	resp, body = adm.post(u+"save", jbody(map[string]any{"version": 2, "body": over}))
 	expect(t, "over-length", resp, body, 400, "too_long")
-	if !strings.Contains(string(body), `"weighted_length":257`) || !strings.Contains(string(body), `"max":256`) {
+	if !strings.Contains(string(body), `"weighted_length":281`) || !strings.Contains(string(body), `"max":280`) {
 		t.Errorf("too_long body %s", body)
 	}
-	check(t, "CJK over-length", 400, "too_long")(adm.post(u+"save", jbody(map[string]any{"version": 2, "body": strings.Repeat("漏", 129)})))
+	check(t, "CJK over-length", 400, "too_long")(adm.post(u+"save", jbody(map[string]any{"version": 2, "body": strings.Repeat("漏", 141)})))
 	// emoji modifiers count on their own (an emoji-grouping count saw 21 here)
 	check(t, "emoji with 250 selectors", 400, "too_long")(adm.post(u+"save",
 		jbody(map[string]any{"version": 2, "body": "CVE-2026-0900 +KEV 😀" + strings.Repeat("\uFE0F", 250)})))
@@ -216,10 +218,10 @@ func TestXDraftActions(t *testing.T) {
 		"x.draft.save x_draft/" + id + ` CVE-2026-0300 +POC {"cve": "CVE-2026-0300", "length": 17, "version": 2} kim`,
 		"x.draft.save x_draft/" + id + ` CVE-2026-0300 +POC {"cve": "CVE-2026-0300", "length": 128, "version": 3} kim`,
 		"x.draft.save x_draft/" + id + ` CVE-2026-0300 +POC {"cve": "CVE-2026-0300", "length": 256, "version": 4} kim`,
-		"x.draft.posted x_draft/" + id + ` CVE-2026-0300 +POC {"cve": "CVE-2026-0300", "version": 5, "post_url": "https://x.com/ndayland/status/1857000000000000001"} kim`,
+		"x.draft.posted x_draft/" + id + ` CVE-2026-0300 +POC {"cve": "CVE-2026-0300", "form": "link", "version": 5, "post_url": "https://x.com/ndayland/status/1857000000000000001"} kim`,
 		"x.draft.discard x_draft/" + id2 + ` CVE-2026-0301 +KEV {"cve": "CVE-2026-0301", "version": 2} kim`,
 		"x.draft.restore x_draft/" + id2 + ` CVE-2026-0301 +KEV {"cve": "CVE-2026-0301", "version": 3} kim`,
-		"x.draft.posted x_draft/" + id2 + ` CVE-2026-0301 +KEV {"cve": "CVE-2026-0301", "version": 4} kim`,
+		"x.draft.posted x_draft/" + id2 + ` CVE-2026-0301 +KEV {"cve": "CVE-2026-0301", "form": "link", "version": 4} kim`,
 	}
 	if strings.Join(got, "\n") != strings.Join(wantAudit, "\n") {
 		t.Errorf("audit:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(wantAudit, "\n"))
@@ -243,7 +245,7 @@ func TestXDraftAuditRollback(t *testing.T) {
 	}
 }
 
-var composeRe = regexp.MustCompile(`<a class="btn sm adm-lnk" data-compose="" href="([^"]*)" target="_blank" rel="noopener noreferrer">`)
+var composeRe = regexp.MustCompile(`<a class="btn sm adm-lnk" data-compose="" data-for="link" href="([^"]*)" target="_blank" rel="noopener noreferrer">`)
 
 // TestXDraftPage: pending drafts with the compose link (X's host only,
 // fully encoded, the absolute English detail URL), escaped text, the
@@ -293,7 +295,7 @@ func TestXDraftPage(t *testing.T) {
 	}
 	n := xdraft.WeightedLength(hostile) + xdraft.LinkCost
 	for _, w := range []string{fmt.Sprintf("%d/280 with the link", n), `data-d="` + id + `" data-v="1"`, `href="/vuln/CVE-2026-0500"`,
-		`href="https://x.com/ndayland/status/42" rel="noopener noreferrer nofollow"`, `data-act="xdrestore" data-d="` + gone + `" data-v="2"`,
+		`href="https://x.com/ndayland/status/42" target="_blank" rel="noopener noreferrer nofollow"`, `data-act="xdrestore" data-d="` + gone + `" data-v="2"`,
 		`id="d-` + posted + `"`, `href="/admin/users/` + adm.id + `"`, `+KEV`, `+POC`, `+ITW`} {
 		if !strings.Contains(s, w) {
 			t.Errorf("page lacks %s", w)
@@ -334,14 +336,19 @@ func TestXDraftPage(t *testing.T) {
 		}
 	}
 	h.sql(`DELETE FROM x_draft WHERE id = $1`, long)
-	// over the cap: only the newest are listed
+	// more than a page: 10 per page, numbered (?dp=), the heading counts all
 	for i := 0; i < 52; i++ {
 		h.draft(fmt.Sprintf("CVE-2026-1%03d", i), "kev_added", "t")
 		h.clock.Advance(time.Second)
 	}
 	_, b = adm.do("GET", "/admin/x/drafts", "")
-	if c := strings.Count(string(b), `class="acct-form adm-xd"`); c != 50 || !strings.Contains(string(b), "Showing the newest 50 of 53.") {
-		t.Errorf("capped list: %d forms", c)
+	if c := strings.Count(string(b), `class="acct-form adm-xd"`); c != 10 || !strings.Contains(string(b), "pending drafts (53)") ||
+		!strings.Contains(string(b), "page 1 of 6") || !strings.Contains(string(b), `href="/admin/x/drafts?dp=2#r-xdpending" rel="next"`) {
+		t.Errorf("paged list: %d forms", c)
+	}
+	_, b = adm.do("GET", "/admin/x/drafts?dp=6", "")
+	if c := strings.Count(string(b), `class="acct-form adm-xd"`); c != 3 || !strings.Contains(string(b), `href="/admin/x/drafts?dp=5#r-xdpending" rel="prev"`) {
+		t.Errorf("last page: %d forms", c)
 	}
 }
 
@@ -374,7 +381,7 @@ func TestXDraftHistoryPaging(t *testing.T) {
 	if len(ids) != n || strings.Contains(body, `class="pager"`) {
 		t.Fatalf("one page: %d rows, pager %v", len(ids), strings.Contains(body, `class="pager"`))
 	}
-	// 45 decided: pages of 20, 20, 5
+	// 45 decided: pages of 10, 10, 10, 10, 5
 	for i := n; i < 45; i++ {
 		id := h.draft(fmt.Sprintf("CVE-2026-1%03d", i), "kev_added", "t")
 		h.sql(`UPDATE x_draft SET status = 'posted', decided_by = $1, decided_at = now() - make_interval(mins => $3) WHERE id = $2`, adm.id, id, i)
@@ -387,13 +394,13 @@ func TestXDraftHistoryPaging(t *testing.T) {
 		page       string
 		prev, next string
 	}{
-		{"/admin/x/drafts", 0, 20, "page 1 of 3", "", `href="/admin/x/drafts?page=2#history" rel="next"`},
-		{"/admin/x/drafts?page=2", 20, 40, "page 2 of 3", `href="/admin/x/drafts#history" rel="prev"`, `href="/admin/x/drafts?page=3#history" rel="next"`},
-		{"/admin/x/drafts?page=3", 40, 45, "page 3 of 3", `href="/admin/x/drafts?page=2#history" rel="prev"`, ""},
-		{"/admin/x/drafts?page=99", 40, 45, "page 3 of 3", `href="/admin/x/drafts?page=2#history" rel="prev"`, ""},
-		{"/admin/x/drafts?page=0", 0, 20, "page 1 of 3", "", `rel="next"`},
-		{"/admin/x/drafts?page=-4", 0, 20, "page 1 of 3", "", `rel="next"`},
-		{"/admin/x/drafts?page=abc", 0, 20, "page 1 of 3", "", `rel="next"`},
+		{"/admin/x/drafts", 0, 10, "page 1 of 5", "", `href="/admin/x/drafts?page=2#r-xdhistory" rel="next"`},
+		{"/admin/x/drafts?page=2", 10, 20, "page 2 of 5", `href="/admin/x/drafts#r-xdhistory" rel="prev"`, `href="/admin/x/drafts?page=3#r-xdhistory" rel="next"`},
+		{"/admin/x/drafts?page=5", 40, 45, "page 5 of 5", `href="/admin/x/drafts?page=4#r-xdhistory" rel="prev"`, ""},
+		{"/admin/x/drafts?page=99", 40, 45, "page 5 of 5", `href="/admin/x/drafts?page=4#r-xdhistory" rel="prev"`, ""},
+		{"/admin/x/drafts?page=0", 0, 10, "page 1 of 5", "", `rel="next"`},
+		{"/admin/x/drafts?page=-4", 0, 10, "page 1 of 5", "", `rel="next"`},
+		{"/admin/x/drafts?page=abc", 0, 10, "page 1 of 5", "", `rel="next"`},
 	} {
 		ids, body := hist(c.path)
 		if strings.Join(ids, ",") != strings.Join(want[c.from:c.to], ",") {
@@ -417,7 +424,166 @@ func TestXDraftHistoryPaging(t *testing.T) {
 		}
 	}
 	// the localized page keeps its prefix in the pager
-	if _, zb := hist("/zh-hans/admin/x/drafts?page=2"); !strings.Contains(zb, `href="/zh-hans/admin/x/drafts?page=3#history"`) {
+	if _, zb := hist("/zh-hans/admin/x/drafts?page=2"); !strings.Contains(zb, `href="/zh-hans/admin/x/drafts?page=3#r-xdhistory"`) {
 		t.Error("zh-hans pager link")
 	}
+}
+
+var (
+	composeAloneRe = regexp.MustCompile(`<a class="btn sm adm-lnk" data-compose="" data-for="image image_reply" href="([^"]*)" target="_blank" rel="noopener noreferrer" hidden="">`)
+	cardLinkRe     = regexp.MustCompile(`<a class="btn sm adm-lnk" href="([^"]*)" download="([^"]*)" data-for="image image_reply" hidden="">`)
+	copyImgRe      = regexp.MustCompile(`<button type="button" class="btn sm" data-act="xdcopyimg" data-img="([^"]*)" data-for="image image_reply" hidden="">`)
+	copyLinkRe     = regexp.MustCompile(`<button type="button" class="btn sm" data-act="xdcopylink" data-link="([^"]*)" data-for="image_reply" hidden="">`)
+)
+
+// TestXDraftForms: the three posting forms of a draft (docs/xposts.md
+// "Forms"): the image forms' text-only compose link (no url parameter, no
+// link in the text), the address card (download and copy) and the reply
+// link; marking posted records the form (default link), refuses unknown
+// ones, audits it and shows it in the history; the table's CHECKs.
+func TestXDraftForms(t *testing.T) {
+	h := newHarness(t, hopt{})
+	adm := h.user("kim", "admin")
+	body := "CVE-2026-0700 +KEV T+3d\nAcme / Widget\nAdded to the CISA KEV catalog (known exploited)."
+	id := h.draft("CVE-2026-0700", "kev_added", body)
+	_, b := adm.do("GET", "/admin/x/drafts", "")
+	s := string(b)
+	art := s[strings.Index(s, `id="d-`+id+`"`):]
+	art = art[:strings.Index(art, "</article>")]
+	for _, w := range []string{`<input type="radio" name="xform" value="link" checked=""/> link`,
+		`<input type="radio" name="xform" value="image"/> image`, `<input type="radio" name="xform" value="image_reply"/> image + reply link`,
+		`role="radiogroup" aria-label="form"`} {
+		if !strings.Contains(art, w) {
+			t.Errorf("row lacks %s", w)
+		}
+	}
+	// text only: X's compose intent with the body as its only parameter
+	m := composeAloneRe.FindStringSubmatch(art)
+	if m == nil {
+		t.Fatalf("no text-only compose link: %s", art)
+	}
+	cu, err := url.Parse(html.UnescapeString(m[1]))
+	if err != nil || cu.Host != "x.com" || cu.Path != "/intent/tweet" || len(cu.Query()) != 1 || cu.Query().Has("url") {
+		t.Fatalf("text-only compose %q", m[1])
+	}
+	if got := cu.Query().Get("text"); got != body || strings.Contains(got, "nday.land") || xdraft.Linkable(got) {
+		t.Errorf("text-only compose text %q", got)
+	}
+	// the address card: same-origin, the card route's address variant
+	card := "/og/vuln/CVE-2026-0700.png?addr=1"
+	if m := cardLinkRe.FindStringSubmatch(art); m == nil || html.UnescapeString(m[1]) != card || m[2] != "CVE-2026-0700-nday.png" {
+		t.Errorf("download link %v", m)
+	}
+	if m := copyImgRe.FindStringSubmatch(art); m == nil || html.UnescapeString(m[1]) != card {
+		t.Errorf("copy image %v", m)
+	}
+	if m := copyLinkRe.FindStringSubmatch(art); m == nil || m[1] != origin+"/vuln/CVE-2026-0700" {
+		t.Errorf("copy link %v", m)
+	}
+	// the link form is still the default and unchanged
+	if m := composeRe.FindStringSubmatch(art); m == nil || html.UnescapeString(m[1]) != xdraft.ComposeURL(body, origin+"/vuln/CVE-2026-0700") {
+		t.Errorf("link compose %v", m)
+	}
+
+	// marking posted: the form is validated, stored and audited
+	u := "/api/admin/x/drafts/" + id + "/"
+	for _, bad := range []string{`""`, `"video"`, `"Image"`, `"image-reply"`, `" link"`} {
+		check(t, "form "+bad, 400, "bad_form")(adm.post(u+"posted", `{"version":1,"post_url":"","form":`+bad+`}`))
+	}
+	check(t, "form not a string", 400, "bad_request")(adm.post(u+"posted", `{"version":1,"form":1}`))
+	check(t, "form on save", 400, "bad_request")(adm.post(u+"save", `{"version":1,"body":"x","form":"image"}`))
+	check(t, "form on discard", 400, "bad_request")(adm.post(u+"discard", `{"version":1,"form":"image"}`))
+	if st, v, _, _ := h.draftRow(id); st != "draft" || v != 1 {
+		t.Fatalf("a refused request changed the draft: %s %d", st, v)
+	}
+	check(t, "posted as image_reply", 200, "")(adm.post(u+"posted", `{"version":1,"post_url":"https://x.com/ndayland/status/77","form":"image_reply"}`))
+	id2 := h.draft("CVE-2026-0701", "poc_published", "two")
+	check(t, "posted, form null", 200, "")(adm.post("/api/admin/x/drafts/"+id2+"/posted", `{"version":1,"form":null}`))
+	id3 := h.draft("CVE-2026-0702", "poc_published", "three")
+	check(t, "posted as image", 200, "")(adm.post("/api/admin/x/drafts/"+id3+"/posted", `{"version":1,"form":"image"}`))
+	form := func(id string) string {
+		var f *string
+		if err := h.db.Conn.QueryRow(context.Background(), `SELECT form FROM x_draft WHERE id = $1`, id).Scan(&f); err != nil {
+			t.Fatal(err)
+		}
+		if f == nil {
+			return "<nil>"
+		}
+		return *f
+	}
+	if got := form(id) + " " + form(id2) + " " + form(id3); got != "image_reply link image" {
+		t.Errorf("stored forms: %s", got)
+	}
+	var det string
+	if err := h.db.Conn.QueryRow(context.Background(), `SELECT details->>'form' FROM admin_audit WHERE action = 'x.draft.posted' AND target_id = $1`, id).Scan(&det); err != nil || det != "image_reply" {
+		t.Errorf("audit form %q %v", det, err)
+	}
+	// the history shows it
+	_, b = adm.do("GET", "/admin/x/drafts", "")
+	s = string(b)
+	row := s[strings.Index(s, `<tr id="d-`+id+`">`):]
+	row = row[:strings.Index(row, "</tr>")]
+	if !strings.Contains(row, "<td>image + reply link</td>") {
+		t.Errorf("history row: %s", row)
+	}
+	if !strings.Contains(s, `<th scope="col">form</th>`) {
+		t.Error("history lacks the form column")
+	}
+	// a draft posted before forms existed shows a dash
+	old := h.draft("CVE-2026-0703", "kev_added", "old")
+	h.sql(`UPDATE x_draft SET status = 'posted', decided_at = now() WHERE id = $1`, old)
+	_, b = adm.do("GET", "/admin/x/drafts", "")
+	s = string(b)
+	row = s[strings.Index(s, `<tr id="d-`+old+`">`):]
+	row = row[:strings.Index(row, "</tr>")]
+	if strings.Count(row, "<td>—</td>") != 3 { // by (no decider), post, form
+		t.Errorf("old posted row: %s", row)
+	}
+	_, zb := adm.do("GET", "/zh-hans/admin/x/drafts", "")
+	if !strings.Contains(string(zb), "<td>图片 + 回复链接</td>") {
+		t.Error("zh-hans history form")
+	}
+
+	// the table refuses other values and a form on an undecided draft
+	pend := h.draft("CVE-2026-0704", "kev_added", "pending")
+	for _, q := range []string{`UPDATE x_draft SET form = 'video' WHERE id = ` + id, `UPDATE x_draft SET form = 'link' WHERE id = ` + pend} {
+		if _, err := h.db.Conn.Exec(context.Background(), q); err == nil {
+			t.Errorf("accepted: %s", q)
+		}
+	}
+}
+
+// TestXDraftTextOnlyLength: a text of 257..280 weighted saves (it fits a
+// post without the link); the page then offers no link-form compose link
+// and says why, while the text-only one stays; marking it posted in the
+// link form is refused (400 link_too_long, nothing changes), in an image
+// form it is accepted; 281 is refused.
+func TestXDraftTextOnlyLength(t *testing.T) {
+	h := newHarness(t, hopt{})
+	adm := h.user("kim", "admin")
+	id := h.draft("CVE-2026-0800", "kev_added", "short")
+	u := "/api/admin/x/drafts/" + id + "/"
+	text := strings.Repeat("b", xdraft.MaxWeighted)
+	check(t, "save 280", 200, "")(adm.post(u+"save", jbody(map[string]any{"version": 1, "body": text})))
+	check(t, "save 281", 400, "too_long")(adm.post(u+"save", jbody(map[string]any{"version": 2, "body": text + "b"})))
+	_, b := adm.do("GET", "/admin/x/drafts", "")
+	s := string(b)
+	art := s[strings.Index(s, `id="d-`+id+`"`):]
+	art = art[:strings.Index(art, "</article>")]
+	if composeRe.MatchString(art) || !composeAloneRe.MatchString(art) {
+		t.Errorf("compose links of a 280 text: %s", art)
+	}
+	if !strings.Contains(art, `<span class="bad" data-over="">Too long to post with the link`) || !strings.Contains(art, "304/280 with the link") {
+		t.Errorf("over hint: %s", art)
+	}
+	check(t, "posted as link", 400, "link_too_long")(adm.post(u+"posted", `{"version":2,"form":"link"}`))
+	check(t, "posted, form absent (link)", 400, "link_too_long")(adm.post(u+"posted", `{"version":2}`))
+	if st, v, _, _ := h.draftRow(id); st != "draft" || v != 2 {
+		t.Fatalf("refused posted changed the draft: %s %d", st, v)
+	}
+	check(t, "stale version still says stale", 409, "stale_version")(adm.post(u+"posted", `{"version":1,"form":"link"}`))
+	check(t, "posted as image", 200, "")(adm.post(u+"posted", `{"version":2,"form":"image"}`))
+	// the budget with the link is unchanged: 256 posts as link
+	id2 := h.draft("CVE-2026-0801", "kev_added", strings.Repeat("c", xdraft.BodyBudget))
+	check(t, "256 as link", 200, "")(adm.post("/api/admin/x/drafts/"+id2+"/posted", `{"version":1,"form":"link"}`))
 }

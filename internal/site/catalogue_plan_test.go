@@ -41,6 +41,8 @@ func TestCataloguePlans(t *testing.T) {
 		        CASE WHEN i % 50 = 7 THEN NULL ELSE timestamptz '2026-11-01' - i * interval '17 minutes' END,
 		        timestamptz '2026-11-01', 'synthetic', true, v.cve_id
 		 FROM (SELECT cve_id, row_number() OVER (ORDER BY cve_id) AS i FROM vuln) v`,
+		// one vuln_title row each, as after `nday titles` (migration 0031)
+		`INSERT INTO vuln_title (cve_id, rule_version) SELECT cve_id, 1 FROM vuln`,
 	} {
 		if _, err := d.Conn.Exec(ctx, q); err != nil {
 			t.Fatal(err)
@@ -49,7 +51,7 @@ func TestCataloguePlans(t *testing.T) {
 	if _, err := state.Refresh(ctx, d.Conn, state.RefreshOptions{Wait: true}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.Conn.Exec(ctx, `ANALYZE vuln_state_mat; ANALYZE vuln; ANALYZE event`); err != nil {
+	if _, err := d.Conn.Exec(ctx, `ANALYZE vuln_state_mat; ANALYZE vuln; ANALYZE event; ANALYZE vuln_title`); err != nil {
 		t.Fatal(err)
 	}
 	// a deep cursor: the 2000th PoC row
@@ -84,6 +86,11 @@ func TestCataloguePlans(t *testing.T) {
 		{"year 2014", CatalogueParams{Year: 2014}, []string{"vuln_state_mat_year_idx"}},
 		{"kev + 2025", CatalogueParams{Stage: "kev", Year: 2025}, []string{"vuln_state_mat_stage_year_idx"}},
 		{"poc + 2014, deep cursor", CatalogueParams{Stage: "poc", Year: 2014, Cursor: deepPoc}, []string{"vuln_state_mat_stage_year_idx"}},
+		// backward pages (Before) walk the same indexes forwards from the position
+		{"before, no filter", CatalogueParams{Before: deepPoc}, []string{"vuln_state_mat_hot_idx"}},
+		{"before, no filter, undated tail", CatalogueParams{Before: tail}, []string{"vuln_state_mat_hot_idx"}},
+		{"before, stage poc, deep", CatalogueParams{Stage: "poc", Before: deepPoc}, []string{"vuln_state_mat_stage_idx"}},
+		{"before, poc + 2014, deep", CatalogueParams{Stage: "poc", Year: 2014, Before: deepPoc}, []string{"vuln_state_mat_stage_year_idx"}},
 	} {
 		p, err := c.p.Normalize()
 		if err != nil {
@@ -111,12 +118,16 @@ func TestCataloguePlans(t *testing.T) {
 		// c.idx.
 		bad := strings.Count(plan, "Sort Key: m.") != 1 || !strings.HasPrefix(lines[0], "Sort ") ||
 			!strings.Contains(lines[1], "Sort Key: m.last_transition_at DESC NULLS LAST")
+		scan := "Index Scan Backward using "
+		if c.p.Before != "" {
+			scan = "Index Scan using "
+		}
 		first := ""
 		for i, l := range lines {
 			if !strings.Contains(l, " on vuln_state_mat ") {
 				continue
 			}
-			if !strings.Contains(l, "Index Scan Backward using ") || i == 0 || !strings.Contains(lines[i-1], "->  Limit") {
+			if !strings.Contains(l, scan) || i == 0 || !strings.Contains(lines[i-1], "->  Limit") {
 				bad = true
 			}
 			if first == "" {
@@ -125,10 +136,10 @@ func TestCataloguePlans(t *testing.T) {
 		}
 		found := false
 		for _, ix := range c.idx {
-			found = found || strings.Contains(first, "Index Scan Backward using "+ix+" on vuln_state_mat")
+			found = found || strings.Contains(first, scan+ix+" on vuln_state_mat")
 		}
 		if bad || !found {
-			t.Errorf("%s: want a backward walk of %v without seq scan or sort:\n%s", c.name, c.idx, plan)
+			t.Errorf("%s: want a walk (%s) of %v without seq scan or sort:\n%s", c.name, scan, c.idx, plan)
 		} else {
 			t.Logf("%s:\n%s", c.name, plan)
 		}

@@ -10,6 +10,8 @@
 //     X-CSRF-Token header;
 //   - every request is a same-origin POST to a fixed path built from a UUID
 //     taken from the page, with credentials: same-origin and a JSON body;
+//     the one exception is a GET of a share card image (/og/vuln/<id>.png,
+//     checked against CARD) for "copy image" on the drafts page;
 //   - navigation: a reload of this page after a success, or a sign-in
 //     start_url from the server that begins with /auth/ (re-verification).
 (() => {
@@ -44,18 +46,23 @@
     if (s && s.getAttribute('lang')) el.setAttribute('lang', s.getAttribute('lang'));
     else el.removeAttribute('lang');
   }
+  // the status line of a control: the nearest one in its cell, form, card or section
   const stOf = (node) => {
-    const box = node && node.closest('form, .acct-panel, article, section');
-    return box ? box.querySelector('.acct-st') : null;
+    for (let box = node && node.closest('td, form, article, section'); box; box = box.parentElement && box.parentElement.closest('td, form, article, section')) {
+      const st = box.querySelector('.acct-st');
+      if (st) return st;
+    }
+    return null;
   };
 
   // ---- errors -> messages
   const known = new Set(['reauth_required', 'self', 'protected', 'no_change', 'not_found', 'forbidden', 'bad_reason',
     'bad_duration', 'bad_role', 'rate_limited', 'csrf', 'cross_site', 'not_signed_in', 'wrong_status', 'suspended', 'network',
     'exists', 'bad_user_id', 'bad_handle', 'bad_note', 'bad_setting', 'bad_import', 'too_large',
-    'stale_version', 'too_long', 'bad_body', 'bad_post_url',
+    'stale_version', 'too_long', 'bad_body', 'bad_post_url', 'bad_form', 'link_too_long',
     'x_lookup_off', 'x_not_found', 'x_unavailable', 'x_rate_limited', 'x_auth', 'x_upstream', 'no_handle',
-    'settings_off', 'no_master_key', 'unknown_setting', 'secret_setting', 'not_secret', 'bad_secret', 'sign_in_off']);
+    'settings_off', 'no_master_key', 'unknown_setting', 'secret_setting', 'not_secret', 'bad_secret', 'sign_in_off',
+    'too_many', 'duplicate', 'bad_title', 'bad_login', 'no_owner', 'x_not_listed', 'owner_exists', 'github_not_found']);
   function errKey(e) {
     if (e && (e.name === 'NotAllowedError' || e.name === 'AbortError')) return ['acct.err.webauthn_cancelled'];
     if (e && (e.code === 'invalid_config' || e.code === 'not_applied')) {
@@ -128,30 +135,18 @@
     } catch (e) {
       const [key, vars] = errKey(e);
       say(st, key, vars, 'err');
-      if (e && e.code === 'reauth_required') openReauth(btn);
+      // after a passkey sign-in in the dialog the action runs once more
+      if (e && e.code === 'reauth_required') openReauth(btn, () => run(btn, fn));
       if (e && e.code === 'csrf') refresh();
     } finally {
       btn.removeAttribute('aria-busy');
       btn.disabled = false;
     }
   }
-  // a first click arms the button for 5 s, the second one acts
-  function armed(btn) {
-    if (btn.dataset.armed === '1') {
-      clearTimeout(Number(btn.dataset.timer));
-      btn.dataset.armed = '';
-      btn.textContent = btn.dataset.label;
-      return true;
-    }
-    btn.dataset.armed = '1';
-    btn.dataset.label = btn.textContent;
-    btn.textContent = msg('admin.msg.confirm');
-    btn.dataset.timer = String(setTimeout(() => {
-      btn.dataset.armed = '';
-      btn.textContent = btn.dataset.label;
-    }, 5000));
-    return false;
-  }
+  // a first click arms the button, the second one acts (app.js confirmStep);
+  // disarm puts an armed button back (a bulk button whose selection changed)
+  const armed = (btn) => nday.confirmStep(btn);
+  const disarm = (btn) => nday.disarm(btn);
 
   async function refresh() {
     me = await nday.fetchMe();
@@ -159,54 +154,51 @@
     return me;
   }
 
+  // Everything inside the lists (the regions, data-page-region; see
+  // internal/webui/admin_paging.go) is bound by delegation on main: the
+  // handlers below (onClick, onSubmit, onInput, onKey, onChange) act on
+  // whatever rows a region holds now, so a region replaced by another page's
+  // works at once. adminInit(root) sets up what delegation cannot (the bulk
+  // bars' state, the drafts' length lines) and is exposed as
+  // nday.adminInit for a script that replaces a region.
+
   // ---- moderation (the discussion endpoints, docs/discuss.md)
-  d.querySelectorAll('form.adm-hide[data-act="hide"]').forEach((f) => {
-    f.addEventListener('submit', (ev) => {
-      ev.preventDefault();
-      const btn = f.querySelector('button[type=submit]');
-      const reason = f.querySelector('input').value.trim();
-      if (!reason) {
-        say(stOf(btn), 'admin.msg.reason_needed', null, 'err');
-        return;
-      }
-      run(btn, () => api('/api/discuss/comment/' + uuid(f.dataset.id) + '/hide', { reason }));
-    });
-  });
-  d.querySelectorAll('button[data-act="unhide"]').forEach((b) => {
-    b.addEventListener('click', () => run(b, () => api('/api/discuss/comment/' + uuid(b.dataset.id) + '/unhide')));
-  });
-  d.querySelectorAll('button[data-act="dismiss"]').forEach((b) => {
-    b.addEventListener('click', () => {
-      if (!armed(b)) return;
-      run(b, async () => {
-        for (const id of String(b.dataset.reports || '').split(' ').filter(Boolean)) {
-          try {
-            await api('/api/mod/reports/' + uuid(id) + '/resolve', { resolution: 'dismissed' });
-          } catch (e) {
-            if (!e || e.code !== 'wrong_status') throw e; // already resolved meanwhile: fine
-          }
+  function modHide(f) {
+    const btn = f.querySelector('button[type=submit]');
+    const reason = f.querySelector('input').value.trim();
+    if (!reason) {
+      say(stOf(btn), 'admin.msg.reason_needed', null, 'err');
+      return;
+    }
+    run(btn, () => api('/api/discuss/comment/' + uuid(f.dataset.id) + '/hide', { reason }));
+  }
+  function modDismiss(b) {
+    if (!armed(b)) return;
+    run(b, async () => {
+      for (const id of String(b.dataset.reports || '').split(' ').filter(Boolean)) {
+        try {
+          await api('/api/mod/reports/' + uuid(id) + '/resolve', { resolution: 'dismissed' });
+        } catch (e) {
+          if (!e || e.code !== 'wrong_status') throw e; // already resolved meanwhile: fine
         }
-      });
+      }
     });
-  });
+  }
 
   // ---- readers' corrections (/admin/corrections; docs/corrections.md):
   // accepting needs the public note, rejecting takes an optional internal one
-  d.querySelectorAll('form.adm-corr[data-act="accept"], form.adm-corr[data-act="reject"]').forEach((f) => {
-    f.addEventListener('submit', (ev) => {
-      ev.preventDefault();
-      const btn = f.querySelector('button[type=submit]');
-      const note = f.querySelector('textarea, input').value.trim();
-      const accept = f.dataset.act === 'accept';
-      if (accept && !note) {
-        say(stOf(btn), 'admin.corr.note_needed', null, 'err');
-        return;
-      }
-      if (!armed(btn)) return;
-      const body = accept ? { note } : (note ? { note } : {});
-      run(btn, () => api('/api/corrections/item/' + uuid(f.dataset.id) + (accept ? '/accept' : '/reject'), body));
-    });
-  });
+  function corrDecide(f) {
+    const btn = f.querySelector('button[type=submit]');
+    const note = f.querySelector('textarea, input').value.trim();
+    const accept = f.dataset.act === 'accept';
+    if (accept && !note) {
+      say(stOf(btn), 'admin.corr.note_needed', null, 'err');
+      return;
+    }
+    if (!armed(btn)) return;
+    const body = accept ? { note } : (note ? { note } : {});
+    run(btn, () => api('/api/corrections/item/' + uuid(f.dataset.id) + (accept ? '/accept' : '/reject'), body));
+  }
 
   // ---- user actions (/api/admin/users/{id}/..., admin only)
   const acts = d.querySelector('section.adm-actions[data-user]');
@@ -313,29 +305,67 @@
       });
     });
   }
-  d.querySelectorAll('button[data-act="xenable"], button[data-act="xdisable"]').forEach((b) => {
-    b.addEventListener('click', () => {
-      if (!armed(b)) return;
-      const verb = b.dataset.act === 'xenable' ? '/enable' : '/disable';
-      run(b, () => api('/api/admin/x/accounts/' + xid(b.dataset.x) + verb));
+  function xAccount(b) {
+    if (!armed(b)) return;
+    const verb = b.dataset.act === 'xenable' ? '/enable' : '/disable';
+    run(b, () => api('/api/admin/x/accounts/' + xid(b.dataset.x) + verb));
+  }
+  function xEdit(f) {
+    const btn = f.querySelector('button[type=submit]');
+    run(btn, () => api('/api/admin/x/accounts/' + xid(f.dataset.x) + '/update',
+      { handle: f.elements.handle.value.trim(), note: f.elements.note.value.trim() }));
+  }
+  // names and bios from X: one bounded lookup per click (internal/admin xprofiles.go)
+  function xProfiles(b) {
+    run(b, async () => {
+      const j = await api('/api/admin/x/accounts/profiles');
+      return { key: 'admin.x.profiles_done', vars: { updated: Number(j.updated) || 0, looked_up: Number(j.looked_up) || 0,
+        missing: Number(j.missing) || 0 }, reload: true };
     });
-  });
+  }
   // allowlist candidates: add (stored id and handle, no lookup), dismiss, restore
   const CAND = { xcadd: '/add', xcdismiss: '/dismiss', xcrestore: '/restore' };
-  d.querySelectorAll('button[data-act="xcadd"], button[data-act="xcdismiss"], button[data-act="xcrestore"]').forEach((b) => {
-    b.addEventListener('click', () => {
-      if (!armed(b)) return;
-      run(b, () => api('/api/admin/x/candidates/' + xid(b.dataset.x) + CAND[b.dataset.act]));
-    });
-  });
-  d.querySelectorAll('form.adm-xedit').forEach((f) => {
-    f.addEventListener('submit', (ev) => {
+  function xCandidate(b) {
+    if (!armed(b)) return;
+    run(b, () => api('/api/admin/x/candidates/' + xid(b.dataset.x) + CAND[b.dataset.act]));
+  }
+  // ---- GitHub repositories (/admin/github; /api/admin/github/repos/{id}/..., admin only)
+  const RID = /^[1-9][0-9]{0,17}$/;
+  const rid = (s) => {
+    const v = String(s || '');
+    if (!RID.test(v)) throw { code: 'not_found' };
+    return v;
+  };
+  const GH = { ghtrust: '/trust', ghreject: '/reject', ghreset: '/reset' };
+  function ghDecide(b) {
+    if (!armed(b)) return;
+    run(b, () => api('/api/admin/github/repos/' + rid(b.dataset.r) + GH[b.dataset.act]));
+  }
+  // trusted accounts (/api/admin/github/owners..., admin only); the quick add
+  // of a review row sends the repository id, the server reads its owner
+  function ghOwnerAdd(b) {
+    if (!armed(b)) return;
+    run(b, () => api('/api/admin/github/repos/' + rid(b.dataset.r) + '/owner'));
+  }
+  function ghOwnerSwitch(b) {
+    if (!armed(b)) return;
+    run(b, () => api('/api/admin/github/owners/' + rid(b.dataset.o) + (b.dataset.act === 'ghoenable' ? '/enable' : '/disable')));
+  }
+  function ghOwnerEdit(f) {
+    const btn = f.querySelector('button[type=submit]');
+    run(btn, () => api('/api/admin/github/owners/' + rid(f.dataset.o) + '/update',
+      { note: f.elements.note.value.trim(), x_handle: f.elements.x_handle.value.trim() }));
+  }
+  const ga = d.getElementById('f-ghoadd');
+  if (ga) {
+    ga.addEventListener('submit', (ev) => {
       ev.preventDefault();
-      const btn = f.querySelector('button[type=submit]');
-      run(btn, () => api('/api/admin/x/accounts/' + xid(f.dataset.x) + '/update',
-        { handle: f.elements.handle.value.trim(), note: f.elements.note.value.trim() }));
+      const btn = ga.querySelector('button[type=submit]');
+      if (!armed(btn)) return;
+      run(btn, () => api('/api/admin/github/owners', { login: d.getElementById('gho-add-login').value.trim(),
+        note: d.getElementById('gho-add-note').value.trim(), x_handle: d.getElementById('gho-add-x').value.trim() }));
     });
-  });
+  }
   const xa = d.getElementById('f-xadd');
   if (xa) {
     xa.addEventListener('submit', (ev) => {
@@ -415,47 +445,280 @@
     });
     return n;
   }
-  d.querySelectorAll('form.adm-xd[data-d]').forEach((f) => {
+  // The posting form of a draft (docs/xposts.md "Forms"): link (text and
+  // link), image (text only; the address card attached by hand) or
+  // image_reply (as image, then a reply with the link). Each control of the
+  // row names the forms it belongs to in data-for.
+  const FORMS = ['link', 'image', 'image_reply'];
+  const formOf = (el) => {
+    const art = el.closest('article') || el;
+    const c = art.querySelector('input[name="xform"]:checked');
+    return c && FORMS.includes(c.value) ? c.value : 'link';
+  };
+  // The choice survives the reload after a save: kept per draft id in this
+  // browser under FKEY + id ("<form>|<ms>"; link, the default, is not
+  // kept), dropped once the draft is posted or discarded here, shown in
+  // the history, or older than two weeks. Without storage the page works
+  // as before (link after every reload).
+  const FKEY = 'nday.xdform.';
+  const FAGE = 14 * 24 * 3600 * 1000;
+  const store = () => window.localStorage; // only ever for FKEY entries
+  function formGet(id) {
+    try {
+      const [f, at] = String(store().getItem(FKEY + did(id)) || '').split('|');
+      return FORMS.includes(f) && Date.now() - Number(at) < FAGE ? f : '';
+    } catch (_) {
+      return '';
+    }
+  }
+  function formPut(id, f) {
+    try {
+      if (f === 'link') store().removeItem(FKEY + did(id));
+      else store().setItem(FKEY + did(id), f + '|' + Date.now());
+    } catch (_) { /* no storage: the choice lasts until the reload */ }
+  }
+  function formDrop(id) {
+    try { store().removeItem(FKEY + did(id)); } catch (_) { /* nothing kept */ }
+  }
+  // on load: put each pending row's kept choice back, drop old entries and
+  // those of drafts in the history
+  function formsRestore(r) {
+    r.querySelectorAll('form.adm-xd[data-d]').forEach((f) => {
+      const k = formGet(f.dataset.d);
+      const c = k && f.querySelector('input[name="xform"][value="' + k + '"]');
+      if (c) c.checked = true;
+    });
+    try {
+      const hist = main.querySelector('#r-xdhistory');
+      const done = new Set(hist ? Array.from(hist.querySelectorAll('tr[id^="d-"]')).map((tr) => tr.id.slice(2)) : []);
+      for (let i = store().length - 1; i >= 0; i--) {
+        const k = store().key(i);
+        if (!k || !k.startsWith(FKEY)) continue;
+        const id = k.slice(FKEY.length);
+        const at = Number(String(store().getItem(FKEY + id) || '').split('|')[1]);
+        if (done.has(id) || !(Date.now() - at < FAGE)) store().removeItem(FKEY + id);
+      }
+    } catch (_) { /* no storage */ }
+  }
+  // "copy image" only where the browser can put a PNG on the clipboard
+  const canCopyImg = window.isSecureContext && typeof window.ClipboardItem === 'function' &&
+    !!(navigator.clipboard && typeof navigator.clipboard.write === 'function') &&
+    (typeof window.ClipboardItem.supports !== 'function' || window.ClipboardItem.supports('image/png'));
+  // the length line of a draft's form and the controls of its form
+  function draftCount(f) {
     const ta = f.elements.body;
     const len = f.querySelector('[data-len]');
-    const open = f.querySelector('a[data-compose]');
     const over = f.querySelector('[data-over]');
     const unsaved = f.querySelector('[data-unsaved]');
+    const form = formOf(f);
+    const alone = form !== 'link'; // no link in the post: the whole budget
+    // the open links open the SAVED text (rendered by the server): hidden
+    // while the text is edited and not saved, or too long
+    const n = weighted(ta.value.trim()) + (alone ? 0 : Number(ta.dataset.link));
     const max = Number(ta.dataset.max);
-    const link = Number(ta.dataset.link);
-    // the link opens the SAVED text (rendered by the server): hidden while
-    // the text is edited and not saved, or too long
-    const count = () => {
-      const n = weighted(ta.value.trim()) + link;
-      const tooLong = n > max;
-      const dirty = ta.value !== ta.defaultValue;
-      len.textContent = msg('admin.xd.length', { n, max });
-      len.classList.toggle('bad', tooLong);
-      if (open) open.hidden = tooLong || dirty;
-      over.hidden = !tooLong;
-      unsaved.hidden = !dirty || tooLong;
-    };
-    ta.addEventListener('input', count);
-    f.addEventListener('submit', (ev) => {
-      ev.preventDefault();
-      const btn = f.querySelector('button[type=submit]');
-      run(btn, () => api(draft(f) + 'save', { version: ver(f), body: ta.value }));
+    const tooLong = n > max;
+    const dirty = ta.value !== ta.defaultValue;
+    len.textContent = msg(alone ? 'admin.xd.length_alone' : 'admin.xd.length', { n, max });
+    len.classList.toggle('bad', tooLong);
+    const lb = f.querySelector('label[data-label]');
+    if (lb) lb.textContent = msg(alone ? 'admin.xd.body_label_alone' : 'admin.xd.body_label');
+    over.textContent = msg(alone ? 'admin.err.too_long' : 'admin.xd.over_link');
+    f.querySelectorAll('[data-for]').forEach((el) => {
+      let show = String(el.dataset.for).split(' ').includes(form);
+      if (el.matches('a[data-compose]')) show = show && !tooLong && !dirty;
+      if (el.dataset.act === 'xdcopyimg') show = show && canCopyImg;
+      el.hidden = !show;
     });
-  });
-  d.querySelectorAll('form.adm-xdpost[data-d]').forEach((f) => {
-    f.addEventListener('submit', (ev) => {
-      ev.preventDefault();
-      const btn = f.querySelector('button[type=submit]');
-      if (!armed(btn)) return;
-      run(btn, () => api(draft(f) + 'posted', { version: ver(f), post_url: f.elements.post_url.value.trim() }));
+    over.hidden = !tooLong;
+    unsaved.hidden = !dirty || tooLong;
+  }
+  // copy image: the address card, fetched from our own origin (CARD), as a
+  // PNG ClipboardItem; the item is made at once (within the click) with
+  // the image as a promise, which Safari requires
+  const CARD = /^\/og\/vuln\/(CVE-[0-9]{4}-[0-9]{4,19}|GHSA(-[0-9a-z]{4}){3})\.png\?addr=1$/;
+  function draftCopyImg(b) {
+    const st = stOf(b);
+    const card = String(b.dataset.img || '');
+    if (!canCopyImg || !CARD.test(card)) return;
+    const png = window.fetch(card, { credentials: 'same-origin', redirect: 'error' }).then((r) => {
+      if (!r.ok) throw { code: 'network' };
+      return r.blob();
+    }).then((bl) => (bl.type === 'image/png' ? bl : new Blob([bl], { type: 'image/png' })));
+    navigator.clipboard.write([new window.ClipboardItem({ 'image/png': png })]).then(
+      () => say(st, 'admin.xd.copied', null, 'ok'), () => say(st, 'admin.xd.copy_failed', null, 'err'));
+  }
+  // copy link: the page's link, for the reply to one's own post
+  function draftCopyLink(b) {
+    const st = stOf(b);
+    if (!navigator.clipboard || !window.isSecureContext) {
+      say(st, 'admin.xd.copy_failed', null, 'err');
+      return;
+    }
+    navigator.clipboard.writeText(String(b.dataset.link || '')).then(
+      () => say(st, 'admin.xd.copied', null, 'ok'), () => say(st, 'admin.xd.copy_failed', null, 'err'));
+  }
+  function draftSave(f) {
+    const btn = f.querySelector('button[type=submit]');
+    run(btn, () => api(draft(f) + 'save', { version: ver(f), body: f.elements.body.value }));
+  }
+  function draftPosted(f) {
+    const btn = f.querySelector('button[type=submit]');
+    if (!armed(btn)) return;
+    run(btn, () => api(draft(f) + 'posted', { version: ver(f), post_url: f.elements.post_url.value.trim(), form: formOf(f) })
+      .then(() => formDrop(f.dataset.d)));
+  }
+  function draftDecide(b) {
+    if (!armed(b)) return;
+    run(b, () => api(draft(b) + (b.dataset.act === 'xddiscard' ? 'discard' : 'restore'), { version: ver(b) })
+      .then(() => formDrop(b.dataset.d)));
+  }
+
+  // ---- staff titles of vulnerabilities (/admin/titles; /api/admin/titles/{id}/..., admin only)
+  const VID = /^(CVE-[0-9]{4}-[0-9]{4,19}|GHSA(-[0-9a-z]{4}){3})$/;
+  const vid = (s) => {
+    const v = String(s || '');
+    if (!VID.test(v)) throw { code: 'not_found' };
+    return v;
+  };
+  function titleSave(f) {
+    const btn = f.querySelector('button[type=submit]');
+    run(btn, () => api('/api/admin/titles/' + vid(f.dataset.cve) + '/set', { version: ver(f), title: f.elements.title.value }));
+  }
+  function titleClear(b) {
+    if (!armed(b)) return;
+    run(b, () => api('/api/admin/titles/' + vid(b.dataset.cve) + '/clear', { version: ver(b) }));
+  }
+
+  // ---- bulk: the selected rows of one page of a review list, decided in
+  // one request (/api/admin/.../batch; internal/admin batch.go)
+  const BATCH = { xcand: '/api/admin/x/candidates/batch', gh: '/api/admin/github/repos/batch', xd: '/api/admin/x/drafts/batch' };
+  const picks = (reg) => Array.from(reg.querySelectorAll('input[data-pick]'));
+  function bulkSync(reg) {
+    const all = picks(reg);
+    const on = all.filter((c) => c.checked);
+    const bar = reg.querySelector('[data-bulk-bar]');
+    const head = reg.querySelector('input[data-pick-all]');
+    if (head) {
+      head.checked = all.length > 0 && on.length === all.length;
+      head.indeterminate = on.length > 0 && on.length < all.length;
+    }
+    if (!bar) return;
+    // an armed bulk button applies only to the selection it was armed for
+    bar.querySelectorAll('button[data-bulk-act]').forEach(disarm);
+    bar.hidden = on.length === 0;
+    const n = bar.querySelector('[data-bulk-n]');
+    if (n) n.textContent = msg('admin.bulk.selected', { n: on.length });
+  }
+  function bulkRun(reg, b) {
+    const kind = reg.dataset.bulk;
+    if (!Object.prototype.hasOwnProperty.call(BATCH, kind)) return;
+    const items = picks(reg).filter((c) => c.checked).map((c) => (kind === 'xd'
+      ? { id: did(c.dataset.id), version: Number(c.dataset.version) }
+      : { id: kind === 'gh' ? rid(c.dataset.id) : xid(c.dataset.id), state: String(c.dataset.state || '') }));
+    if (!items.length) return;
+    // every bulk decision takes two clicks, both on the same selection
+    const sel = items.map((it) => it.id).join(' ');
+    if (b.dataset.armed === '1' && b.dataset.sel !== sel) disarm(b);
+    b.dataset.sel = sel;
+    if (!armed(b)) return;
+    run(b, async () => {
+      const j = await api(BATCH[kind], { action: String(b.dataset.bulkAct || ''), items });
+      const vars = { done: Number(j.done) || 0, changed: Number(j.changed) || 0, failed: Number(j.failed) || 0 };
+      return { key: vars.failed ? 'admin.bulk.result_failed' : 'admin.bulk.result', vars, reload: true };
     });
+  }
+  let lastPick = null; // shift-click selects the range from the last box clicked
+
+  // ---- delegation (see above)
+  const ACTS = {
+    unhide: (b) => run(b, () => api('/api/discuss/comment/' + uuid(b.dataset.id) + '/unhide')),
+    dismiss: modDismiss,
+    xenable: xAccount, xdisable: xAccount, xprofiles: xProfiles,
+    xcadd: xCandidate, xcdismiss: xCandidate, xcrestore: xCandidate,
+    ghtrust: ghDecide, ghreject: ghDecide, ghreset: ghDecide,
+    ghowner: ghOwnerAdd, ghoenable: ghOwnerSwitch, ghodisable: ghOwnerSwitch,
+    xddiscard: draftDecide, xdrestore: draftDecide, xdcopyimg: draftCopyImg, xdcopylink: draftCopyLink,
+    ticlear: titleClear,
+  };
+  main.addEventListener('click', (ev) => {
+    const t = ev.target;
+    if (!(t instanceof Element)) return;
+    const pick = t.closest('input[data-pick]');
+    if (pick) {
+      const reg = pick.closest('[data-bulk]');
+      if (reg && ev.shiftKey && lastPick && lastPick !== pick && reg.contains(lastPick)) {
+        const all = picks(reg);
+        const [a, z] = [all.indexOf(lastPick), all.indexOf(pick)].sort((x, y) => x - y);
+        all.slice(a, z + 1).forEach((c) => { c.checked = pick.checked; });
+      }
+      lastPick = pick;
+      if (reg) bulkSync(reg);
+      return;
+    }
+    const b = t.closest('button');
+    if (!b || !main.contains(b)) return;
+    if (b.hasAttribute('data-rowx') || b.hasAttribute('data-rowx-close')) return; // app.js "row details"
+    const reg = b.closest('[data-bulk]');
+    if (reg && b.hasAttribute('data-bulk-clear')) {
+      picks(reg).forEach((c) => { c.checked = false; });
+      bulkSync(reg);
+      return;
+    }
+    if (reg && b.hasAttribute('data-bulk-act')) {
+      bulkRun(reg, b);
+      return;
+    }
+    const act = b.dataset.act;
+    if (act && Object.prototype.hasOwnProperty.call(ACTS, act)) ACTS[act](b);
   });
-  d.querySelectorAll('button[data-act="xddiscard"], button[data-act="xdrestore"]').forEach((b) => {
-    b.addEventListener('click', () => {
-      if (!armed(b)) return;
-      run(b, () => api(draft(b) + (b.dataset.act === 'xddiscard' ? 'discard' : 'restore'), { version: ver(b) }));
+  main.addEventListener('change', (ev) => {
+    const xf = ev.target instanceof Element ? ev.target.closest('input[name="xform"]') : null;
+    if (xf && xf.form && xf.form.matches('form.adm-xd[data-d]')) {
+      formPut(xf.form.dataset.d, formOf(xf.form));
+      draftCount(xf.form);
+      return;
+    }
+    const all = ev.target instanceof Element ? ev.target.closest('input[data-pick-all]') : null;
+    const reg = all && all.closest('[data-bulk]');
+    if (!reg) return;
+    picks(reg).forEach((c) => { c.checked = all.checked; });
+    bulkSync(reg);
+  });
+  main.addEventListener('submit', (ev) => {
+    const f = ev.target;
+    if (!(f instanceof HTMLFormElement)) return;
+    let fn = null;
+    if (f.matches('form.adm-hide[data-act="hide"]')) fn = modHide;
+    else if (f.matches('form.adm-corr[data-act="accept"], form.adm-corr[data-act="reject"]')) fn = corrDecide;
+    else if (f.matches('form.adm-xedit')) fn = xEdit;
+    else if (f.matches('form.adm-ghoedit[data-o]')) fn = ghOwnerEdit;
+    else if (f.matches('form.adm-xd[data-d]')) fn = draftSave;
+    else if (f.matches('form.adm-xdpost[data-d]')) fn = draftPosted;
+    else if (f.matches('form.adm-title[data-cve]')) fn = titleSave;
+    else if (f.matches('form[data-bulk-bar]')) fn = () => {};
+    if (!fn) return;
+    ev.preventDefault();
+    fn(f);
+  });
+  main.addEventListener('input', (ev) => {
+    const f = ev.target instanceof Element ? ev.target.closest('form.adm-xd[data-d]') : null;
+    if (f && ev.target === f.elements.body) draftCount(f);
+  });
+  // adminInit sets up the lists inside root (the page, or a region that
+  // replaced another): selections cleared, bars hidden, details closed,
+  // length lines drawn.
+  function adminInit(root) {
+    const r = root || main;
+    r.querySelectorAll('[data-bulk]').forEach((reg) => {
+      picks(reg).forEach((c) => { c.checked = false; });
+      bulkSync(reg);
     });
-  });
+    if (r.matches && r.matches('[data-bulk]')) bulkSync(r);
+    formsRestore(r);
+    r.querySelectorAll('form.adm-xd[data-d]').forEach(draftCount);
+  }
+  nday.adminInit = adminInit;
+  adminInit(main);
 
   // ---- database settings (/admin/settings; /api/admin/settings..., admin only).
   // Values are read from the form and sent once; the answer carries only
@@ -635,7 +898,7 @@
     });
   });
 
-  // ---- re-verification (the account page's panel; docs/auth.md section 1)
+  // ---- re-verification (the dialog shared with the account page; docs/auth.md section 1)
   const PKC = window.PublicKeyCredential;
   const webauthn = !!(PKC && navigator.credentials && navigator.credentials.get && window.isSecureContext);
   const b64u = {
@@ -670,59 +933,30 @@
       clientDataJSON: b64u.enc(r.clientDataJSON), authenticatorData: b64u.enc(r.authenticatorData),
       signature: b64u.enc(r.signature), userHandle: r.userHandle ? b64u.enc(r.userHandle) : null } };
   }
-  const panel = d.getElementById('reauth');
-  let reauthFrom = null;
-  function openReauth(from) {
-    if (!panel || !me || !me.user) return;
-    reauthFrom = from;
-    const linked = new Set((me.user.identities || []).map((i) => i.provider));
-    const enabled = new Set(me.providers || []);
-    let any = false;
-    panel.querySelectorAll('[data-reauth]').forEach((b) => {
-      const p = b.dataset.reauth;
-      const ok = p === 'passkey'
-        ? webauthn && me.passkeys && me.passkeys.enabled && (me.user.passkeys || []).length > 0
-        : linked.has(p) && enabled.has(p);
-      b.parentNode.hidden = !ok;
-      any = any || ok;
-    });
-    d.getElementById('reauth-none').hidden = any;
-    say(panel.querySelector('.acct-st'), '');
-    panel.hidden = false;
-    d.getElementById('reauth-h').focus();
-  }
-  if (panel) {
-    panel.querySelectorAll('[data-reauth]').forEach((b) => {
-      b.addEventListener('click', async () => {
-        const st = panel.querySelector('.acct-st');
-        b.disabled = true;
-        say(st, 'acct.busy');
-        try {
-          const p = b.dataset.reauth;
-          if (p !== 'passkey') {
-            const j = await api('/auth/' + encodeURIComponent(p) + '/ticket', { intent: 'reauth', return: here() });
-            go(j.start_url);
-            return;
-          }
-          const { publicKey } = await api('/auth/passkey/login/begin');
-          const cred = await navigator.credentials.get({ publicKey: requestOptions(publicKey) });
-          await api('/auth/passkey/login/finish', credJSON(cred));
-          await refresh();
-          panel.hidden = true;
-          say(stOf(reauthFrom), 'acct.reauth.done', null, 'ok');
-          if (reauthFrom && reauthFrom.isConnected) reauthFrom.focus();
-        } catch (e) {
-          const [key, vars] = errKey(e);
-          say(st, key, vars, 'err');
-        } finally {
-          b.disabled = false;
-        }
-      });
-    });
-    d.getElementById('reauth-close').addEventListener('click', () => {
-      panel.hidden = true;
-      if (reauthFrom && reauthFrom.isConnected) reauthFrom.focus();
-    });
+  // the dialog itself is app.js nday.reauthDialog; the requests stay here,
+  // with the CSRF token
+  const reauth = nday.reauthDialog ? nday.reauthDialog({
+    webauthn,
+    provider: async (p) => {
+      const j = await api('/auth/' + encodeURIComponent(p) + '/ticket', { intent: 'reauth', return: here() });
+      go(j.start_url);
+    },
+    passkey: async () => {
+      const { publicKey } = await api('/auth/passkey/login/begin');
+      const cred = await navigator.credentials.get({ publicKey: requestOptions(publicKey) });
+      await api('/auth/passkey/login/finish', credJSON(cred));
+      await refresh();
+    },
+    say,
+    fail: (st, e) => {
+      const [key, vars] = errKey(e);
+      say(st, key, vars, 'err');
+    },
+    done: (from) => say(stOf(from), 'acct.reauth.done', null, 'ok'),
+  }) : null;
+  // retry: run once after a passkey sign-in (each sign-in allows one)
+  function openReauth(from, retry) {
+    if (reauth && me && me.user) reauth.open(me, from, retry);
   }
 
   nday.me.then((m) => {

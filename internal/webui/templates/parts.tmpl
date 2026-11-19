@@ -1,4 +1,4 @@
-{{define "link"}}{{if .Href}}<a href="{{.Href}}"{{if .External}} rel="noopener noreferrer"{{end}}{{with .Lang}} lang="{{.}}"{{end}}>{{.Text}}</a>{{else}}<span{{with .Lang}} lang="{{.}}"{{end}}>{{.Text}}</span>{{end}}{{end}}
+{{define "link"}}{{if .Href}}<a href="{{.Href}}"{{if .External}} target="_blank" rel="noopener noreferrer"{{end}}{{with .Lang}} lang="{{.}}"{{end}}>{{.Text}}</a>{{else}}<span{{with .Lang}} lang="{{.}}"{{end}}>{{.Text}}</span>{{end}}{{end}}
 
 {{define "cmd"}}<div class="cmd">
 <span class="prompt" aria-hidden="true">$</span>
@@ -40,7 +40,7 @@
 <span>{{t "legend.stage.itw" "code" (stage "ITW")}}</span>
 <span>{{t "legend.stage.kev" "code" (stage "KEV")}}</span>
 <span>{{t "legend.tplus" "token" (code "T+")}}</span>
-<span>{{t "legend.poc_count" "token" (code "POC n/3")}}</span>
+<span>{{t "legend.poc_count" "token" (code "POC n/4")}}</span>
 </div>{{end}}
 
 {{/* the stage and marker legend of list pages, closed by default */}}
@@ -68,8 +68,13 @@
 
 {{/* tagchip carries the tag's description as a tooltip (the vulnerability page and the filter bar, where it is
      shown nowhere else); tagchipn is the bare chip of list rows and of /tags, which prints the description beside it */}}
-{{define "tagchip"}}<a class="{{.Class}}" href="{{.Href}}" title="{{tagdescs .Slug}}">{{tagname .Slug}}</a>{{end}}
-{{define "tagchipn"}}<a class="{{.Class}}" href="{{.Href}}">{{tagname .Slug}}</a>{{end}}
+{{define "tagchip"}}<a class="{{.Class}}" href="{{.Href}}" title="{{tagdescs .Slug}}">{{template "tagicon" .Slug}}{{tagname .Slug}}</a>{{end}}
+{{define "tagchipn"}}<a class="{{.Class}}" href="{{.Href}}">{{template "tagicon" .Slug}}{{tagname .Slug}}</a>{{end}}
+
+{{/* tagicon: the brand mark in front of a product or ecosystem tag's name (tagicons.go), nothing for other tags.
+     Decorative: the name stays the accessible name. The sprite variant references one cached file; the mask variant
+     is an empty span drawn by tagicons.css (linked from base.tmpl only then). */}}
+{{define "tagicon"}}{{with tagicon .}}{{if tagiconmask}}<span class="tgi" data-i="{{.}}" aria-hidden="true"></span>{{else}}<svg class="tgi" aria-hidden="true" focusable="false"><use href="{{asset "tagicons.svg"}}#{{.}}"/></svg>{{end}}{{end}}{{end}}
 
 {{define "tagrow"}}{{if .}}<span class="rtags">{{range .}}{{template "tagchipn" .}}{{end}}</span>{{end}}{{end}}
 
@@ -89,7 +94,38 @@
 {{- range .Tabs}}
 <a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{t "admin.nav" "tab" .Key}}</a>
 {{- end}}
-</nav>{{end}}
+</nav>
+{{- with .SubTabs}}
+<nav class="seg adm-subnav" aria-label="{{ts "admin.nav" "tab" "xgh"}}">
+{{- range .}}
+<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{t "admin.nav" "tab" .Key}}</a>
+{{- end}}
+</nav>
+{{- end}}{{end}}
+
+{{/* The row pattern of the back office lists (static/app.js "row details"; app.css "row pattern"): a row's actions sit on
+     one line (.adm-rowacts: the primary first, the destructive last); long text is one line (.adm-clip) with the
+     full text in the row's detail: a button data-rowx with aria-expanded="false" and aria-controls="<id>" opens
+     <tr class="adm-detail" id="<id>" hidden=""> right under the row (one cell spanning every column), or, in a list
+     of cards, a <div class="adm-detail"> under the card's actions. One detail is open per list; Escape and
+     "rowclose" close it and give the focus back to its button. Detail ids carry the list's prefix and the row id,
+     so they are unique and stay inside the list's region. */}}
+{{define "rowclose"}}<div class="adm-rowacts"><button type="button" class="btn sm" data-rowx-close="">{{t "acct.cancel"}}</button></div>{{end}}
+
+{{/* the selection of a review list (static/admin.js "bulk"): a checkbox per row (data-pick, data-id and the state
+     or version the row was rendered with, named by aria-labelledby after the row's own label), "pickall" in the
+     header, and this bar, shown once a row is selected; the region carries data-bulk="<kind>" */}}
+{{define "pickall"}}<input type="checkbox" data-pick-all="" aria-label="{{ts "admin.bulk.select_all"}}"/>{{end}}
+{{define "bulkbar"}}{{with .}}<form class="acct-form adm-bulk" data-bulk-bar="" novalidate="" hidden="">
+<div class="adm-rowacts">
+<span class="adm-bulk-n" data-bulk-n=""></span>
+{{- range .Acts}}
+<button type="button" class="btn sm{{if .Danger}} acct-del{{end}}" data-bulk-act="{{.Act}}" data-confirm="{{ts "btn.confirm"}}">{{.Label}}</button>
+{{- end}}
+<button type="button" class="btn sm" data-bulk-clear="">{{t "admin.bulk.clear"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>{{end}}{{end}}
 
 {{define "modcomment"}}<article class="cm adm-cm" id="m-{{.ID}}">
 <p class="cm-h">
@@ -125,49 +161,67 @@
 </ul>
 <p class="note">{{t "admin.mod.reports" "n" .Total}} {{t "admin.mod.reporters" "n" .Reporters}}</p>
 {{- end}}
-<div class="cm-acts adm-acts">
+<div class="adm-rowacts adm-acts">
 <a class="btn sm adm-lnk" href="{{.Permalink}}">{{t "admin.mod.open"}}</a>
 {{- if .Act}}
 {{- if eq .Status "hidden"}}
 <button type="button" class="btn sm" data-act="unhide" data-id="{{.ID}}">{{t "admin.act.unhide"}}</button>
 {{- end}}
 {{- with .ReportIDs}}
-<button type="button" class="btn sm" data-act="dismiss" data-reports="{{.}}">{{t "admin.act.dismiss"}}</button>
+<button type="button" class="btn sm" data-act="dismiss" data-reports="{{.}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.act.dismiss"}}</button>
+{{- end}}
+{{- if eq .Status "visible"}}
+<button type="button" class="btn sm acct-del" data-rowx="" aria-expanded="false" aria-controls="hd-{{.Pfx}}-{{.ID}}">{{t "admin.act.hide"}}</button>
 {{- end}}
 {{- end}}
 </div>
 {{- if and .Act (eq .Status "visible")}}
+<div class="adm-detail" id="hd-{{.Pfx}}-{{.ID}}" hidden="">
 <form class="acct-form adm-hide" data-act="hide" data-id="{{.ID}}" novalidate="">
 <div class="acct-row">
 <input class="acct-in" type="text" maxlength="200" autocomplete="off" aria-label="{{ts "admin.mod.hide_reason"}}" placeholder="{{ts "admin.mod.hide_reason"}}"/>
-<button type="submit" class="btn">{{t "admin.act.hide"}}</button>
+<button type="submit" class="btn acct-del">{{t "admin.act.hide"}}</button>
 </div>
 </form>
+{{template "rowclose"}}
+</div>
 {{- end}}
 <p class="acct-st" role="status" aria-live="polite"></p>
 </article>{{end}}
 
 {{define "auditrows"}}<div class="tbl-x">
 <table class="aff adm-tbl adm-wide">
-<thead><tr><th scope="col">{{t "admin.audit.col" "col" "when"}}</th><th scope="col">{{t "admin.audit.col" "col" "actor"}}</th><th scope="col">{{t "admin.audit.col" "col" "action"}}</th><th scope="col">{{t "admin.audit.col" "col" "target"}}</th><th scope="col">{{t "admin.audit.col" "col" "reason"}}</th><th scope="col">{{t "admin.audit.col" "col" "source"}}</th></tr></thead>
+<thead><tr><th scope="col">{{t "admin.audit.col" "col" "when"}}</th><th scope="col">{{t "admin.audit.col" "col" "actor"}}</th><th scope="col">{{t "admin.audit.col" "col" "action"}}</th><th scope="col">{{t "admin.audit.col" "col" "target"}}</th><th scope="col">{{t "admin.audit.col" "col" "reason"}}</th><th scope="col">{{t "admin.audit.col" "col" "source"}}</th><th scope="col">{{t "admin.row.more"}}</th></tr></thead>
 <tbody>
 {{- range .}}
 <tr>
 <td>{{.At.HTML}}</td>
 <td>{{if .ActorHref}}<a href="{{.ActorHref}}"><bdi>@{{.Actor}}</bdi></a>{{else if .Actor}}<bdi>@{{.Actor}}</bdi>{{else}}{{t "admin.audit.cli"}}{{end}} <span class="dim">{{t "admin.audit.role" "role" .ActorRole}}</span></td>
 <td>{{t "admin.audit.action" "action" .Action}}</td>
-<td><span class="dim">{{t "admin.audit.target" "target" .TargetType}}</span> {{if .TargetHref}}<a href="{{.TargetHref}}">{{if .Label}}<bdi>{{.Label}}</bdi>{{else}}{{.TargetID}}{{end}}</a>{{else if .Label}}<bdi>{{.Label}}</bdi>{{else}}{{.TargetID}}{{end}}<br/><code class="dim" dir="ltr">{{.TargetID}}</code>{{with .Details}}<br/><code class="adm-det" dir="ltr">{{.}}</code>{{end}}</td>
-<td><bdi>{{.Reason}}</bdi></td>
-<td>{{.Source}}{{with .Client}}<br/><code dir="ltr">{{.}}</code>{{end}}{{with .Ray}}<br/><code class="dim" dir="ltr">{{.}}</code>{{end}}</td>
+<td><span class="dim">{{t "admin.audit.target" "target" .TargetType}}</span> <span class="adm-clip">{{if .TargetHref}}<a href="{{.TargetHref}}">{{if .Label}}<bdi>{{.Label}}</bdi>{{else}}{{.TargetID}}{{end}}</a>{{else if .Label}}<bdi>{{.Label}}</bdi>{{else}}{{.TargetID}}{{end}}</span></td>
+<td><span class="adm-clip" dir="auto">{{.Reason}}</span></td>
+<td>{{.Source}}</td>
+<td><div class="adm-rowacts"><button type="button" class="btn sm" data-rowx="" aria-expanded="false" aria-controls="{{.Detail}}">{{t "admin.row.more"}}</button></div></td>
 </tr>
+<tr class="adm-detail" id="{{.Detail}}" hidden=""><td colspan="7"><div class="adm-dbox">
+<p><code class="dim" dir="ltr">{{.TargetID}}</code>{{with .Details}}<br/><code class="adm-det" dir="ltr">{{.}}</code>{{end}}</p>
+{{- with .Reason}}
+<p><bdi>{{.}}</bdi></p>
+{{- end}}
+{{- if or .Client .Ray}}
+<p>{{with .Client}}<code dir="ltr">{{.}}</code>{{end}}{{with .Ray}} <code class="dim" dir="ltr">{{.}}</code>{{end}}</p>
+{{- end}}
+{{template "rowclose"}}
+</div></td></tr>
 {{- end}}
 </tbody>
 </table>
 </div>{{end}}
 
-{{define "reauthpanel"}}<section class="acct-panel" id="reauth" hidden="" aria-labelledby="reauth-h">
-<h2 class="h2" id="reauth-h" tabindex="-1"><span class="h" aria-hidden="true"># </span>{{t "acct.reauth.h2"}}</h2>
-<p class="prose">{{t "acct.reauth.lede"}}</p>
+{{/* the re-verification dialog of the account page and the admin pages (app.js nday.reauthDialog);
+     the account page's data answers .Passkeys2 too (AccountData.Passkeys2) */}}
+{{define "reauthpanel"}}<dialog class="dlg" id="reauth" aria-labelledby="reauth-h">
+<h2 class="h2" id="reauth-h"><span class="h" aria-hidden="true"># </span>{{t "acct.reauth.h2"}}</h2>
 <ul class="acct-btns">
 {{- range .Providers}}
 <li hidden=""><button type="button" class="btn acct-btn" data-reauth="{{.ID}}">{{t "acct.reauth.provider" "provider" .Name}}</button></li>
@@ -179,7 +233,7 @@
 <p class="note" id="reauth-none" hidden="">{{t "acct.reauth.none"}}</p>
 <p class="acct-st" role="status" aria-live="polite"></p>
 <div><button type="button" class="btn sm" id="reauth-close">{{t "acct.cancel"}}</button></div>
-</section>{{end}}
+</dialog>{{end}}
 
 {{/* the hot list (home, tag pages, /discussed) is a table to assistive technology: hothead is its header row,
      dgroup a date header (a row holding a level-2 heading), hotrow a row. A row's vulnerability cell is the
@@ -196,16 +250,36 @@
 
 {{define "dgroup"}}<div class="dgroup" role="row"><span role="cell"><span class="dgh" role="heading" aria-level="2"><span aria-hidden="true">## </span>{{.}}</span></span></div>{{end}}
 
+{{/* The origin marker right after a title nday composed or staff set (webui.TitleMark; docs/titles.md): one
+     small glyph, joined to the title's last word (U+2060), whose tooltip and accessible name say the origin.
+     The record's own title has none. */}}
+{{define "titlemark"}}{{with .}}<span class="tmark" title="{{.Text}}" data-origin="{{.Origin}}"><span aria-hidden="true">⁠*</span><span class="sr">{{.Text}}</span></span>{{end}}{{end}}
+
 {{define "hotrow"}}
 <div class="tr" role="row" data-row="" data-id="{{.CVE}}" data-href="{{.Href}}">
 <div class="cur" aria-hidden="true"></div>
 <div class="chg" role="cell"><span class="c {{.ChangeClass}}">{{with .ChangeText}}<span class="w">{{.}}</span> <span class="cd" aria-hidden="true">{{end}}{{.Change}}{{if .ChangeText}}</span>{{end}}</span><span class="t">{{.Time.HTML}} <span>{{.Prec}}</span></span></div>
 <div class="vul" role="cell">
-<a class="ttl{{if .TitleMissing}} missing{{end}}" href="{{.Href}}" tabindex="-1" aria-hidden="true"{{with .TitleLang}} lang="{{.}}"{{end}}>{{.Title}}</a>
-<div class="l1"><a class="id" href="{{.Href}}" aria-label="{{.CVE}} {{.Title}}">{{.CVE}}</a>{{if .Pinned}} <span class="tag pin-b">{{t "hot.pinned"}}</span>{{end}}{{if .Rejected}} <span class="tag">REJECTED</span>{{end}}{{with .Rsch}} <span class="tag rsch-b" title="{{.Title}}"><span aria-hidden="true">@{{.N}}</span><span class="sr">{{.Title}}</span></span>{{end}}<span class="vend">{{template "tagrow" .Tags}}<span class="vn">{{or .Vendor "—"}}</span></span></div>
+<a class="ttl{{if .TitleMissing}} missing{{end}}{{if .Mark}} tm{{end}}" href="{{.Href}}" tabindex="-1" aria-hidden="true"{{with .TitleLang}} lang="{{.}}"{{end}}>{{if .Mark}}<span class="ttx">{{.Title}}</span>{{template "titlemark" .Mark}}{{else}}{{.Title}}{{end}}</a>
+<div class="l1"><a class="id" href="{{.Href}}" aria-label="{{.CVE}} {{.Title}}{{with .Mark}} ({{.Text}}){{end}}">{{.CVE}}</a>{{if .Pinned}} <span class="tag pin-b">{{t "hot.pinned"}}</span>{{end}}{{if .Rejected}} <span class="tag">REJECTED</span>{{end}}{{with .Rsch}} <span class="tag rsch-b" title="{{.Title}}"><span aria-hidden="true">@{{.N}}</span><span class="sr">{{.Title}}</span></span>{{end}}<span class="vend">{{template "tagrow" .Tags}}<span class="vn">{{or .Vendor "—"}}</span></span></div>
 </div>
 <div class="stc" role="cell">{{template "strip" .Strip}}</div>
 <div class="r" role="cell" title="{{.TPlusTitle}}"><span aria-hidden="true">{{.TPlus}}</span><span class="sr">{{.TPlusTitle}}</span></div>
 <div class="r{{if .PocZero}} weak{{end}}" role="cell"><span aria-hidden="true">{{.Poc}}</span><span class="sr">{{t "legend.poc_count" "token" .Poc}}</span></div>
 </div>
 {{- end}}
+
+{{/* The pager of every paginated list (webui.Pager; nil = one page, no pager). Left: the position;
+right: first, previous, next, each a link or, where it does not apply, a disabled span in the same
+place. The glyphs are decoration; the words carry the meaning. */}}
+{{define "pager"}}{{with .}}<nav class="pager" aria-label="{{ts "pager.label"}}">
+<p class="pg-pos">{{with .Page}}<span>{{.}}</span>{{end}}{{with .Range}}<span>{{.}}</span>{{end}}</p>
+<div class="pg-ctl">
+{{- if .First}}<a href="{{.First}}" class="pg"><span class="pg-g" aria-hidden="true">«</span>{{t "pager.first"}}</a>
+{{- else}}<span class="pg" aria-disabled="true"><span class="pg-g" aria-hidden="true">«</span>{{t "pager.first"}}</span>{{end}}
+{{- if .Prev}}<a href="{{.Prev}}" rel="prev" class="pg"><span class="pg-g" aria-hidden="true">‹</span>{{t "pager.prev"}}</a>
+{{- else}}<span class="pg" aria-disabled="true"><span class="pg-g" aria-hidden="true">‹</span>{{t "pager.prev"}}</span>{{end}}
+{{- if .Next}}<a href="{{.Next}}" rel="next" class="pg">{{t "pager.next"}}<span class="pg-g" aria-hidden="true">›</span></a>
+{{- else}}<span class="pg" aria-disabled="true">{{t "pager.next"}}<span class="pg-g" aria-hidden="true">›</span></span>{{end}}
+</div>
+</nav>{{end}}{{end}}

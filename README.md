@@ -49,15 +49,18 @@ Two rules keep the timeline honest:
 - **Collectors** for eight sources: `cvelist`, `nvd`, `ghsa`, `kev`, `exploitdb`, `metasploit`, `nuclei`, `xposts`. Each one fetches, stores the raw record first, then normalizes it. Runs are idempotent, so you can re-run one without duplicating anything.
 - **The website**, in seven languages (English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français): what moved to a new stage recently, what researchers are discussing, a filterable catalogue of every CVE, and a page per vulnerability with its timeline, patches, PoCs and tags.
 - **Accounts and community**: sign-in with Google, GitHub, Apple or X, or with a passkey; discussions under each vulnerability; a form for readers to report a wrong or missing fact; following vendors and products.
-- **A read-only JSON API** with no key and no sign-up.
+- **A read-only JSON API** for signed-in users: make a personal access token on your account page and send it as `Authorization: Bearer`. The Atom feed has a private address per account.
 - **A back office** for moderation, corrections, settings and usage stats.
 
 It's one static Go binary and a PostgreSQL database. No queue, no cache server, no JavaScript build step.
 
 ## Try the API
 
+Sign in at [nday.land](https://www.nday.land), create a token on the account page (it's shown once), then:
+
 ```sh
-curl -s https://api.nday.land/v1/vuln/CVE-2021-44228
+export NDAY_TOKEN=nday_...
+curl -s -H "Authorization: Bearer $NDAY_TOKEN" https://api.nday.land/v1/vuln/CVE-2021-44228
 ```
 
 ```jsonc
@@ -136,7 +139,7 @@ A production build is `CGO_ENABLED=0 go build -o nday ./cmd/nday`. [deploy/READM
 |---|---|
 | [docs/go.md](docs/go.md) | How the Go implementation is put together. Start here. |
 | [docs/api.md](docs/api.md) | The JSON API |
-| [docs/nvd.md](docs/nvd.md), [docs/tags.md](docs/tags.md) | NVD data, classification and CVE tags |
+| [docs/nvd.md](docs/nvd.md), [docs/tags.md](docs/tags.md), [docs/tagicons.md](docs/tagicons.md) | NVD data, classification, CVE tags and their icons |
 | [docs/xposts.md](docs/xposts.md), [docs/webpages.md](docs/webpages.md) | Researcher posts from X and the pages they link to |
 | [docs/auth.md](docs/auth.md), [docs/follows.md](docs/follows.md) | Accounts, sign-in, following vendors and products |
 | [docs/discuss.md](docs/discuss.md), [docs/corrections.md](docs/corrections.md) | Discussions and reader corrections |
@@ -162,3 +165,5 @@ Found a security problem? Please don't open an issue. [SECURITY.md](SECURITY.md)
 nday is free software under the GNU Affero General Public License v3.0 (AGPL-3.0-only); see [LICENSE](LICENSE). If you run a modified version as a network service, you have to offer its source to the people using it.
 
 The nday name and the logos under `assets/brand/` aren't covered by that license. Please don't use them for your own deployment.
+
+The tag icons (`internal/webui/static/tagicons.*`) come from [Simple Icons](https://simpleicons.org) (CC0-1.0, a few icons under other licences). Each is a trademark of its owner; see [tagicons.NOTICE](internal/webui/static/tagicons.NOTICE).

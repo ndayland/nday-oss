@@ -11,6 +11,7 @@
 <button type="submit" class="btn">{{t "admin.users.search"}}</button>
 </div>
 </form>
+<div class="adm-region" id="r-users" data-page-region="r-users">
 {{- if .Rows}}
 <div class="tbl-x">
 <table class="aff adm-tbl adm-wide">
@@ -19,7 +20,7 @@
 {{- range .Rows}}
 <tr>
 <td><a href="{{.Href}}">{{if .Handle}}<bdi>@{{.Handle}}</bdi>{{else}}{{t "admin.user.no_handle"}}{{end}}</a></td>
-<td><bdi>{{.DisplayName}}</bdi></td>
+<td><span class="adm-clip" dir="auto">{{.DisplayName}}</span></td>
 <td>{{t "acct.role.name" "role" .Role}}</td>
 <td><span class="adm-st {{.Status}}">{{t "admin.user.status" "status" .Status}}</span></td>
 <td>{{.Joined.HTML}}</td>
@@ -33,9 +34,8 @@
 {{- else}}
 <p class="note">{{t "admin.users.empty"}}</p>
 {{- end}}
-{{- if or .Next .First}}
-<p class="pager">{{with .First}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .Next}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
-{{- end}}
+{{template "pager" .Pager}}
+</div>
 {{- end}}
 </main>
 </div>

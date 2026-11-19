@@ -224,9 +224,9 @@ func ProfileURL(handle string) *string {
 
 func (s *Service) read(w http.ResponseWriter, r *http.Request) {
 	seg := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")[2]
-	cve, ok := site.ParseCVEID(seg)
+	cve, ok := site.ParseVulnID(seg)
 	if !ok {
-		web.WriteError(w, http.StatusBadRequest, "bad_cve", "not a CVE id", "cve")
+		web.WriteError(w, http.StatusBadRequest, "bad_cve", "not a vulnerability id", "cve")
 		return
 	}
 	ctx := r.Context()

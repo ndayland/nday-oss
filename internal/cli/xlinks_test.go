@@ -62,8 +62,11 @@ func TestXLinksCandidatesCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, out, errs = runCLI(t, env, "pages-fetch", "--limit", "5")
-	if code != 0 || compactJSON(out) != `{"candidates":1,"ok":0,"none":1,"retry":0,"failed":0,"refused":1,"other_host":0,"panics":0,"requests":0}` {
+	if code != 0 || compactJSON(out) != `{"candidates":1,"ok":0,"none":1,"retry":0,"failed":0,"refused":1,"other_host":0,"panics":0,"requests":0,"published":0,"backfilled":0}` {
 		t.Errorf("pages-fetch: %d %s %s", code, out, errs)
+	}
+	if got := jobRun(t, d, "pages-fetch"); got != `true  {"ok": 0, "none": 1, "retry": 0, "failed": 0, "panics": 0, "refused": 1, "requests": 0, "published": 0, "backfilled": 0, "candidates": 1, "other_host": 0}` {
+		t.Errorf("pages-fetch job_run: %s", got)
 	}
 	for _, args := range [][]string{{"x-candidates", "--limit", "0"}, {"x-links-resolve", "--limit", "x"}, {"x-candidates", "extra"},
 		{"pages-fetch", "--limit", "0"}, {"x-links-enqueue", "extra"}} {

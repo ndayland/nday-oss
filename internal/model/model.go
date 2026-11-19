@@ -16,8 +16,24 @@ import (
 // docs/go.md "Python quirks kept": such ids then fail the DB CHECK).
 var cveIDRe = regexp.MustCompile(`^CVE-\p{Nd}{4}-\p{Nd}{4,}$`)
 
-// IsValidCVEID is Python's is_valid_cve_id.
+// IsValidCVEID is Python's is_valid_cve_id. Sources whose records are CVE
+// records (cvelist, nvd, kev) keep using it: only GitHub advisories key a
+// vulnerability by something else.
 func IsValidCVEID(s string) bool { return cveIDRe.MatchString(s) }
+
+// ghsaIDRe is the canonical GHSA id: "GHSA-" in upper case, then three groups
+// of four characters from GitHub's alphabet, in lower case (the form GitHub's
+// API sends and vuln_alias stores; migrations/0026_vuln_id_ghsa.sql checks
+// the same form on vuln.cve_id). ASCII only, like Python's GHSA_ID_RE.
+var ghsaIDRe = regexp.MustCompile(`^GHSA(?:-[23456789cfghjmpqrvwx]{4}){3}$`)
+
+// IsGHSAID reports whether s is a GHSA id in its canonical form.
+func IsGHSAID(s string) bool { return ghsaIDRe.MatchString(s) }
+
+// IsValidVulnID reports whether s can key a vulnerability: a CVE id (the
+// main id) or, for a GitHub advisory that has no CVE yet, its GHSA id
+// (docs/ghsa.md). Python's is_valid_vuln_id.
+func IsValidVulnID(s string) bool { return IsValidCVEID(s) || IsGHSAID(s) }
 
 // Event types, in lifecycle order (must match migrations/0002_vuln_state.sql).
 const (
@@ -182,11 +198,12 @@ type Normalized struct {
 // Validate applies the checks Python performs in the dataclass constructors
 // (__post_init__). Python raises a plain ValueError there, which is NOT a
 // NormalizeError, so the pipeline treats a Validate failure as a run failure,
-// exactly like Python does.
+// exactly like Python does. Every id must be a vuln id (IsValidVulnID): a
+// CVE id, or a GHSA id for an advisory that has no CVE.
 func (n *Normalized) Validate() error {
 	req := func(id string) error {
-		if !IsValidCVEID(id) {
-			return fmt.Errorf("invalid CVE id: %s", pyjson.StrRepr(id))
+		if !IsValidVulnID(id) {
+			return fmt.Errorf("invalid vuln id: %s", pyjson.StrRepr(id))
 		}
 		return nil
 	}

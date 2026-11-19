@@ -15,8 +15,9 @@ import (
 
 // cached is a cache entry: an encoded body plus its status.
 type cached struct {
-	status int
-	body   Body
+	status   int
+	body     Body
+	location string // set: a redirect to this URL (status 3xx, no body)
 }
 
 // repeatable parameters may be given more than once (?tag=a&tag=b).
@@ -104,6 +105,12 @@ func (s *Server) serveCached(w http.ResponseWriter, r *http.Request, key, cacheC
 		w.Header().Set("X-Nday-Cache", "miss")
 	}
 	cc := cacheControl
+	if c.location != "" {
+		w.Header().Set("Location", c.location)
+		w.Header().Set("Cache-Control", CacheList)
+		w.WriteHeader(c.status)
+		return
+	}
 	if c.status != http.StatusOK {
 		cc = CacheList // short public caching of a 404 is fine
 	}
@@ -116,12 +123,12 @@ func ok(v any) (cached, error) {
 }
 
 func (s *Server) hot(w http.ResponseWriter, r *http.Request) {
-	q, err := queryParams(r, "since", "min_stage", "include_rejected", "limit", "offset", "cursor", "tag")
+	q, err := queryParams(r, "since", "min_stage", "include_rejected", "limit", "offset", "cursor", "before", "tag")
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	p := site.HotParams{Cursor: q.Get("cursor"), Tags: q["tag"]}
+	p := site.HotParams{Cursor: q.Get("cursor"), Before: q.Get("before"), Tags: q["tag"]}
 	if v, ok := q["since"]; ok {
 		if p.Since, err = site.ParseSince(v[0]); err != nil {
 			s.fail(w, r, err)
@@ -198,24 +205,61 @@ func (s *Server) vuln(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	id, valid := site.ParseCVEID(r.PathValue("cve"))
+	id, valid := site.ParseVulnID(r.PathValue("cve"))
 	if !valid {
-		s.fail(w, r, &site.InputError{Param: "cve", Msg: "not a CVE id (expected CVE-YYYY-NNNN...)"})
+		s.fail(w, r, &site.InputError{Param: "cve", Msg: site.BadVulnIDMsg})
 		return
 	}
-	s.serveCached(w, r, "vuln|"+id, CacheList, func(ctx context.Context) (cached, error) {
+	key, prefix := "vuln|"+id, ""
+	if site.IsGHSAID(id) {
+		// A GHSA id that is only an alias answers with a redirect into the
+		// same route family, so the family is part of the key.
+		prefix = r.URL.Path[:strings.LastIndex(r.URL.Path, "/")+1]
+		key = "vuln|" + prefix + "|" + id
+	}
+	s.serveCached(w, r, key, CacheList, func(ctx context.Context) (cached, error) {
 		v, found, err := s.Store.Vuln(ctx, id)
 		if err != nil {
 			return cached{}, err
 		}
-		if !found {
-			b, err := NewBody(struct {
-				Error APIError `json:"error"`
-			}{APIError{Status: 404, Code: "not_found", Message: id + " is not in the database", Param: "cve"}})
-			return cached{status: http.StatusNotFound, body: Body{JSON: b.JSON}}, err
+		if found {
+			return ok(v)
 		}
-		return ok(v)
+		if prefix != "" {
+			return s.ghsaAlias(ctx, prefix, id)
+		}
+		return vulnNotFound(id + " is not in the database")
 	})
+}
+
+// vulnNotFound is a cached 404 not_found about the vulnerability id.
+func vulnNotFound(msg string) (cached, error) {
+	b, err := NewBody(struct {
+		Error APIError `json:"error"`
+	}{APIError{Status: 404, Code: "not_found", Message: msg, Param: "cve"}})
+	return cached{status: http.StatusNotFound, body: Body{JSON: b.JSON}}, err
+}
+
+// ghsaAlias answers /v1/vuln/{GHSA id} (or /api/vuln/...) for a GHSA id that
+// is not a vulnerability of its own: an alias of one CVE -> 307 to the same
+// route family's CVE URL (the alias comes from upstream and can change, so it
+// is cached no longer than a detail response); none -> 404 not_found;
+// several -> 409 ambiguous naming the search endpoint.
+func (s *Server) ghsaAlias(ctx context.Context, prefix, ghsa string) (cached, error) {
+	cves, err := s.Store.VulnsByGHSA(ctx, ghsa)
+	if err != nil {
+		return cached{}, err
+	}
+	switch len(cves) {
+	case 1:
+		return cached{status: http.StatusTemporaryRedirect, location: prefix + cves[0]}, nil
+	case 0:
+		return vulnNotFound(ghsa + " is not in the database")
+	}
+	b, err := NewBody(struct {
+		Error APIError `json:"error"`
+	}{APIError{Status: 409, Code: "ambiguous", Message: ghsa + " is an alias of more than one CVE; use /search?q=" + ghsa, Param: "cve"}})
+	return cached{status: http.StatusConflict, body: Body{JSON: b.JSON}}, err
 }
 
 func (s *Server) sources(w http.ResponseWriter, r *http.Request) {

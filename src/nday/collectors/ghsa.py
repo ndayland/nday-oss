@@ -43,11 +43,17 @@ Strategy
 
 Normalization
 - Raw record per advisory: source_key = GHSA id, payload verbatim.
-- No ``cve_id``: nothing emitted. Withdrawn: GHSA alias only.
-- Otherwise: alias (cve, GHSA, "ghsa"), stub vuln (summary/description,
-  authoritative=False) and, iff some package has a non-empty
-  ``first_patched_version``, one ``patch_released`` event (dedupe_key = GHSA
-  id, occurred_at None: GitHub does not say when the patch shipped).
+- With a ``cve_id``: withdrawn -> GHSA alias only. Otherwise alias (cve,
+  GHSA, "ghsa"), stub vuln (summary/description, authoritative=False) and,
+  iff some package has a non-empty ``first_patched_version``, one
+  ``patch_released`` event (dedupe_key = GHSA id, occurred_at None: GitHub
+  does not say when the patch shipped).
+- Without a ``cve_id``: the vulnerability is keyed by the GHSA id. A
+  ``disclosed`` event (source ghsa, occurred_at = published_at, dedupe_key =
+  GHSA id, detail.state PUBLISHED, or REJECTED when withdrawn); unless
+  withdrawn, an authoritative vuln (summary/description/published_at/
+  updated_at) and the same ``patch_released`` event. Moving such a vuln to
+  its CVE once one is assigned is Go only (docs/ghsa.md, docs/go.md).
 """
 
 from __future__ import annotations
@@ -456,19 +462,41 @@ class GhsaCollector(Collector):
         if refs is not None and not isinstance(refs, list):
             raise NormalizeError(f"{gid}: references is not a list")
 
+        # The vulnerability's id: the CVE when the advisory has one (the GHSA
+        # id is then an alias), else the GHSA id itself (docs/ghsa.md).
         cve = _text(p.get("cve_id"))
         if cve is None:
-            return Normalized()  # vuln table is keyed by CVE; raw is kept
-        if not is_valid_cve_id(cve):
-            raise NormalizeError(f"{gid}: bad cve_id {cve!r}")
-
-        out = Normalized(aliases=[Alias(cve, gid, "ghsa")])
-        if _text(p.get("withdrawn_at")):
-            return out
-
-        out.vulns.append(VulnUpsert(cve_id=cve, title=_text(p.get("summary")),
-                                    description=_text(p.get("description")),
-                                    authoritative=False))
+            vid = gid
+            out = Normalized()
+            # The advisory is this vulnerability's own record: it says when it
+            # was disclosed and whether it was taken back. A withdrawn one
+            # brings no vuln upsert, so the pipeline writes its event only
+            # when the vuln row already exists (no stub for a GHSA id).
+            published = parse_ts(p.get("published_at"))
+            withdrawn = _text(p.get("withdrawn_at")) is not None
+            out.events.append(Event(cve_id=gid, type="disclosed", source=self.name,
+                                    occurred_at=published, url=_text(p.get("html_url")),
+                                    detail={"ghsa_id": gid,
+                                            "state": "REJECTED" if withdrawn else "PUBLISHED",
+                                            "withdrawn_at": p.get("withdrawn_at")},
+                                    dedupe_key=gid))
+            if withdrawn:
+                return out
+            out.vulns.append(VulnUpsert(cve_id=gid, title=_text(p.get("summary")),
+                                        description=_text(p.get("description")),
+                                        published_at=published,
+                                        modified_at=parse_ts(p.get("updated_at")),
+                                        authoritative=True))
+        else:
+            if not is_valid_cve_id(cve):
+                raise NormalizeError(f"{gid}: bad cve_id {cve!r}")
+            vid = cve
+            out = Normalized(aliases=[Alias(cve, gid, "ghsa")])
+            if _text(p.get("withdrawn_at")):
+                return out
+            out.vulns.append(VulnUpsert(cve_id=cve, title=_text(p.get("summary")),
+                                        description=_text(p.get("description")),
+                                        authoritative=False))
         packages = []
         for v in vulns or []:
             if not isinstance(v, dict):
@@ -481,7 +509,7 @@ class GhsaCollector(Collector):
                 "first_patched_version": _patched_version(v.get("first_patched_version")),
             })
         if not any(pkg["first_patched_version"] for pkg in packages):
-            return out  # no fix known yet: alias + stub only
+            return out  # no fix known yet: alias + stub only (or the GHSA-keyed vuln)
 
         cvss = p.get("cvss_severities")
         if cvss is None and "cvss" in p:
@@ -499,7 +527,7 @@ class GhsaCollector(Collector):
             "source_code_location": p.get("source_code_location"),
             "references": refs or [],
         }
-        out.events.append(Event(cve_id=cve, type="patch_released", source=self.name,
+        out.events.append(Event(cve_id=vid, type="patch_released", source=self.name,
                                 occurred_at=None, url=_text(p.get("html_url")),
                                 detail=detail, dedupe_key=gid))
         return out

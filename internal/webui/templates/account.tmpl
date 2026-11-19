@@ -20,15 +20,9 @@
 <ul>
 <li><a href="#profile">{{t "acct.profile.h2"}}</a></li>
 <li><a href="#follows">{{t "acct.follows.h2"}}</a></li>
-{{- if .Providers}}
-<li><a href="#methods">{{t "acct.methods.h2"}}</a></li>
-{{- end}}
-{{- if .Passkeys}}
-<li><a href="#passkeys">{{t "acct.passkeys.h2"}}</a></li>
-{{- end}}
-<li><a href="#sessions">{{t "acct.sessions.h2"}}</a></li>
-<li hidden=""><a href="#terms">{{t "acct.terms.h2"}}</a></li>
-<li class="acct-mdel"><a href="#delete">{{t "acct.delete.h2"}}</a></li>
+<li><a href="#security">{{t "acct.security.h2"}}</a></li>
+<li><a href="#developer">{{t "acct.developer.h2"}}</a></li>
+<li><a href="#account">{{t "acct.account.h2"}}</a></li>
 </ul>
 </nav>
 
@@ -39,21 +33,7 @@
 <p class="note">{{t "acct.suspended.limits"}}</p>
 </div>
 
-<section class="acct-panel" id="reauth" hidden="" aria-labelledby="reauth-h">
-<h2 class="h2" id="reauth-h" tabindex="-1"><span class="h" aria-hidden="true"># </span>{{t "acct.reauth.h2"}}</h2>
-<p class="prose">{{t "acct.reauth.lede"}}</p>
-<ul class="acct-btns">
-{{- range .Providers}}
-<li hidden=""><button type="button" class="btn acct-btn" data-reauth="{{.ID}}">{{t "acct.reauth.provider" "provider" .Name}}</button></li>
-{{- end}}
-{{- if .Passkeys}}
-<li hidden=""><button type="button" class="btn acct-btn" data-reauth="passkey">{{t "acct.reauth.passkey"}}</button></li>
-{{- end}}
-</ul>
-<p class="note" id="reauth-none" hidden="">{{t "acct.reauth.none"}}</p>
-<p class="acct-st" role="status" aria-live="polite"></p>
-<div><button type="button" class="btn sm" id="reauth-close">{{t "acct.cancel"}}</button></div>
-</section>
+{{template "reauthpanel" .}}
 
 <section class="acct-sec" id="profile" data-pane="profile" aria-labelledby="h-profile">
 <h2 class="h2" id="h-profile"><span class="h" aria-hidden="true"># </span>{{t "acct.profile.h2"}}</h2>
@@ -88,15 +68,17 @@
 <p class="acct-st" role="status" aria-live="polite"></p>
 </section>
 
+<section class="acct-sec" id="security" data-pane="security" aria-labelledby="h-security">
+<h2 class="h2" id="h-security"><span class="h" aria-hidden="true"># </span>{{t "acct.security.h2"}}</h2>
 {{- if .Providers}}
-<section class="acct-sec" id="methods" data-pane="methods" aria-labelledby="h-methods">
-<h2 class="h2" id="h-methods"><span class="h" aria-hidden="true"># </span>{{t "acct.methods.h2"}}</h2>
+<section class="acct-sec acct-sub" id="methods" aria-labelledby="h-methods">
+<h3 class="acct-h3" id="h-methods">{{t "acct.methods.h2"}}</h3>
 <ul class="acct-list">
 {{- range .Providers}}
 <li class="acct-item" data-provider="{{.ID}}">
 <span class="acct-pn">{{.Name}}</span>
 <span class="acct-state dim"></span>
-<span class="acct-acts"><button type="button" class="btn" data-act="link" hidden="">{{t "acct.methods.link"}}</button><button type="button" class="btn" data-act="unlink" hidden="">{{t "acct.methods.unlink"}}</button></span>
+<span class="acct-acts row-acts"><button type="button" class="btn" data-act="link" hidden="">{{t "acct.methods.link"}}</button><button type="button" class="btn" data-act="unlink" hidden="">{{t "acct.methods.unlink"}}</button></span>
 </li>
 {{- end}}
 </ul>
@@ -106,8 +88,8 @@
 {{- end}}
 
 {{- if .Passkeys}}
-<section class="acct-sec" id="passkeys" data-pane="passkeys" aria-labelledby="h-passkeys">
-<h2 class="h2" id="h-passkeys"><span class="h" aria-hidden="true"># </span>{{t "acct.passkeys.h2"}}</h2>
+<section class="acct-sec acct-sub" id="passkeys" aria-labelledby="h-passkeys">
+<h3 class="acct-h3" id="h-passkeys">{{t "acct.passkeys.h2"}}</h3>
 <p class="note" id="pk-none" hidden="">{{t "acct.passkeys.none"}}</p>
 <div class="tbl-x">
 <table class="aff acct-pk" id="pk-table" hidden="">
@@ -130,8 +112,8 @@
 </section>
 {{- end}}
 
-<section class="acct-sec" id="sessions" data-pane="sessions" aria-labelledby="h-sessions">
-<h2 class="h2" id="h-sessions"><span class="h" aria-hidden="true"># </span>{{t "acct.sessions.h2"}}</h2>
+<section class="acct-sec acct-sub" id="sessions" aria-labelledby="h-sessions">
+<h3 class="acct-h3" id="h-sessions">{{t "acct.sessions.h2"}}</h3>
 <p class="prose" id="v-session"></p>
 <p class="note" id="v-recent"></p>
 <ul class="acct-btns">
@@ -141,17 +123,67 @@
 <p class="note">{{t "acct.sessions.signout_all_note"}}</p>
 <p class="acct-st" role="status" aria-live="polite"></p>
 </section>
+</section>
 
-<section class="acct-sec" id="sec-terms" data-pane="terms" data-na="" hidden="" aria-labelledby="h-terms">
-<h2 class="h2" id="h-terms"><span class="h" aria-hidden="true"># </span>{{t "acct.terms.h2"}}</h2>
+<section class="acct-sec" id="developer" data-pane="developer" aria-labelledby="h-developer">
+<h2 class="h2" id="h-developer"><span class="h" aria-hidden="true"># </span>{{t "acct.developer.h2"}}</h2>
+<section class="acct-sec acct-sub" id="api" aria-labelledby="h-tok">
+<h3 class="acct-h3" id="h-tok">{{t "acct.api.tokens_h3"}}</h3>
+<div class="tbl-x">
+<table class="aff acct-pk" id="tok-table" aria-labelledby="h-tok" hidden="">
+<thead><tr><th scope="col">{{t "acct.passkeys.name"}}</th><th scope="col">{{t "acct.passkeys.created"}}</th><th scope="col">{{t "acct.passkeys.last_used"}}</th><td></td></tr></thead>
+<tbody id="tok-rows"></tbody>
+</table>
+</div>
+<div class="acct-secret" id="tok-new" hidden="">
+<div class="cmd sm"><code id="tok-secret"></code><button type="button" class="btn sm" data-copy="" hidden="">{{t "btn.copy"}}</button></div>
+<p class="note">{{t "acct.api.once"}}</p>
+</div>
+<form class="acct-form" id="f-tok">
+<label for="in-tok-name">{{t "acct.passkeys.name"}}</label>
+<div class="acct-row">
+<input class="acct-in" id="in-tok-name" type="text" maxlength="64" required="" autocomplete="off" spellcheck="false"/>
+<button type="submit" class="btn">{{t "acct.api.create"}}</button>
+</div>
+<p class="note" id="tok-full" hidden="">{{t "acct.err.token_limit"}}</p>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</section>
+<section class="acct-sec acct-sub" aria-labelledby="h-feed">
+<h3 class="acct-h3" id="h-feed">{{t "acct.api.feed_h3"}}</h3>
+<div class="acct-form" role="group" aria-labelledby="h-feed">
+<div class="row-acts acct-feed">
+<div class="cmd sm" id="feed-box" hidden=""><code id="feed-url"></code><button type="button" class="btn sm" data-copy="" hidden="">{{t "btn.copy"}}</button></div>
+<button type="button" class="btn" id="b-feed-reset" data-confirm="{{ts "btn.confirm"}}" title="{{ts "acct.api.feed_reset_confirm"}}">{{t "acct.api.feed_reset"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</div>
+</section>
+<section class="acct-sec acct-sub" aria-labelledby="h-ep">
+<h3 class="acct-h3" id="h-ep">{{t "acct.api.ref_h3"}}</h3>
+<div class="api">
+{{- range .Endpoints}}
+<div class="ep">
+<div class="ep-n">{{.Name}}</div>
+<p class="d">{{.Desc}}</p>
+{{template "cmdsm" .Curl}}
+</div>
+{{- end}}
+</div>
+</section>
+</section>
+
+<section class="acct-sec" id="account" data-pane="account" aria-labelledby="h-account">
+<h2 class="h2" id="h-account"><span class="h" aria-hidden="true"># </span>{{t "acct.account.h2"}}</h2>
+<section class="acct-sec acct-sub" id="terms" hidden="" aria-labelledby="h-terms">
+<h3 class="acct-h3" id="h-terms">{{t "acct.terms.h2"}}</h3>
 <p class="prose" id="v-terms"></p>
 <p class="note">{{t "rules.account"}} <a href="{{href "/rules"}}">{{t "rules.title"}}</a></p>
 <div><button type="button" class="btn" id="b-terms" hidden=""></button></div>
 <p class="acct-st" role="status" aria-live="polite"></p>
 </section>
-
-<section class="acct-sec acct-danger" id="delete" data-pane="delete" aria-labelledby="h-delete">
-<h2 class="h2" id="h-delete"><span class="h" aria-hidden="true"># </span>{{t "acct.delete.h2"}}</h2>
+<section class="acct-sec acct-sub acct-danger" id="delete" aria-labelledby="h-delete">
+<h3 class="acct-h3" id="h-delete">{{t "acct.delete.h2"}}</h3>
 <p class="prose">{{t "acct.delete.note"}}</p>
 <form class="acct-form" id="f-delete" novalidate="">
 <label for="in-delete" id="l-delete"></label>
@@ -161,6 +193,7 @@
 </div>
 <p class="acct-st" role="status" aria-live="polite"></p>
 </form>
+</section>
 </section>
 </div>
 </div>

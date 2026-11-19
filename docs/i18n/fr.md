@@ -104,8 +104,8 @@ Sources fetched 2026-11-13 (CERT-FR pages with curl; quotes are verbatim).
   invariant noun ("{stage} : étape franchie", "étape déduite du KEV").
 - Plural-sensitive messages vary per form: `status.patch.fixed`,
   `status.patch.fixed_many`, `ev.ghsa.fixed`, `ev.ghsa.fixed_many`
-  ("une autre" / "{more} autres"), `status.poc.some` ("une seule des 3" /
-  "2 des 3"), `search.truncated`, `hot.side.backlog_text`, `src.backfill.p1`,
+  ("une autre" / "{more} autres"), `status.poc.some` ("une seule des 4" /
+  "2 des 4"), `search.truncated`, `hot.side.backlog_text`, `src.backfill.p1`,
   `tplus.title.*`, `status.lead.*`, `products.count`, `sbar.*`,
   `chart.mark.more`, `chart.unknown.fixed_many`.
 - Participles agree with an implicit noun that is fixed by the context:

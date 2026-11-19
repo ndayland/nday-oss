@@ -34,7 +34,8 @@
 // rule_version) set equals its stored rule rows is not touched; otherwise
 // all its rule rows are replaced in the batch transaction. Staff rows are
 // never read or written here. Nothing outside vuln_tag, vuln_tag_count,
-// tag_run and tag_queue is written.
+// tag_run, tag_queue and the composed columns of vuln_title (titles.go: the
+// batch's composed titles, recomputed after its tags) is written.
 package tags
 
 import (
@@ -46,6 +47,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"nday.land/nday/internal/classify"
+	"nday.land/nday/internal/titles"
 )
 
 // Defaults.
@@ -107,6 +111,9 @@ type Stats struct {
 	// CVEs examined; NoVuln: of those, without a vuln row (nothing to tag).
 	CVEs   int `json:"cves"`
 	NoVuln int `json:"no_vuln"`
+	// Busy: of those, whose vuln row another transaction held (a collector
+	// run, a merge); skipped and left queued for the next run.
+	Busy int `json:"busy"`
 	// Rejected: CVEs that are rejected (they get no tags).
 	Rejected int `json:"rejected"`
 	// Changed / Unchanged: CVEs whose rule rows were replaced / already equal.
@@ -117,6 +124,9 @@ type Stats struct {
 	Inserted int `json:"inserted"`
 	// Tagged: CVEs with at least one rule tag after the run (of those examined).
 	Tagged int `json:"tagged"`
+	// TitlesWritten: vuln_title rows whose composed title was written
+	// (titles.go; every examined CVE is recomposed after its tags).
+	TitlesWritten int `json:"titles_written"`
 	// CountsRefreshed: vuln_tag_count was rebuilt.
 	CountsRefreshed bool    `json:"counts_refreshed"`
 	Batches         int     `json:"batches"`
@@ -127,12 +137,14 @@ func (s *Stats) merge(b *Stats) {
 	s.Batches++
 	s.CVEs += b.CVEs
 	s.NoVuln += b.NoVuln
+	s.Busy += b.Busy
 	s.Rejected += b.Rejected
 	s.Changed += b.Changed
 	s.Unchanged += b.Unchanged
 	s.Deleted += b.Deleted
 	s.Inserted += b.Inserted
 	s.Tagged += b.Tagged
+	s.TitlesWritten += b.TitlesWritten
 }
 
 var errLocked = errors.New("tags: another run holds the lock")
@@ -343,11 +355,23 @@ func processBatch(ctx context.Context, conn *pgx.Conn, cves []string, queueIDs [
 	bst := Stats{}
 	err := pgx.BeginFunc(ctx, conn, func(tx pgx.Tx) error {
 		bst = Stats{CVEs: len(cves)}
-		inputs, err := loadInputs(ctx, tx, cves)
+		// the vuln rows, locked until commit; busy rows are skipped and
+		// stay queued (classify.LockVulns)
+		have, busy, err := classify.LockVulns(ctx, tx, cves)
 		if err != nil {
 			return err
 		}
-		bst.NoVuln = len(cves) - len(inputs)
+		bst.Busy = len(busy)
+		if len(busy) > 0 && queueIDs == nil && !o.DryRun {
+			if _, err := tx.Exec(ctx, `INSERT INTO tag_queue (cve_id) SELECT unnest($1::text[])`, busy); err != nil {
+				return err
+			}
+		}
+		inputs, err := loadInputs(ctx, tx, have)
+		if err != nil {
+			return err
+		}
+		bst.NoVuln = len(cves) - len(inputs) - len(busy)
 		ids := make([]string, 0, len(inputs))
 		for _, c := range cves {
 			if inputs[c] != nil {
@@ -418,8 +442,15 @@ func processBatch(ctx context.Context, conn *pgx.Conn, cves []string, queueIDs [
 				}
 			}
 		}
+		// the composed titles read the tags just written (titles.go)
+		tc, err := composeTitles(ctx, tx, ids, titles.RuleVersion)
+		if err != nil {
+			return err
+		}
+		bst.TitlesWritten = tc.Written
 		if len(queueIDs) > 0 && !o.DryRun {
-			if _, err := tx.Exec(ctx, `DELETE FROM tag_queue WHERE id = ANY($1)`, queueIDs); err != nil {
+			// (a busy id's rows stay)
+			if _, err := tx.Exec(ctx, `DELETE FROM tag_queue WHERE id = ANY($1) AND cve_id <> ALL(COALESCE($2::text[], '{}'))`, queueIDs, busy); err != nil {
 				return err
 			}
 		}

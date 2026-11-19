@@ -43,6 +43,9 @@ const (
 	XAccountEnable  = "x.account.enable"
 	XAccountDisable = "x.account.disable"
 	XAccountsImport = "x.accounts.import"
+	// XAccountProfiles: a bounded refresh of the accounts' names and bios
+	// from X (target id "profiles").
+	XAccountProfiles = "x.account.profiles"
 	// allowlist candidates (target x_account, target id = the candidate's
 	// numeric user id); adding one is x.account.add with "candidate": true
 	XCandidateDismiss = "x.candidate.dismiss"
@@ -83,11 +86,56 @@ const (
 	CorrectionReject = "correction.reject"
 )
 
+// Action codes of the review of GitHub repositories (internal/ghrepo
+// SetStatus, /admin/github): target type TargetXAccount (the table's CHECK
+// has no GitHub target type, and adding one needs a migration), target id
+// GitHubRepoTarget + the github_repo id, label the full name; details hold
+// the repository id, the full name and the status before (from, from_by)
+// and after (to).
+const (
+	GitHubRepoTrust  = "github.repo.trust"
+	GitHubRepoReject = "github.repo.reject"
+	GitHubRepoReset  = "github.repo.reset"
+	// GitHubRepoTarget prefixes the target id of a github.repo.* row, so it
+	// never equals an X user id.
+	GitHubRepoTarget = "github_repo:"
+)
+
+// Action codes of the trusted GitHub accounts (internal/admin ghowners.go,
+// /admin/github): target type TargetXAccount as above, target id
+// GitHubOwnerTarget + github_trusted_owner.id, label the login; details
+// hold the account id ("owner"), the login, what changed, and how many
+// repositories became trusted or went back ("trusted", "untrusted").
+// link / unlink: the account's link to an allow-listed X account was set
+// or changed / cleared (details "from" and "to": x_user_id, x_handle).
+const (
+	GitHubOwnerAdd     = "github.owner.add"
+	GitHubOwnerUpdate  = "github.owner.update"
+	GitHubOwnerEnable  = "github.owner.enable"
+	GitHubOwnerDisable = "github.owner.disable"
+	GitHubOwnerLink    = "github.owner.link"
+	GitHubOwnerUnlink  = "github.owner.unlink"
+	// GitHubOwnerTarget prefixes the target id of a github.owner.* row.
+	GitHubOwnerTarget = "github_owner:"
+)
+
+// Action codes of the staff titles of vulnerabilities (internal/admin
+// titles.go, /admin/titles; docs/titles.md): target vuln, target id and
+// label = the vulnerability id; details hold the CVE ("cve"), the title
+// before ("old", null when none), after a set the new one ("new") and the
+// new staff version ("version").
+const (
+	VulnTitleSet   = "vuln.title_set"
+	VulnTitleClear = "vuln.title_clear"
+)
+
 // Actions lists every action code (filters, docs).
 var Actions = []string{CommentHide, CommentUnhide, ReportResolve, UserSuspend, UserUnsuspend, UserRole, UserSignOut,
-	XSettingsUpdate, XAccountAdd, XAccountUpdate, XAccountEnable, XAccountDisable, XAccountsImport,
+	XSettingsUpdate, XAccountAdd, XAccountUpdate, XAccountEnable, XAccountDisable, XAccountsImport, XAccountProfiles,
 	XCandidateDismiss, XCandidateRestore, XDraftSave, XDraftPosted, XDraftDiscard, XDraftRestore, SettingsUpdate, SettingsUnset, SettingsSecretSet, SettingsSecretClear,
-	CorrectionAccept, CorrectionReject}
+	CorrectionAccept, CorrectionReject, GitHubRepoTrust, GitHubRepoReject, GitHubRepoReset,
+	GitHubOwnerAdd, GitHubOwnerUpdate, GitHubOwnerEnable, GitHubOwnerDisable, GitHubOwnerLink, GitHubOwnerUnlink,
+	VulnTitleSet, VulnTitleClear}
 
 // Target types.
 const (
@@ -99,6 +147,7 @@ const (
 	TargetXDraft     = "x_draft"    // target id = x_draft.id
 	TargetSetting    = "setting"    // target id = the setting's key (NDAY_*)
 	TargetCorrection = "correction" // target id = vuln_corrections.id
+	TargetVuln       = "vuln"       // target id = the vulnerability id (migration 0031)
 )
 
 // Limits of the stored text (runes), as in the table's CHECKs.

@@ -27,23 +27,25 @@ import (
 // leaves the open list at once and comes back only if the account row ever
 // went away (accounts are never deleted).
 
-// XCandidatesPage caps each candidate list on /admin/x (the first ones in
-// ListCandidates' order; the page shows the total).
-const XCandidatesPage = 50
+// XCandidatesPage is the page size of each candidate list on /admin/x
+// (numbered, in ListCandidates' order).
+const XCandidatesPage = ListPage
 
 // ErrCandidateNoHandle: the candidate has no valid handle, so it cannot be
 // listed (x_accounts needs one).
 var ErrCandidateNoHandle = errors.New("the candidate has no valid handle")
 
-// XCandidateLists is the open and the dismissed candidates, each capped at
-// XCandidatesPage, with their totals.
+// XCandidateLists is one page of the open and of the dismissed
+// candidates, with their windows (totals).
 type XCandidateLists struct {
 	Open, Dismissed   []xconfig.Candidate
 	OpenN, DismissedN int
+	OpenW, DismissedW Window
 }
 
-// XCandidates reads both lists on one ReadDB connection.
-func (s *Service) XCandidates(ctx context.Context) (*XCandidateLists, error) {
+// XCandidates reads one page of each list (openPage, dismissedPage:
+// 1-based, clamped) on one ReadDB connection.
+func (s *Service) XCandidates(ctx context.Context, openPage, dismissedPage int) (*XCandidateLists, error) {
 	l := &XCandidateLists{}
 	err := s.o.ReadDB.WithConn(ctx, func(c *pgx.Conn) error {
 		var err error
@@ -53,10 +55,11 @@ func (s *Service) XCandidates(ctx context.Context) (*XCandidateLists, error) {
 		if l.DismissedN, err = xconfig.CountCandidates(ctx, c, xconfig.CandidateDismissed); err != nil {
 			return err
 		}
-		if l.Open, err = xconfig.ListCandidates(ctx, c, xconfig.CandidatePending, XCandidatesPage, 0); err != nil {
+		l.OpenW, l.DismissedW = window(l.OpenN, openPage), window(l.DismissedN, dismissedPage)
+		if l.Open, err = xconfig.ListCandidates(ctx, c, xconfig.CandidatePending, XCandidatesPage, l.OpenW.Offset()); err != nil {
 			return err
 		}
-		l.Dismissed, err = xconfig.ListCandidates(ctx, c, xconfig.CandidateDismissed, XCandidatesPage, 0)
+		l.Dismissed, err = xconfig.ListCandidates(ctx, c, xconfig.CandidateDismissed, XCandidatesPage, l.DismissedW.Offset())
 		return err
 	})
 	if err != nil {
@@ -70,10 +73,19 @@ func (s *Service) XCandidates(ctx context.Context) (*XCandidateLists, error) {
 // "candidate": true. ErrCandidateNotFound, ErrCandidateNoHandle, or
 // xconfig.ErrExists when the id is already listed (nothing changes).
 func (s *Service) XAddCandidate(ctx context.Context, actor, userID string) (handle string, err error) {
+	return s.xAddCandidate(ctx, actor, userID, "")
+}
+
+// xAddCandidate is XAddCandidate; with expect set, a candidate whose
+// status is another one is ErrStale (nothing changes).
+func (s *Service) xAddCandidate(ctx context.Context, actor, userID, expect string) (handle string, err error) {
 	err = s.writeTx(ctx, actor, func(tx pgx.Tx) error {
-		h, _, err := xconfig.GetCandidateForUpdate(ctx, tx, userID)
+		h, st, err := xconfig.GetCandidateForUpdate(ctx, tx, userID)
 		if err != nil {
 			return err
+		}
+		if expect != "" && st != expect {
+			return ErrStale
 		}
 		if h == nil || !xconfig.ValidHandle(*h) {
 			return ErrCandidateNoHandle
@@ -91,10 +103,19 @@ func (s *Service) XAddCandidate(ctx context.Context, actor, userID string) (hand
 // XSetCandidateDismissed dismisses (or restores) a candidate:
 // ErrCandidateNotFound, or ErrNoXChange when it already has that status.
 func (s *Service) XSetCandidateDismissed(ctx context.Context, actor, userID string, dismiss bool) error {
+	return s.xSetCandidateDismissed(ctx, actor, userID, dismiss, "")
+}
+
+// xSetCandidateDismissed is XSetCandidateDismissed; with expect set, a
+// candidate whose status is another one is ErrStale (nothing changes).
+func (s *Service) xSetCandidateDismissed(ctx context.Context, actor, userID string, dismiss bool, expect string) error {
 	return s.writeTx(ctx, actor, func(tx pgx.Tx) error {
-		h, _, err := xconfig.GetCandidateForUpdate(ctx, tx, userID)
+		h, st, err := xconfig.GetCandidateForUpdate(ctx, tx, userID)
 		if err != nil {
 			return err
+		}
+		if expect != "" && st != expect {
+			return ErrStale
 		}
 		set, action := xconfig.RestoreCandidate, audit.XCandidateRestore
 		if dismiss {

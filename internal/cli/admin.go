@@ -1,13 +1,17 @@
 package cli
 
 import (
+	"context"
 	"log/slog"
 	"os"
 
 	"nday.land/nday/internal/admin"
 	"nday.land/nday/internal/auth"
+	"nday.land/nday/internal/collector/ghsa"
 	"nday.land/nday/internal/corrections"
 	"nday.land/nday/internal/dbpool"
+	"nday.land/nday/internal/ghrepo"
+	"nday.land/nday/internal/pystr"
 	"nday.land/nday/internal/settings"
 	"nday.land/nday/internal/site"
 	"nday.land/nday/internal/web"
@@ -54,7 +58,7 @@ func setupAdmin(srv *web.Server, svc *auth.Service, authPool, discussPool *dbpoo
 	rt.corrections = d.corrections
 	a, err := admin.New(admin.Options{Auth: svc, AuthDB: authPool, ReadDB: d.sitePool, Site: d.site,
 		Discussions: discussPool != nil, LogDir: os.Getenv(web.EnvLogDir), Pools: pools, Logger: log,
-		XLookup: xLookupServe(d.snap, os.LookupEnv, log), Settings: rt})
+		XLookup: xLookupServe(d.snap, os.LookupEnv, log), Settings: rt, GitHubLookup: githubLookupServe(d.snap, rt.load)})
 	if err != nil {
 		return err
 	}
@@ -65,4 +69,22 @@ func setupAdmin(srv *web.Server, svc *auth.Service, authPool, discussPool *dbpoo
 	}
 	log.Info("admin: back office enabled", "discussions", discussPool != nil, "x_lookup", a.XLookupAvailable())
 	return nil
+}
+
+// githubLookupServe resolves a trusted GitHub account's login when an admin
+// adds it (ghrepo.LookupOwner: one request to https://api.github.com),
+// with the GitHub token in force (database settings over the environment,
+// read at each call; unauthenticated when none).
+func githubLookupServe(snap *settings.Snapshot, load func(context.Context) (*settings.Snapshot, error)) func(context.Context, string) (int64, string, error) {
+	return func(ctx context.Context, login string) (int64, string, error) {
+		cur := snap
+		if s, err := load(ctx); err == nil && s != nil {
+			cur = s
+		}
+		tok := ""
+		if cur != nil {
+			tok, _ = cur.Lookup(os.LookupEnv)(ghsa.TokenEnv)
+		}
+		return ghrepo.LookupOwner(ctx, ghrepo.NewClient(ghrepo.ClientOptions{Token: pystr.Strip(tok)}), login)
+	}
 }

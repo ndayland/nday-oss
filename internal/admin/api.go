@@ -26,8 +26,10 @@ import (
 //	POST /api/admin/users/{id}/role         {"role":"moderator"|"user"}
 //	POST /api/admin/users/{id}/signout-all  (no body)
 //
-// and the X endpoints (api_x.go, api_xdrafts.go) and the settings
-// endpoints (api_settings.go).
+// and the X endpoints (api_x.go, api_xdrafts.go, xprofiles.go), the
+// settings endpoints (api_settings.go), the GitHub repository review
+// endpoints (github.go), the trusted GitHub accounts (ghowners.go), the batch decisions of the review lists
+// (batch.go) and the staff titles of vulnerabilities (titles.go).
 //
 // Order of the checks: host (421), route (404), method (405), session and,
 // for POST, same origin + CSRF (auth.RequireUser: 401, 403 cross_site/csrf),
@@ -72,6 +74,14 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		id, idOK = segs[3], ValidID
 	case len(segs) == 4 && segs[1] == "admin" && segs[2] == "x":
 		act = map[string]action{"settings": s.xSettings, "accounts": s.xAdd, "import": s.xImport}[segs[3]]
+	case len(segs) == 5 && segs[1] == "admin" && segs[2] == "x" && segs[3] == "accounts" && segs[4] == "profiles":
+		act = s.xProfiles
+	case len(segs) == 5 && segs[1] == "admin" && segs[2] == "x" && segs[3] == "candidates" && segs[4] == "batch":
+		act = s.xCandidatesBatch
+	case len(segs) == 5 && segs[1] == "admin" && segs[2] == "x" && segs[3] == "drafts" && segs[4] == "batch":
+		act = s.xDraftsBatch
+	case len(segs) == 5 && segs[1] == "admin" && segs[2] == "github" && segs[3] == "repos" && segs[4] == "batch":
+		act = s.githubBatch
 	case len(segs) == 6 && segs[1] == "admin" && segs[2] == "x" && segs[3] == "accounts":
 		act = map[string]action{"update": s.xUpdate, "enable": s.xEnable, "disable": s.xDisable}[segs[5]]
 		id, idOK = segs[4], xconfig.ValidUserID
@@ -88,6 +98,18 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		act = map[string]action{"save": s.xDraftSave, "posted": s.xDraftPosted, "discard": s.xDraftDiscard,
 			"restore": s.xDraftRestore}[segs[5]]
 		id, idOK = segs[4], ValidDraftID
+	case len(segs) == 5 && segs[1] == "admin" && segs[2] == "titles":
+		act = map[string]action{"set": s.titleSet, "clear": s.titleClear}[segs[4]]
+		id, idOK = segs[3], validVulnID
+	case len(segs) == 6 && segs[1] == "admin" && segs[2] == "github" && segs[3] == "repos":
+		act = map[string]action{"trust": s.githubTrust, "reject": s.githubReject, "reset": s.githubReset,
+			"owner": s.githubRepoOwner}[segs[5]]
+		id, idOK = segs[4], ValidRepoID
+	case len(segs) == 4 && segs[1] == "admin" && segs[2] == "github" && segs[3] == "owners":
+		act = s.githubOwnerAdd
+	case len(segs) == 6 && segs[1] == "admin" && segs[2] == "github" && segs[3] == "owners":
+		act = map[string]action{"update": s.githubOwnerUpdate, "enable": s.githubOwnerEnable, "disable": s.githubOwnerDisable}[segs[5]]
+		id, idOK = segs[4], ValidRepoID
 	}
 	if act == nil {
 		web.WriteError(w, http.StatusNotFound, "not_found", "no such endpoint", "")

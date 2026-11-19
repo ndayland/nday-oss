@@ -41,7 +41,7 @@ func StatusScenarios() []StatusScenario {
 	base := func() *site.VulnDetail {
 		return &site.VulnDetail{
 			Slots: []site.DetailSlot{none("DIS"), none("PAT"), none("ANA"), none("POC"), none("ITW"), none("KEV")},
-			Poc:   []site.PocSource{{Source: "exploitdb"}, {Source: "metasploit"}, {Source: "nuclei"}},
+			Poc:   []site.PocSource{{Source: "exploitdb"}, {Source: "metasploit"}, {Source: "nuclei"}, {Source: "github"}},
 		}
 	}
 	disclosed := func(v *site.VulnDetail) {
@@ -73,20 +73,25 @@ func StatusScenarios() []StatusScenario {
 		{"kev_1_day_after", func(v *site.VulnDetail) { disclosed(v); inKEV(v, scInt(1)) }},
 		{"kev_before_record_20d", func(v *site.VulnDetail) { disclosed(v); inKEV(v, scInt(-20)) }},
 		{"kev_before_record_1d", func(v *site.VulnDetail) { disclosed(v); inKEV(v, scInt(-1)) }},
-		{"poc_t7_2of3", func(v *site.VulnDetail) {
+		{"poc_t7_2of4", func(v *site.VulnDetail) {
 			disclosed(v)
 			known(v, iPOC, "POC", 7)
 			v.Poc[0].Present, v.Poc[2].Present = true, true
 		}},
-		{"poc_t1_1of3", func(v *site.VulnDetail) {
+		{"poc_t1_1of4", func(v *site.VulnDetail) {
 			disclosed(v)
 			known(v, iPOC, "POC", 1)
 			v.Poc[1].Present = true
 		}},
-		{"poc_time_unknown_3of3", func(v *site.VulnDetail) {
+		{"poc_time_unknown_4of4", func(v *site.VulnDetail) {
 			disclosed(v)
 			v.Slots[iPOC] = site.DetailSlot{Slot: site.Slot{Code: "POC", State: "unknown"}}
-			v.Poc[0].Present, v.Poc[1].Present, v.Poc[2].Present = true, true, true
+			v.Poc[0].Present, v.Poc[1].Present, v.Poc[2].Present, v.Poc[3].Present = true, true, true, true
+		}},
+		{"poc_t30_github_only", func(v *site.VulnDetail) {
+			disclosed(v)
+			known(v, iPOC, "POC", 30)
+			v.Poc[3].Present = true
 		}},
 		{"patch_t3_known", func(v *site.VulnDetail) { disclosed(v); patched(v, "a", "1.0.1", "b", "2.0"); known(v, iPAT, "PAT", 3) }},
 		{"patch_same_day", func(v *site.VulnDetail) { disclosed(v); known(v, iPAT, "PAT", 0) }},
@@ -148,6 +153,7 @@ func EventScenarios() []EventScenario {
 		{"nuclei_id", ev("nuclei", "poc_published", "POC", `{"template_id":"CVE-2026-1"}`)},
 		{"nuclei_title", ev("nuclei", "poc_published", "POC", `{"title":"X - Auth Bypass"}`)},
 		{"nuclei_bare", ev("nuclei", "poc_published", "POC", `{}`)},
+		{"github_repo", ev("github", "poc_published", "POC", `{"precision":"day","title":"acme/CVE-2026-1-poc","url":"https://github.com/acme/CVE-2026-1-poc"}`)},
 		{"generic_itw", ev("x", "exploited_in_wild", "ITW", `not json`)},
 		{"generic_ana", ev("blog", "analysis_published", "ANA", `{}`)},
 		{"generic_dis", ev("osv", "disclosed", "DIS", `{}`)},

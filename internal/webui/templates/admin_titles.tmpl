@@ -1,0 +1,90 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- with .Body}}
+<section class="sec" id="titles" aria-labelledby="h-ti">
+<h2 class="h2" id="h-ti"><span class="h" aria-hidden="true"># </span>{{t "admin.ti.h2" "n" .Total}}</h2>
+<form class="acct-form" method="get" role="search" novalidate="">
+<div class="acct-row">
+<input class="acct-in" type="text" name="cve" value="{{.Lookup}}" maxlength="40" autocomplete="off" spellcheck="false" autocapitalize="characters" dir="ltr" aria-label="{{ts "admin.ti.lookup"}}" placeholder="{{ts "admin.ti.lookup"}}"/>
+{{- if .All}}
+<input type="hidden" name="f" value="all"/>
+{{- end}}
+<button type="submit" class="btn sm">{{t "admin.ti.find"}}</button>
+</div>
+</form>
+{{- if .NotFound}}
+<p class="note">{{t "admin.ti.not_found" "id" .Lookup}}</p>
+{{- end}}
+{{- with .Found}}
+<div class="tbl-x" id="t-lookup">
+<table class="aff adm-tbl adm-wide">
+{{template "titlehead"}}
+<tbody>
+{{template "titlerow" .}}
+</tbody>
+</table>
+</div>
+{{- end}}
+<div class="adm-region" id="r-titles" data-page-region="r-titles">
+<nav class="seg" aria-label="{{ts "admin.ti.filter_label"}}">
+{{- range .Filters}}
+<a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{t "admin.ti.filter" "f" (or .Value "untitled")}}</a>
+{{- end}}
+</nav>
+{{- if .Rows}}
+<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+{{template "titlehead"}}
+<tbody>
+{{- range .Rows}}
+{{template "titlerow" .}}
+{{- end}}
+</tbody>
+</table>
+</div>
+{{template "pager" .Pager}}
+{{- else}}
+<p class="note">{{t "admin.none"}}</p>
+{{- end}}
+</div>
+</section>
+{{template "reauthpanel" .}}
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}
+
+{{define "titlehead"}}<thead><tr><th scope="col">{{t "admin.ti.col" "c" "cve"}}</th><th scope="col">{{t "admin.ti.col" "c" "title"}}</th><th scope="col" class="r">{{t "admin.ti.col" "c" "researchers"}}</th><th scope="col">{{t "admin.ti.col" "c" "stage"}}</th><th scope="col">{{t "admin.ti.col" "c" "actions"}}</th></tr></thead>{{end}}
+
+{{/* one vulnerability: its effective title with the origin marker, the edit form in the detail row (row pattern) */}}
+{{define "titlerow"}}<tr data-cve="{{.CVE}}">
+<td class="adm-ttid"><a href="{{.Href}}">{{.CVE}}</a></td>
+<td class="adm-ttd"><span class="adm-ttl"><span class="adm-ttx{{if .Missing}} dim{{end}}"{{with .TitleLang}} lang="{{.}}"{{end}}>{{.Title}}</span>{{template "titlemark" .Mark}}</span></td>
+<td class="r">{{t "admin.ti.counts" "researchers" .Researchers "posts" .Posts}}</td>
+<td><span class="{{.StageClass}}">{{.Stage}}</span></td>
+<td>
+<div class="adm-rowacts">
+<button type="button" class="btn sm" data-rowx="" aria-expanded="false" aria-controls="{{.Detail}}">{{t "admin.ti.edit"}}</button>
+</div>
+</td>
+</tr>
+<tr class="adm-detail" id="{{.Detail}}" hidden=""><td colspan="5"><div class="adm-dbox">
+<p class="note">{{t "admin.ti.ref" "r" "composed"}} <bdi>{{or .Composed "—"}}</bdi></p>
+<p class="note">{{t "admin.ti.ref" "r" "record"}} <bdi>{{or .Record "—"}}</bdi></p>
+<p class="note">{{t "admin.ti.ref" "r" "description"}} <bdi>{{or .Desc "—"}}</bdi></p>
+<form class="acct-form adm-title" data-cve="{{.CVE}}" data-v="{{.Version}}" novalidate="">
+<div class="acct-row">
+<input class="acct-in" type="text" name="title" value="{{.Staff}}" maxlength="{{.Max}}" autocomplete="off" dir="auto" aria-label="{{ts "admin.ti.staff_label"}}" placeholder="{{ts "admin.ti.staff_label"}}"/>
+<button type="submit" class="btn sm">{{t "admin.ti.save"}}</button>
+{{- if .Staff}}
+<button type="button" class="btn sm acct-del" data-act="ticlear" data-cve="{{.CVE}}" data-v="{{.Version}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.ti.clear"}}</button>
+{{- end}}
+<button type="button" class="btn sm" data-rowx-close="">{{t "acct.cancel"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</div></td></tr>{{end}}

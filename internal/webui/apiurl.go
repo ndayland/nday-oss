@@ -2,9 +2,9 @@ package webui
 
 import "strings"
 
-// API builds every URL of the public data API that a page shows: curl
-// lines, "raw JSON" links and endpoint names. No page builds API URLs by
-// hand.
+// API builds every URL of the data API that a page shows: the account
+// page's endpoint names and curl lines, and the raw record links of
+// vulnerability pages. No page builds API URLs by hand.
 //
 // Endpoint paths passed in carry no prefix: "/hot?since=7d",
 // "/vuln/CVE-2026-1", "/search?q=x", "/sources", "/stats",

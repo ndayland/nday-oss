@@ -2,7 +2,6 @@ package webui
 
 import (
 	"html/template"
-	"net/url"
 	"time"
 
 	"nday.land/nday/internal/site"
@@ -162,6 +161,7 @@ type SearchRowView struct {
 	Title        string
 	TitleMissing bool
 	TitleLang    string
+	Mark         *TitleMark // a composed or staff title's origin marker
 	Vendor       string
 	Stage        string
 	StageClass   string
@@ -176,7 +176,6 @@ type SearchView struct {
 	Kind      string
 	Rows      []SearchRowView
 	Truncated bool
-	Curl      CmdLine
 	Limit     int
 	// Tag filter (tagview.go addSearchTags): active chips (removable) and the
 	// link to the vocabulary.
@@ -191,13 +190,12 @@ func BuildSearchView(l *i18n.Locale, q string, res *site.SearchResult, limit int
 		return sv
 	}
 	sv.Kind, sv.Truncated = res.Kind, res.Truncated
-	sv.Curl = CurlCmd(api.URL("/search?q="+queryEscape(res.Query)), ".rows")
 	for _, r := range res.Rows {
 		rv := SearchRowView{CVE: r.CVEID, Href: l.Path("/vuln/" + r.CVEID), Rejected: r.IsRejected, Stage: "—", StageClass: "weak",
 			Last: "—"}
 		// a search row has no slots, and a missing stage may only mean the
 		// lists are not refreshed yet: the reason for a missing title is unknown
-		rv.Title, rv.TitleMissing, rv.TitleLang = rowTitle(l, r.TitleZh, r.Title, recordUnknown)
+		rv.Title, rv.TitleMissing, rv.TitleLang, rv.Mark = rowTitle(l, r.TitleZh, r.Title, r.TitleInfo, recordUnknown)
 		rv.Vendor, _ = ProductLine(l, r.Products, r.ProductCount, 2)
 		if r.StageCode != nil {
 			rv.Stage, rv.StageClass = *r.StageCode, StageClass(*r.StageCode)
@@ -210,20 +208,17 @@ func BuildSearchView(l *i18n.Locale, q string, res *site.SearchResult, limit int
 	return sv
 }
 
-func queryEscape(s string) string { return url.QueryEscape(s) }
-
 // StatsView is the stats page.
 type StatsView struct {
 	Bars    []Bar
 	Totals  []Fact
 	AsOf    template.HTML // convertible <time>, "" when unknown
-	Curl    CmdLine
 	Visible bool
 }
 
 // BuildStatsView converts site.Stats.
 func BuildStatsView(l *i18n.Locale, s *site.Stats, api API) StatsView {
-	sv := StatsView{Curl: CurlCmd(api.URL("/stats"), ".")}
+	sv := StatsView{}
 	if s == nil {
 		return sv
 	}

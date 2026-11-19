@@ -266,6 +266,19 @@ func TestDeriveGHSA(t *testing.T) {
 	}
 }
 
+func TestDeriveGHSAWithoutCVE(t *testing.T) {
+	for _, cve := range []string{`null`, `""`, `"  "`} {
+		id, d, err := DeriveGHSA([]byte(`{"ghsa_id":"GHSA-2cm2-m3w5-gp2f","cve_id":` + cve + `,"cwes":[{"cwe_id":"CWE-94"}]}`))
+		if err != nil || id != "GHSA-2cm2-m3w5-gp2f" || d.CVEID != id || len(d.CWEs) != 1 {
+			t.Errorf("%s: %q %+v %v", cve, id, d, err)
+		}
+	}
+	// a malformed GHSA id keys nothing
+	if id, _, _ := DeriveGHSA([]byte(`{"ghsa_id":"GHSA-xxxx","cve_id":null}`)); id != "" {
+		t.Errorf("%q", id)
+	}
+}
+
 func TestBestCVSSPrecedence(t *testing.T) {
 	f := func(v float64) *float64 { return &v }
 	c := &Classification{CVSS: []CVSSEntry{

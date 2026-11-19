@@ -19,6 +19,7 @@ import (
 	"nday.land/nday/internal/site/sitetest"
 	"nday.land/nday/internal/testutil"
 	"nday.land/nday/internal/web"
+	"nday.land/nday/internal/web/webtest"
 	"nday.land/nday/internal/webui"
 )
 
@@ -73,6 +74,7 @@ func newCatEnv(t *testing.T, extra ...func(*testing.T, *pgx.Conn)) *tenv {
 	now := func() time.Time { return sitetest.Now }
 	store := site.New(pool).WithClock(now)
 	srv := web.New(web.Config{Store: store, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	srv.SetAPIAuth(webtest.BearerAuth{})
 	ui, err := webui.New(srv, webui.Options{Now: now})
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +86,7 @@ func newCatEnv(t *testing.T, extra ...func(*testing.T, *pgx.Conn)) *tenv {
 
 var (
 	catRowRe  = regexp.MustCompile(`<div class="tr" role="row" data-row="" data-id="([^"]+)"`)
-	catNextRe = regexp.MustCompile(`<a href="([^"]+)" rel="next">`)
+	catNextRe = regexp.MustCompile(`<a href="([^"]+)" rel="next"`)
 )
 
 // rowIDs are the data-id values of the page's list rows, in order.
@@ -147,7 +149,7 @@ func TestCatalogueOrderAndPaging(t *testing.T) {
 	if len(want) <= 50 {
 		t.Fatalf("fixture too small: %d rows", len(want))
 	}
-	resp, body := e.get(t, "/vuln")
+	resp, body := e.get(t, "/vuln?browse=1")
 	if resp.StatusCode != 200 {
 		t.Fatalf("status %d", resp.StatusCode)
 	}
@@ -162,10 +164,11 @@ func TestCatalogueOrderAndPaging(t *testing.T) {
 	if strings.Contains(body, `data-id="CVE-2026-1010"`) || strings.Contains(body, `data-id="CVE-2026-1005"`) {
 		t.Error("a CVE without events or a rejected one is listed")
 	}
-	if !strings.Contains(body, `<nav class="pager" aria-label="Pages">`) || strings.Contains(body, "← first page") {
+	if !strings.Contains(body, `<nav class="pager" aria-label="Pages">`) || !strings.Contains(body, `<span class="pg" aria-disabled="true"><span class="pg-g" aria-hidden="true">«</span>first</span>`) ||
+		strings.Contains(body, `rel="prev"`) {
 		t.Error("first page pager")
 	}
-	got, pages := e.crawl(t, "/vuln")
+	got, pages := e.crawl(t, "/vuln?browse=1")
 	if pages != 2 || joinIDs(got) != joinIDs(want) {
 		t.Errorf("crawl: %d pages\n got %s\nwant %s", pages, joinIDs(got), joinIDs(want))
 	}
@@ -178,16 +181,17 @@ func TestCatalogueOrderAndPaging(t *testing.T) {
 	}
 	// the second page: back to the first page, no next link, the end said,
 	// canonical = the first page, still indexable (as the hot list's cursor pages)
-	_, first := e.get(t, "/vuln")
+	_, first := e.get(t, "/vuln?browse=1")
 	next := html.UnescapeString(catNextRe.FindStringSubmatch(first)[1])
 	if !strings.HasPrefix(next, "/vuln?cursor=") {
 		t.Errorf("next link %s", next)
 	}
 	resp, body = e.get(t, next)
-	if !strings.Contains(body, `<a href="/vuln">← first page</a>`) || catNextRe.MatchString(body) || !strings.Contains(body, "<span>end of list</span>") {
+	if !strings.Contains(body, `<a href="/vuln?browse=1" class="pg"><span class="pg-g" aria-hidden="true">«</span>first</a>`) || catNextRe.MatchString(body) ||
+		!strings.Contains(body, `<span class="pg" aria-disabled="true">next<span class="pg-g" aria-hidden="true">›</span></span>`) {
 		t.Error("last page pager")
 	}
-	if !strings.Contains(body, `<link rel="canonical" href="https://nday.land/vuln"/>`) || resp.Header.Get("X-Robots-Tag") != "" ||
+	if !strings.Contains(body, `<link rel="canonical" href="https://nday.land/vuln?browse=1"/>`) || resp.Header.Get("X-Robots-Tag") != "" ||
 		strings.Contains(body, `name="robots"`) {
 		t.Error("cursor page canonical/robots")
 	}
@@ -214,7 +218,7 @@ func TestCatalogueFilters(t *testing.T) {
 		{"/vuln?stage=poc&year=2014", site.CatalogueParams{Stage: "poc", Year: 2014}},
 		{"/vuln?year=2026&tag=network&include_rejected=1", site.CatalogueParams{Year: 2026, Tags: []string{"network"}, IncludeRejected: true}},
 		{"/vuln?stage=kev&year=2026&tag=network", site.CatalogueParams{Stage: "kev", Year: 2026, Tags: []string{"network"}}},
-		{"/vuln?year=&stage=&tag=nope", site.CatalogueParams{}}, // empty values and unknown tags are ignored
+		{"/vuln?year=&stage=&tag=nope&browse=1", site.CatalogueParams{}}, // empty values and unknown tags are ignored
 	} {
 		resp, body := e.get(t, c.path)
 		if resp.StatusCode != 200 {
@@ -246,7 +250,6 @@ func TestCatalogueFilters(t *testing.T) {
 		`<input type="hidden" name="tag" value="network"/>`,
 		`<details class="flt" open="" data-keep="">`,
 		`<span class="k">Filters</span> <span class="sep" aria-hidden="true">·</span> 2026 <span class="sep" aria-hidden="true">·</span> Include rejected IDs <span class="sep" aria-hidden="true">·</span> network</summary>`,
-		`/api/vulns?stage=kev&amp;year=2026&amp;include_rejected=true&amp;tag=network`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("filtered page missing %s", want)
@@ -256,10 +259,9 @@ func TestCatalogueFilters(t *testing.T) {
 		t.Errorf("aria-current count %d", strings.Count(body, `aria-current="true"`))
 	}
 	// the unfiltered page: "all" is current, the filters start open (closed on phones by app.js)
-	_, body = e.get(t, "/vuln")
-	for _, want := range []string{`<a class="" href="/vuln" aria-current="true"><span class="nm">all</span>`,
-		`<a href="/vuln" aria-current="true">all</a>`, `<details class="flt" open="">`, `<option value="">—</option>`,
-		`curl -s https://nday.land/api/vulns <span class="pipe">`} {
+	_, body = e.get(t, "/vuln?browse=1")
+	for _, want := range []string{`<a class="" href="/vuln?browse=1" aria-current="true"><span class="nm">all</span>`,
+		`<a href="/vuln?browse=1" aria-current="true">all</a>`, `<details class="flt" open="">`, `<option value="">—</option>`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("unfiltered page missing %s", want)
 		}
@@ -282,7 +284,7 @@ func TestCatalogueStageRow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, body := e.get(t, "/vuln")
+	_, body := e.get(t, "/vuln?browse=1")
 	row := section(body, `<nav class="cstages" aria-label="Current stage, all CVEs">`, `</nav>`)
 	if row == "" {
 		t.Fatal("no stage row")
@@ -315,7 +317,7 @@ func TestCatalogueStageRow(t *testing.T) {
 			if c.Count == 0 {
 				_, b := e.get(t, "/vuln?stage="+c.Code)
 				if !strings.Contains(b, `zero" aria-current="true">`) || !strings.Contains(b, "No vulnerability matches these filters.") ||
-					!strings.Contains(b, `<a href="/vuln">Clear filters</a>`) {
+					!strings.Contains(b, `<a href="/vuln?browse=1">Clear filters</a>`) {
 					t.Errorf("%s selected: empty stage", c.Code)
 				}
 				break
@@ -432,7 +434,7 @@ func TestCatalogueAndSearchURLs(t *testing.T) {
 	if got := rowIDs(body); joinIDs(got) != joinIDs(want) || len(want) == 0 {
 		t.Errorf("tag only\n got %v\nwant %v", got, want)
 	}
-	if !strings.Contains(body, `<span class="tfc">`) || !strings.Contains(body, `<a class="tx" href="/vuln"`) ||
+	if !strings.Contains(body, `<span class="tfc">`) || !strings.Contains(body, `<a class="tx" href="/vuln?browse=1"`) ||
 		!strings.Contains(body, "<title>Vulnerabilities · nday</title>") {
 		t.Error("tag only: chips")
 	}
@@ -445,15 +447,15 @@ func TestCatalogueAndSearchURLs(t *testing.T) {
 // Headers as on the hot list; a filtered catalogue is noindex.
 func TestCatalogueHeaders(t *testing.T) {
 	e := newCatEnv(t)
-	resp, body := e.get(t, "/vuln")
+	resp, body := e.get(t, "/vuln?browse=1")
 	if resp.Header.Get("Cache-Control") != "public, max-age=60" || resp.Header.Get("ETag") == "" ||
 		resp.Header.Get("X-Robots-Tag") != "" || strings.Contains(body, `name="robots"`) {
 		t.Errorf("headers %v", resp.Header)
 	}
-	if !strings.Contains(body, `<link rel="canonical" href="https://nday.land/vuln"/>`) {
+	if !strings.Contains(body, `<link rel="canonical" href="https://nday.land/vuln?browse=1"/>`) {
 		t.Error("canonical")
 	}
-	if r2, _ := e.get(t, "/vuln", "If-None-Match", resp.Header.Get("ETag")); r2.StatusCode != 304 {
+	if r2, _ := e.get(t, "/vuln?browse=1", "If-None-Match", resp.Header.Get("ETag")); r2.StatusCode != 304 {
 		t.Errorf("revalidation %d", r2.StatusCode)
 	}
 	resp, body = e.get(t, "/vuln?stage=kev&utm_source=x")
@@ -465,7 +467,7 @@ func TestCatalogueHeaders(t *testing.T) {
 	// one h1, the skip link's target, the nav item current, j/k rows
 	if strings.Count(body, "<h1") != 1 || !strings.Contains(body, `<main class="main cat" id="main">`) ||
 		!strings.Contains(body, `<a href="/vuln" aria-current="page">`) || !strings.Contains(body, `data-autosel=""`) ||
-		!strings.Contains(body, `data-raw="/api/vulns?stage=kev"`) {
+		strings.Contains(body, "data-raw") || strings.Contains(body, "/api/vulns") {
 		t.Error("page structure")
 	}
 }
@@ -489,11 +491,11 @@ func TestCatalogueBadParams(t *testing.T) {
 // The page's words: zh-Hans, and no trace of the old search help.
 func TestCatalogueText(t *testing.T) {
 	e := newCatEnv(t)
-	_, body := e.get(t, "/zh-hans/vuln")
+	_, body := e.get(t, "/zh-hans/vuln?browse=1")
 	for _, want := range []string{"<title>漏洞 · nday</title>", `<span class="h" aria-hidden="true"># </span>漏洞</h1>`,
 		`<span class="k">编号年份</span>`, `<label for="cat-y">其他年份</label>`, ">查看</button>", `<span class="nm">全部</span>`,
 		`<span class="nm">补丁</span>`, `aria-label="全库当前阶段"`, `例：<a href="/zh-hans/vuln?q=barracuda">barracuda</a> · `,
-		`placeholder="CVE-2026-… 产品 厂商"`, "用 API 获取这份列表", `<a href="/zh-hans/vuln" aria-current="page">`} {
+		`placeholder="CVE-2026-… 产品 厂商"`, `<a href="/zh-hans/vuln" aria-current="page">`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("zh-Hans missing %s", want)
 		}
@@ -524,7 +526,7 @@ func TestCatalogueNoPostData(t *testing.T) {
 	})
 	seenGPU := false
 	for _, l := range e.ui.Locales().Enabled {
-		for _, p := range []string{"/vuln", "/vuln?stage=kev", "/vuln?year=2026&include_rejected=1", "/vuln?tag=network",
+		for _, p := range []string{"/vuln", "/vuln?browse=1", "/vuln?stage=kev", "/vuln?year=2026&include_rejected=1", "/vuln?tag=network",
 			"/vuln?q=", "/vuln?tag=nope"} {
 			resp, body := e.get(t, l.Path(p))
 			if resp.StatusCode != 200 {
@@ -548,15 +550,14 @@ func TestCatalogueNoPostData(t *testing.T) {
 	}
 }
 
-// With an API host, the catalogue's curl line and raw link name /v1/vulns
-// with the active filters.
+// With an API host too, the catalogue shows no API command or raw link
+// (the API reference is on the account page).
 func TestCatalogueTwoHosts(t *testing.T) {
 	e := newEnvFull(t, web.Config{PublicURL: "https://www.nday.land", APIURL: "https://api.nday.land"}, webui.Options{})
 	_, body := e.get(t, "/vuln?stage=poc&tag=network")
-	for _, want := range []string{"curl -s &#39;https://api.nday.land/v1/vulns?stage=poc&amp;tag=network&#39;",
-		`data-raw="https://api.nday.land/v1/vulns?stage=poc&amp;tag=network"`} {
-		if !strings.Contains(body, want) {
-			t.Errorf("missing %s", want)
+	for _, bad := range []string{"curl ", "data-raw", "api.nday.land"} {
+		if strings.Contains(body, bad) {
+			t.Errorf("contains %s", bad)
 		}
 	}
 }

@@ -80,13 +80,13 @@ func section(body, start, end string) string {
 func TestVulnTagsBlock(t *testing.T) {
 	e := newEnv(t)
 	_, body := e.get(t, "/vuln/"+sitetest.GPU)
-	block := section(body, `<div class="vtags">`, `<div class="cmd">`)
+	block := section(body, `<div class="vtags">`, `<dl class="facts">`)
 	for _, want := range []string{
 		`<a class="tg tg-c-authz" href="/tag/auth-bypass"`, `>authentication bypass</a>`,
 		`<a class="tg tg-s" href="/tag/remote-unauth"`, `>remote, unauthenticated</a>`,
 		`<span class="dim">weakness type</span>`, `<span class="dim">exploitation</span>`,
 		`<details class="why">`, "NVD, the CNA and other sources do not assign them",
-		`<a href="https://cwe.mitre.org/data/definitions/287.html" rel="noopener noreferrer">CWE-287</a>, stated by the CNA <bdi>GitHub_M</bdi> and NVD&#39;s analysts`,
+		`<a href="https://cwe.mitre.org/data/definitions/287.html" target="_blank" rel="noopener noreferrer" data-fav=""><span class="fav" aria-hidden="true"></span>CWE-287</a>, stated by the CNA <bdi>GitHub_M</bdi> and NVD&#39;s analysts`,
 		"<code><bdi>AV:N</bdi></code>, <code><bdi>PR:N</bdi></code>, <code><bdi>UI:N</bdi></code> in <code><bdi>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H</bdi></code> (CVSS 3.1) from the CNA <bdi>GitHub_M</bdi>",
 		"Metasploit modules <code><bdi>exploit/linux/http/gpustack_rce</bdi></code>",
 	} {
@@ -103,7 +103,7 @@ func TestVulnTagsBlock(t *testing.T) {
 	}
 	// CVSS 2.0 basis: the caveat; never no-interaction / remote-unauth
 	_, body = e.get(t, "/vuln/CVE-2026-1002")
-	block = section(body, `<div class="vtags">`, `<div class="cmd">`)
+	block = section(body, `<div class="vtags">`, `<dl class="facts">`)
 	if !strings.Contains(block, "CVSS 2.0 has no user-interaction metric") || strings.Contains(block, "/tag/no-interaction") ||
 		!strings.Contains(block, "/tag/command-injection") || !strings.Contains(block, "(CVSS 2.0) from NVD&#39;s analysts") {
 		t.Errorf("v2 block\n%s", block)
@@ -115,7 +115,7 @@ func TestVulnTagsBlock(t *testing.T) {
 	}
 	// zh-Hans: localised descriptive labels, English technical terms
 	_, body = e.get(t, "/zh-hans/vuln/"+sitetest.GPU)
-	block = section(body, `<div class="vtags">`, `<div class="cmd">`)
+	block = section(body, `<div class="vtags">`, `<dl class="facts">`)
 	for _, want := range []string{`href="/zh-hans/tag/remote-unauth"`, ">远程未授权</a>", ">authentication bypass</a>", "这些标签的依据",
 		"不是 NVD、编号分配方或其他来源给出的", "（来源：编号分配方 <bdi>GitHub_M</bdi>、NVD 分析人员）"} {
 		if !strings.Contains(block, want) {
@@ -124,7 +124,7 @@ func TestVulnTagsBlock(t *testing.T) {
 	}
 	// a pending locale shows the English text marked lang="en"
 	_, body = e.get(t, "/ja/vuln/"+sitetest.GPU)
-	if !strings.Contains(section(body, `<div class="vtags">`, `<div class="cmd">`), `<span lang="en">remote, unauthenticated</span>`) {
+	if !strings.Contains(section(body, `<div class="vtags">`, `<dl class="facts">`), `<span lang="en">remote, unauthenticated</span>`) {
 		t.Error("ja fallback not marked")
 	}
 }
@@ -135,7 +135,7 @@ func TestVulnTagsHostileBasis(t *testing.T) {
 	e := newEnv(t)
 	for _, l := range e.ui.Locales().Enabled {
 		_, body := e.get(t, l.Path("/vuln/"+evilCVE))
-		block := section(body, `<div class="vtags">`, `<div class="cmd">`)
+		block := section(body, `<div class="vtags">`, `<dl class="facts">`)
 		if block == "" {
 			t.Fatalf("%s: no tags block", l.Tag)
 		}
@@ -173,8 +173,7 @@ func TestHotTagFilters(t *testing.T) {
 	}
 	// the active chip removes itself; the canonical link keeps the filter
 	for _, want := range []string{`<span class="k">Tags</span>`, `<a class="tx" href="/" aria-label="Remove the remote, unauthenticated filter"`,
-		`<link rel="canonical" href="https://nday.land/?tag=remote-unauth"/>`,
-		`href="/feed.xml?tag=remote-unauth"`, `curl -s &#39;https://nday.land/api/hot?since=7d&amp;min_stage=patch&amp;tag=remote-unauth&#39;`} {
+		`<link rel="canonical" href="https://nday.land/?tag=remote-unauth"/>`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("one tag page missing %q", want)
 		}
@@ -230,7 +229,7 @@ func TestTagPages(t *testing.T) {
 	}
 	_, body = e.get(t, "/zh-hans/tag/auth-bypass")
 	for _, want := range []string{`<title>authentication bypass · 标签 · nday</title>`, "共有 1 个 CVE 带有这个标签。",
-		`href="/zh-hans/feed.xml?tag=auth-bypass"`, `<link rel="canonical" href="https://nday.land/zh-hans/tag/auth-bypass"/>`,
+		`<link rel="canonical" href="https://nday.land/zh-hans/tag/auth-bypass"/>`,
 		`data-id="` + sitetest.GPU + `"`, `CWE-287</a>`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("tag page missing %q", want)
@@ -279,7 +278,7 @@ func TestTagPages(t *testing.T) {
 func TestVulnProductTags(t *testing.T) {
 	e := newEnv(t)
 	_, body := e.get(t, "/vuln/CVE-2026-1002")
-	block := section(body, `<div class="vtags">`, `<div class="cmd">`)
+	block := section(body, `<div class="vtags">`, `<dl class="facts">`)
 	for _, want := range []string{
 		`<span class="dim">product</span>`, `<span class="dim">product type</span>`,
 		`<a class="tg" href="/tag/fortios" title="CVEs whose affected products include FortiOS`, `>FortiOS</a>`,
@@ -301,7 +300,7 @@ func TestVulnProductTags(t *testing.T) {
 		t.Errorf("dimension order %d %d %d", i, j, k)
 	}
 	_, body = e.get(t, "/zh-hans/vuln/CVE-2026-1002")
-	block = section(body, `<div class="vtags">`, `<div class="cmd">`)
+	block = section(body, `<div class="vtags">`, `<dl class="facts">`)
 	for _, want := range []string{`href="/zh-hans/tag/fortios"`, ">FortiOS</a>", ">防火墙/VPN/安全网关</a>", "NVD 分析人员标为易受攻击的 CPE 名称"} {
 		if !strings.Contains(block, want) {
 			t.Errorf("zh product block missing %q\n%s", want, block)
@@ -317,7 +316,7 @@ func TestVulnProductTags(t *testing.T) {
 		t.Error("filter by product type")
 	}
 	_, body = e.get(t, "/tags")
-	if !regexp.MustCompile(`href="/tag/fortios"[^>]*>FortiOS</a><code class="slug">fortios</code></dt><dd class="n">1</dd>`).MatchString(body) ||
+	if !regexp.MustCompile(`href="/tag/fortios">`+iconPat("fortinet")+`FortiOS</a><code class="slug">fortios</code></dt><dd class="n">1</dd>`).MatchString(body) ||
 		!strings.Contains(body, `id="dim-product-type"`) {
 		t.Error("/tags product rows")
 	}
@@ -325,7 +324,7 @@ func TestVulnProductTags(t *testing.T) {
 		t.Error("product feed title")
 	}
 	// a pending locale: the product name is English, unmarked like other product names
-	if _, body = e.get(t, "/ja/vuln/CVE-2026-1002"); !strings.Contains(section(body, `<div class="vtags">`, `<div class="cmd">`), ">FortiOS</a>") {
+	if _, body = e.get(t, "/ja/vuln/CVE-2026-1002"); !strings.Contains(section(body, `<div class="vtags">`, `<dl class="facts">`), ">FortiOS</a>") {
 		t.Error("ja product name")
 	}
 }

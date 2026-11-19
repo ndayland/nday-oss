@@ -199,7 +199,7 @@ For the design and how to register with each provider, see `docs/auth.md`. Witho
    sudo systemctl daemon-reload && sudo systemctl restart nday-web.service
    journalctl -u nday-web.service -n 30    # you should see "auth: sign-in enabled providers=[...]"; a config error makes it exit and name the variable
    ```
-4. Cloudflare: make sure `nday.land` redirects with a 301 to `https://www.nday.land`, and don't set cache rules for `/auth/*`, `/account/*` or `/api/me`.
+4. Cloudflare: make sure `nday.land` redirects with a 301 to `https://www.nday.land`, and never cache at the edge `/auth/*`, `/account/*`, `/api/me`, nor the gated data routes: `/api/*`, `/raw/*`, `/feed.xml`, `/<locale>/feed.xml` and everything on the API host (`api.nday.land`). A Cloudflare "Cache Everything" or Edge Cache TTL rule matching any of these would store a response that was only sent because the request carried an API token, a session cookie or a private feed key, and hand it to anyone who asks for the same URL without one (Cloudflare does not key its cache on `Authorization`). The origin sends `private`/`no-store` and `Vary: Authorization` on these; don't override that with a cache rule. Only the HTML pages, `/static/*`, the sitemap and the API index may use the default caching.
 
 Most sign-in variables (each provider's ID and secret, the passkey switch, session lifetimes and so on) can also be changed in `/admin/settings` and stored in the database. See "Settings stored in the database" below and `docs/settings.md`.
 
@@ -217,7 +217,7 @@ Every vulnerability page has a discussion section (design, endpoints and rate li
    ```
 3. Optional variables (defaults are at the end of `deploy/auth.env.example`; all of them go in `/etc/nday/auth.env`): `NDAY_DISCUSS`, `NDAY_DISCUSS_DB_POOL_SIZE` (a writable connection pool just for discussions, default 4; the database's `max_connections` has to cover site 8 + auth 4 + discussions 4 + the collector jobs), `NDAY_DISCUSS_POST_*`, `NDAY_DISCUSS_NEW_*`, `NDAY_DISCUSS_ADDR_*`, `NDAY_DISCUSS_EDIT_*`, `NDAY_DISCUSS_REPORT_DAILY`, `NDAY_DISCUSS_REPORT_*`, `NDAY_DISCUSS_DELETE_*`, `NDAY_DISCUSS_READ_*`, `NDAY_DISCUSS_MOD_*`, `NDAY_DISCUSS_DUPLICATE_WINDOW`, `NDAY_DISCUSS_GUEST_READ` (whether signed-out visitors can read comments, default on) and `NDAY_DISCUSS_GUEST_READ_*`. If a value is invalid the service refuses to start and names the variable. Except for `NDAY_DISCUSS_DB_POOL_SIZE`, these can also be stored in the database through `/admin/settings` (see "Settings stored in the database").
 4. Moderators: `nday auth-role <user-id|handle> moderator`. For emergencies when the web UI isn't available: `nday discuss-hide <comment-id> --reason "…"` and `nday discuss-unhide <comment-id>` (they print the comment's id, vulnerability, author handle and state first, then act).
-5. Cloudflare: don't set cache rules for `/api/discuss/*`, `/api/mod/*` or `/api/corrections/*` (the responses are all `no-store`).
+5. Cloudflare: don't set cache rules for `/api/discuss/*`, `/api/mod/*` or `/api/corrections/*` (the responses are all `no-store`), nor for any of the gated data routes listed under "Sign-in and accounts" (`/api/*`, `/raw/*`, `/feed.xml`, `/<locale>/feed.xml` and everything on the API host (`api.nday.land`)).
 6. Public discussion reads (anonymous visitors, the discussion section on a vulnerability page) use the site's read-only connection pool and don't take extra connections.
 7. **Local development databases only, not needed in production.** `0005_discuss` was changed after it was first written (`comments.rev` was added). If your local database created the tables with the older version, drop the three discussion tables and the migration record, then migrate again:
 
@@ -307,6 +307,54 @@ sudo -u nday sh -c 'cd /opt/nday && env $(cat /etc/nday/nday.env) /opt/nday/bin/
 - Link page titles (migration `0020_web_page`, which only adds the table `web_page`): when you release, `nday.new migrate` should print `applied: 0020_web_page` (and `0019` too if that one hasn't been applied yet).
   After that, every successful xposts collection queues the links found in posts and fetches the titles of third-party web pages in one pass (at most 25 pages, 2 minutes in total, 1 second between fetches, at most 25 seconds per page, and fewer pages per pass if many sites are slow, with the rest left for the next run. It only connects to ports 80 and 443 on public addresses; see `docs/webpages.md`).
   So the collector unit needs outbound access to ports 80 and 443 on any public host. To backfill existing links the first time, run `nday x-links-enqueue`, then `nday pages-fetch` (repeat as needed; it takes 100 pages per run by default). If the migration hasn't been applied, the automatic step after collection just logs a warning.
+- GitHub repository metadata (migration `0023_github_repo`, additive: tables `github_repo`, `github_repo_name`, `github_repo_cve` and the column `x_post_link.repo_queued_url`): when you release, `nday.new migrate` should print `applied: 0023_github_repo`.
+  After that, every successful xposts collection also queues the GitHub repository links of posts and fetches their metadata from `https://api.github.com` only (at most 25 repositories, 2 minutes, 1 second apart; it stops quietly at the rate limit; see `docs/github.md`). The repositories then show as `owner/name`, stars and creation date in the vulnerability page's Resources panel.
+  The token is the existing `NDAY_GITHUB_TOKEN` (store it on `/admin/settings`, or put it in an env file the xposts collector unit loads); without it requests are anonymous, 60 an hour. Backfill: `nday github-enqueue`, then `nday github-fetch` (50 per run by default; repeat after the rate-limit window when anonymous). If the migration hasn't been applied, the automatic step logs a warning.
+
+## GitHub PoC discovery (nday-github-discover)
+
+Migration `0025_github_discovery` (additive: the columns `github_repo.status`, `status_by`, `status_at`, `seen_at`, `x_post_link.repo_swept_url`, `repo_root_key`, `repo_github_id`, `repo_checked_at`, `repo_check_attempts`, the tables `github_rejected_name`, `github_search_cve`, `github_search_scan`, two triggers that keep a repository row's GitHub id and the row itself, and CVE-or-GHSA ids in `github_repo_cve`). It does not depend on `0024`; either may be applied first. Details in `docs/github.md` ("Identity, names, links", "Discovery", "Review", "Deploying").
+
+After the migration and the binary swap, repository links of earlier posts render plain (no name, stars or date) until the new code has checked them. Run, in this order:
+
+```bash
+sudo -u nday sh -c 'cd /opt/nday && env $(cat /etc/nday/nday.env) /opt/nday/bin/nday github-enqueue'   # sweeps every github.com code link once
+sudo -u nday sh -c 'cd /opt/nday && env $(cat /etc/nday/nday.env) /opt/nday/bin/nday github-fetch'     # repeat until "link_checks": 0
+```
+
+`github-fetch` makes 50 requests a run; without a token wait for GitHub's hourly limit between runs (or leave it to the collector runs, 25 a run). A repository becomes trusted by rule only when a post links its root and that link was checked: the repository answering for the name was created before the link was stored. If the old binary runs between `migrate` and the swap (a collector timer), nothing is lost: the new sweep has its own marker, and an old fetch pass that would rewrite or delete a repository row is refused by the triggers and only logs `github fetch pass failed`. Advisory links (`github.com/<owner>/<repo>/security/advisories/…`) stored earlier as code: see step 5 of "Deploying" in `docs/github.md` for the one statement that re-classifies them.
+
+```bash
+sudo -u nday sh -c 'cd /opt/nday && env $(cat /etc/nday/nday.env) /opt/nday/bin/nday.new migrate'   # applied: 0025_github_discovery
+sudo install -o root -g root -m 0644 deploy/systemd/nday-github-discover.service deploy/systemd/nday-github-discover.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+# Run it by hand once first (a few minutes without a token); it prints the counts as JSON
+sudo systemctl start nday-github-discover.service && journalctl -u nday-github-discover.service -n 5    # one "github discover pass" line
+sudo systemctl enable --now nday-github-discover.timer    # hourly, up to 5 minutes of random delay
+```
+
+- It only talks to `https://api.github.com/search/repositories`: at most 40 requests a run, 7 s apart without a token (2.5 s with one), so it never reaches GitHub's 10 (30 with a token) search requests a minute; it stops quietly on any 403 or 429 and after 15 minutes at most. It and the GitHub fetch step of the xposts collector never run at the same time: whichever comes second does nothing that time (`"locked": true`).
+- Token: the same `NDAY_GITHUB_TOKEN` as above (database settings, or the environment of this unit); the unit loads `nday.env` only.
+- Found repositories are **unverified**: the vulnerability page lists at most 5 per page under PoC with an "unverified" mark; they never change a stage. Repositories linked from researcher posts are trusted by rule, shown unmarked only on that post's page.
+- Before stopping services for a restore, add `nday-github-discover.timer` to the stop/start lists in "Backup and restore".
+
+## Site icons of outbound links (nday-site-icons)
+
+Migration `0028_site_icon` (additive: the table `site_icon` only). On the vulnerability page every link that leaves the site shows the target site's small icon in front of its text, served from our own origin at `/icon/<host>?v=<hash>`; readers never contact the third party. A daily job fetches the icons; until it has run, the links show an empty box of the same size. Details in `docs/siteicons.md`.
+
+```bash
+sudo -u nday sh -c 'cd /opt/nday && env $(cat /etc/nday/nday.env) /opt/nday/bin/nday.new migrate'   # applied: 0028_site_icon
+sudo install -o root -g root -m 0644 deploy/systemd/nday-site-icons.service deploy/systemd/nday-site-icons.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+# Run it by hand once first (up to 15 minutes); it prints the counts as JSON
+sudo systemctl start nday-site-icons.service && journalctl -u nday-site-icons.service -n 5    # one "site icons pass" line
+sudo systemctl enable --now nday-site-icons.timer    # daily at 05:15, up to 30 minutes of random delay
+```
+
+- The first runs take the 200 most linked hosts each (`nday site-icons --limit N` for more, at most 2000; repeat until `"candidates"` is below the limit). After that a run only sees new hosts, hosts whose icon is 30 days old, hosts without an icon after 30 days and failed hosts after 1 h, 4 h, 16 h, ... (at most 30 days).
+- The unit needs outbound https (port 443) to any public host, like the collectors; plain http is never used and redirects to http or to a non-public address are refused.
+- The web service only reads the table: if the binary is deployed before the migration, pages show the empty boxes and `/icon/...` answers 404.
+- Before stopping services for a restore, add `nday-site-icons.timer` to the stop/start lists in "Backup and restore".
 
 ## Settings stored in the database (`app_settings`, optional)
 
@@ -486,12 +534,12 @@ Release:
 
 1. **There's no migration** (no new index is needed: the new queries use the existing `event_type_occurred_idx` and `event_uniq`, and EXPLAIN ANALYZE on a local database with 600,000 events shows all of them under 4 ms). `nday.new migrate` should print no new `applied:` line.
 2. **There are no new environment variables.** `GET /api/posts/{cve}` is mounted automatically when sign-in is configured. Without sign-in it doesn't exist (the researcher section still shows the count and the placeholder, but no sign-in button).
-3. Cloudflare: like `/api/discuss/*`, **don't cache** `/api/posts/*` (the response itself is `private, no-store` and carries `Vary: Cookie`). If you have path-based cache rules, add it to the exclusion list. In two-host mode, `/api/discussed` answers 308 and redirects to `https://api.nday.land/v1/discussed`.
+3. Cloudflare: like `/api/discuss/*`, **don't cache** `/api/posts/*` (the response itself is `private, no-store` and carries `Vary: Cookie`), nor `/api/*`, `/raw/*`, `/feed.xml`, `/<locale>/feed.xml` and everything on the API host (`api.nday.land`) (they need an API token, a session or a feed key; see "Sign-in and accounts"). If you have path-based cache rules, add them all to the exclusion list. In two-host mode, `/api/discussed` answers 308 and redirects to `https://api.nday.land/v1/discussed`.
 4. Check after the release:
    ```bash
    curl -sD- https://www.nday.land/api/posts/CVE-2024-3094 | head -20      # signed out: outline, no text; Cache-Control: private, no-store
-   curl -s 'https://api.nday.land/v1/discussed?limit=5' | jq '.rows[] | {cve_id, researchers_7d}'
-   curl -s 'https://api.nday.land/v1/hot?limit=3' | jq '.rows[0].researchers_7d'
+   curl -s -H "Authorization: Bearer $NDAY_TOKEN" 'https://api.nday.land/v1/discussed?limit=5' | jq '.rows[] | {cve_id, researchers_7d}'
+   curl -s -H "Authorization: Bearer $NDAY_TOKEN" 'https://api.nday.land/v1/hot?limit=3' | jq '.rows[0].researchers_7d'
    ```
    Sign in with a browser and open a vulnerability page that has posts: the researcher section should show them. After you sign out, only the dotted placeholder should remain.
 

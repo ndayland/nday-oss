@@ -24,6 +24,7 @@ import (
 	"nday.land/nday/internal/auth/fakeidp"
 	"nday.land/nday/internal/dbpool"
 	"nday.land/nday/internal/site"
+	"nday.land/nday/internal/site/sitetest"
 	"nday.land/nday/internal/testutil"
 	"nday.land/nday/internal/web"
 )
@@ -117,6 +118,12 @@ type harnessOpt struct {
 	// strictSignup keeps the production passkey sign-up limits
 	strictSignup bool
 	signupDaily  int
+	// apiURL: two-host mode (the public origin plus this API origin)
+	apiURL string
+	// seed: the site fixture (internal/site/sitetest) and its clock
+	seed bool
+	// apiToken, apiClient: the API token / feed key limits (default: burst)
+	apiToken, apiClient *auth.RateLimiter
 }
 
 func newHarness(t *testing.T, o harnessOpt) *harness {
@@ -126,6 +133,9 @@ func newHarness(t *testing.T, o harnessOpt) *harness {
 		o.providers = auth.AllProviders
 	}
 	d := testutil.NewMigratedDB(t)
+	if o.seed {
+		sitetest.Seed(t, d.Conn)
+	}
 	pc, err := pgx.ParseConfig(d.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -172,6 +182,15 @@ func newHarness(t *testing.T, o harnessOpt) *harness {
 	pk.Now = ck.Now
 	acctRL := auth.NewRateLimiter(burst, time.Second)
 	acctRL.Now = ck.Now
+	apiTok, apiCl := o.apiToken, o.apiClient
+	if apiTok == nil {
+		apiTok = auth.NewRateLimiter(burst, time.Second)
+		apiTok.Now = ck.Now
+	}
+	if apiCl == nil {
+		apiCl = auth.NewRateLimiter(burst, time.Second)
+		apiCl.Now = ck.Now
+	}
 	var signupRL *auth.RateLimiter // nil: production default (burst auth.SignupBurst)
 	if !o.strictSignup {
 		signupRL = auth.NewRateLimiter(burst, time.Second)
@@ -179,12 +198,19 @@ func newHarness(t *testing.T, o harnessOpt) *harness {
 	}
 	svc, err := auth.New(cfg, auth.Options{Store: h.store, Logger: log, Client: idp.Server.Client(),
 		Endpoints: idp.Endpoints(), Now: ck.Now, StartLimit: h.start, CallbackLimit: cb, PasskeyLimit: pk,
-		AccountLimit: acctRL, SignupLimit: signupRL})
+		AccountLimit: acctRL, SignupLimit: signupRL, APITokenLimit: apiTok, APIClientLimit: apiCl})
 	if err != nil {
 		t.Fatal(err)
 	}
 	h.svc = svc
-	srv := web.New(web.Config{Store: site.New(pool), Logger: log})
+	wc := web.Config{Store: site.New(pool), Logger: log}
+	if o.seed {
+		wc.Store = wc.Store.WithClock(func() time.Time { return sitetest.Now })
+	}
+	if o.apiURL != "" {
+		wc.PublicURL, wc.APIURL = origin, o.apiURL
+	}
+	srv := web.New(wc)
 	h.srv = srv
 	svc.Register(srv)
 	// stand-in for a public HTML page (internal/webui registers the real ones)

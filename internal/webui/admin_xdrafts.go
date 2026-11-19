@@ -20,39 +20,50 @@ import (
 
 // AdminXDraft is one draft.
 type AdminXDraft struct {
-	ID          string
-	Version     int
-	Code        string // POC | ITW | KEV
-	CodeClass   string
-	CVE         string
-	CVEHref     string // the public detail page (this locale)
-	Created     Stamp
-	Body        string
-	Length      int // weighted, with the link
-	Over        bool
-	Compose     string // X's compose intent with body + "\n" + the absolute detail URL
-	Status      string // posted | discarded (history)
-	PostURL     string
-	By          string // handle ("" when the account has none)
-	ByHref      string // the decider's user page ("" when the account is gone)
-	Decided     Stamp
-	Discarded   bool
-	PostedNoURL bool
+	ID        string
+	Label     string // id of the element that names the draft (its checkbox's label)
+	Version   int
+	Code      string // POC | ITW | KEV
+	CodeClass string
+	CVE       string
+	CVEHref   string // the public detail page (this locale)
+	Created   Stamp
+	Body      string
+	Length    int // weighted, with the link
+	Over      bool
+	Compose   string // X's compose intent with body + "\n" + the absolute detail URL
+	// the image forms (docs/xposts.md "Forms"): the compose intent with the
+	// body alone, its weighted length (no link), the address card and its
+	// download name, and the link for the reply
+	ComposeAlone string
+	LengthAlone  int
+	OverAlone    bool
+	Card         string
+	CardName     string
+	Link         string
+	Form         string // posted drafts: the form used ("" = not recorded)
+	Status       string // posted | discarded (history)
+	PostURL      string
+	By           string // handle ("" when the account has none)
+	ByHref       string // the decider's user page ("" when the account is gone)
+	Decided      Stamp
+	Discarded    bool
+	PostedNoURL  bool
 }
 
 // AdminXDraftsView is the drafts page.
 type AdminXDraftsView struct {
 	Pending   []AdminXDraft
-	Total     int
-	Capped    bool
+	Total     int    // pending drafts in all
+	PendPager *Pager // pending drafts: numbered, ?dp=
+	Bulk      *BulkBar
 	History   []AdminXDraft
 	HistTotal int    // decided drafts in all
 	Page      int    // 1-based history page after clamping
 	Pages     int    // history pages (≥ 1)
-	HistPrev  string // pager links ("" when there is none)
-	HistNext  string
-	Max       int // X's weighted maximum
-	LinkCost  int // "\n" + a link
+	HistPager *Pager // nil on one page
+	Max       int    // X's weighted maximum
+	LinkCost  int    // "\n" + a link
 	HasRun    bool
 	RunAt     Stamp
 	Created   int64
@@ -68,26 +79,34 @@ type AdminXDraftsView struct {
 
 func (u *UI) adminXDrafts(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me *auth.User) {
 	a := u.opts.Admin
-	// ?page=N pages the history; anything that is not a positive number is page 1
-	hpage, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	pending, total, history, run, err := a.XDraftList(r.Context(), hpage)
+	// two numbered lists: ?dp= the pending drafts, ?page= the history
+	q := r.URL.Query()
+	pending, pw, history, run, err := a.XDraftList(r.Context(), pageParam(q, "dp"), pageParam(q, "page"))
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
 	}
-	v := AdminXDraftsView{Total: total, Capped: total > len(pending), Max: xdraft.MaxWeighted, LinkCost: xdraft.LinkCost}
+	v := AdminXDraftsView{Total: pw.Total, Max: xdraft.MaxWeighted, LinkCost: xdraft.LinkCost,
+		Bulk: newBulkBar("xd", []BulkAction{{Act: "discard", Label: loc.Text("admin.xd.discard"), Danger: true}})}
 	row := func(d admin.XDraft) AdminXDraft {
 		code := site.StageCode(d.Stage)
 		x := AdminXDraft{ID: strconv.FormatInt(d.ID, 10), Version: d.Version, Code: code, CodeClass: StageClass(code),
 			CVE: d.CVE, Created: instant(d.CreatedAt, stampLong), Body: plain(d.Body), Status: d.Status, By: plain(d.DecidedBy)}
-		if id, ok := site.ParseCVEID(d.CVE); ok && id == d.CVE {
+		if id, ok := site.ParseVulnID(d.CVE); ok && id == d.CVE {
 			x.CVEHref = loc.Path("/vuln/" + id)
 			// the post links the English page (the root path)
-			link := u.opts.BaseURL + u.locales.Primary().Path("/vuln/"+id)
+			link := u.canonURL(u.locales.Primary(), "/vuln/"+id)
 			x.Compose = xdraft.ComposeURL(d.Body, link)
+			x.ComposeAlone = xdraft.ComposeTextURL(d.Body)
+			x.Card, x.CardName, x.Link = addrCardPath(id), id+"-nday.png", link
 		}
 		x.Length = xdraft.WeightedLength(d.Body) + xdraft.LinkCost
 		x.Over = x.Length > xdraft.MaxWeighted
+		x.LengthAlone = xdraft.WeightedLength(d.Body)
+		x.OverAlone = !xdraft.FitsAlone(d.Body)
+		if xdraft.ValidForm(d.Form) {
+			x.Form = d.Form
+		}
 		if n, ok := xdraft.NormalizePostURL(d.PostURL); ok && n == d.PostURL {
 			x.PostURL = n
 		}
@@ -102,25 +121,17 @@ func (u *UI) adminXDrafts(w http.ResponseWriter, r *http.Request, loc *i18n.Loca
 		return x
 	}
 	for _, d := range pending {
-		v.Pending = append(v.Pending, row(d))
+		x := row(d)
+		x.Label = "lb-xd-" + x.ID
+		v.Pending = append(v.Pending, x)
 	}
 	for _, d := range history.Rows {
 		v.History = append(v.History, row(d))
 	}
 	v.HistTotal, v.Page, v.Pages = history.Total, history.Page, history.Pages
-	histHref := func(p int) string {
-		h := loc.Path("/admin/x/drafts")
-		if p > 1 {
-			h += "?page=" + strconv.Itoa(p)
-		}
-		return h + "#history"
-	}
-	if v.Page > 1 {
-		v.HistPrev = histHref(v.Page - 1)
-	}
-	if v.Page < v.Pages {
-		v.HistNext = histHref(v.Page + 1)
-	}
+	links := newAdminLinks(loc.Path("/admin/x/drafts"), q, "dp", "page")
+	v.PendPager = links.numbered(loc, pw, "dp", "r-xdpending")
+	v.HistPager = links.numbered(loc, admin.Window{Page: v.Page, Pages: v.Pages, Total: v.HistTotal}, "page", "r-xdhistory")
 	if run.LastRunAt != nil {
 		v.HasRun, v.RunAt = true, instant(*run.LastRunAt, stampLong)
 		num := func(k string) int64 {

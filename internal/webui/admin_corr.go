@@ -1,19 +1,16 @@
 package webui
 
 import (
-	"net/http"
-	"net/url"
-
-	"nday.land/nday/internal/admin"
 	"nday.land/nday/internal/auth"
 	"nday.land/nday/internal/corrections"
 	"nday.land/nday/internal/webui/i18n"
+	"net/http"
 )
 
 // /admin/corrections (docs/corrections.md): readers' corrections of
 // vulnerability pages. Staff (moderators and admins), like the moderation
 // page. Two lists: the open queue (oldest first) and the decided ones
-// (most recently decided first, ?state=decided), 30 per page with a cursor.
+// (most recently decided first, ?state=decided), numbered, 10 per page (?p=).
 // The submission, the evidence link and the notes are user or staff input:
 // escaped text, the link only through ExtLink (absolute http/https).
 // Accepting needs a public note; static/admin.js calls
@@ -44,8 +41,9 @@ type AdminCorrView struct {
 	State       string // pending | decided
 	Filters     []AdminFilter
 	Items       []AdminCorrItem
-	Next, First string
+	Pager       *Pager
 	Pending     int
+	Total       int // corrections in the list shown (every page)
 	MaxPublic   int
 	MaxInternal int
 }
@@ -58,25 +56,16 @@ func (u *UI) adminCorrections(w http.ResponseWriter, r *http.Request, loc *i18n.
 	if state != "decided" {
 		state = "pending"
 	}
-	after := admin.DecodeCursor(q.Get("c"))
-	list, next, pending, err := a.Corrections(r.Context(), state == "decided", after)
+	// numbered: ?p= (the queue and the decided list are small)
+	list, cw, pending, err := a.Corrections(r.Context(), state == "decided", pageParam(q, "p"))
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
 	}
-	v := AdminCorrView{State: state, Pending: pending, MaxPublic: corrections.MaxPublicNote, MaxInternal: corrections.MaxInternalNote}
-	keep := func(extra url.Values) string {
-		vs := url.Values{}
-		if state == "decided" {
-			vs.Set("state", state)
-		}
-		for k, x := range extra {
-			vs[k] = x
-		}
-		if len(vs) == 0 {
-			return base
-		}
-		return base + "?" + vs.Encode()
+	v := AdminCorrView{State: state, Pending: pending, Total: cw.Total, MaxPublic: corrections.MaxPublicNote, MaxInternal: corrections.MaxInternalNote}
+	links := newAdminLinks(base, q, "p")
+	if state == "decided" {
+		links.set("state", state)
 	}
 	for _, s := range []string{"pending", "decided"} {
 		href := base
@@ -85,12 +74,7 @@ func (u *UI) adminCorrections(w http.ResponseWriter, r *http.Request, loc *i18n.
 		}
 		v.Filters = append(v.Filters, AdminFilter{Value: s, Href: href, Current: s == state})
 	}
-	if next != nil {
-		v.Next = keep(url.Values{"c": {admin.EncodeCursor(next)}})
-	}
-	if after != nil {
-		v.First = keep(nil)
-	}
+	v.Pager = links.numbered(loc, cw, "p", "r-corr")
 	for _, c := range list {
 		it := AdminCorrItem{ID: c.ID, CVE: c.CVE, VulnHref: loc.Path("/vuln/" + c.CVE), Category: c.Category, Status: c.Status,
 			Body: plain(c.Body), At: instant(c.CreatedAt, stampLong)}

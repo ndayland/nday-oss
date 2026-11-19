@@ -3,8 +3,10 @@
 // docs/webpages.md) and the pass that fetches them. Producers call Enqueue
 // (today internal/xlinks for the links of X posts); FetchPending fetches
 // pending pages through internal/pagefetch (SSRF-guarded) and stores the
-// title and site name. This package knows nothing about where URLs come
-// from.
+// title, the site name and the publication time the page states
+// (pagefetch.ExtractPublished; with Options.Backfill it also re-fetches,
+// once each, 'ok' pages fetched before that time was read). This package
+// knows nothing about where URLs come from.
 package webpages
 
 import (
@@ -38,6 +40,15 @@ const (
 	DefaultLimit = 100
 	// Delay between two requests.
 	Delay = time.Second
+	// DefaultBackfill is the number of 'ok' pages a pass re-fetches for
+	// their publication time when the caller asks for the backfill
+	// (Options.Backfill; `nday pages-fetch` and the pass after
+	// `nday collect xposts` do).
+	DefaultBackfill = 20
+	// backfillReserve: the backfill stops when the context's deadline is
+	// nearer than this (one request may take pagefetch's 25 s), so a pass
+	// with a deadline ends on its own instead of with an error.
+	backfillReserve = 30 * time.Second
 	// UserAgent of every request (also the t.co resolver's, internal/xlinks).
 	UserAgent = "nday-linkresolver/1"
 )
@@ -95,6 +106,12 @@ type Options struct {
 	Now    func() time.Time
 	Sleep  func(ctx context.Context, d time.Duration) error
 	Logger *slog.Logger
+	// Backfill is the number of 'ok' pages not yet looked at for their
+	// publication time (web_page.published_checked_at NULL) to re-fetch
+	// after the pending ones, oldest first; 0 = none. Each such page is
+	// requested once: whatever the outcome, it is marked looked at, and only
+	// its publication time is written (its status, attempts and title stay).
+	Backfill int
 
 	extract func(*pagefetch.Page) pagefetch.Meta // tests only; nil = pagefetch.ExtractMeta
 }
@@ -110,6 +127,9 @@ type Result struct {
 	OtherHost  int `json:"other_host"` // redirected to another host: no title (counted in None too)
 	Panics     int `json:"panics"`     // handling the page panicked: 'none' (counted in None too)
 	Requests   int `json:"requests"`
+	Published  int `json:"published"` // pages stored with a publication time (fetched or re-fetched)
+	// Backfilled: 'ok' pages re-fetched for their publication time.
+	Backfilled int `json:"backfilled"`
 }
 
 type pending struct {
@@ -123,7 +143,9 @@ type pending struct {
 // first, at most Limit, ONE Get each (pagefetch: URL rules, connect-time
 // address guard, at most 3 redirects, 25 s, 512 KiB), Delay between
 // requests. A 200 HTML page with a
-// title (pagefetch.ExtractMeta) becomes 'ok' with title and site_name; a
+// title (pagefetch.ExtractMeta) becomes 'ok' with title and site_name
+// and the publication time it states (pagefetch.ExtractPublished, judged
+// against o.Now; every written row is marked looked at); a
 // transport error, 5xx, 408 or 429 adds one attempt ('failed' at
 // MaxAttempts); anything else — another status, not HTML, no usable title,
 // a refused URL, redirect or address — is 'none' (final). A URL that fails
@@ -136,6 +158,7 @@ type pending struct {
 // cancelled or expired context stops the pass between pages or during a
 // request (the error is ctx.Err()); rows not yet written keep their status
 // and attempts.
+// Then, with o.Backfill > 0, the backfill (backfill).
 func FetchPending(ctx context.Context, db DB, o Options) (Result, error) {
 	var res Result
 	if o.Limit <= 0 {
@@ -202,6 +225,9 @@ func FetchPending(ctx context.Context, db DB, o Options) (Result, error) {
 			return res, ctx.Err()
 		}
 		oc := outcomeOf(p, page, gerr, o.extract, o.Logger)
+		if oc.status == StatusOK {
+			oc.pub = publishedOf(p, page, gerr, o.Now().UTC(), o.Logger)
+		}
 		status, why, title, site := oc.status, oc.why, oc.title, oc.site
 		switch oc.flag {
 		case flagRefused:
@@ -224,12 +250,98 @@ func FetchPending(ctx context.Context, db DB, o Options) (Result, error) {
 		if why != "" {
 			o.Logger.Info("web page without title", "url_key", p.key, "status", status, "why", why, "attempt", p.attempts+1)
 		}
-		if _, err := db.Exec(ctx, `UPDATE web_page SET status = $2, attempts = attempts + 1, title = $3, site_name = $4, fetched_at = $5
-            WHERE url_key = $1 AND status IN ('pending', 'failed')`, p.key, status, title, site, o.Now().UTC()); err != nil {
+		var pubAt *time.Time
+		var pubPrec, pubSrc *string
+		if oc.pub != nil && status == StatusOK {
+			pubAt, pubPrec, pubSrc = &oc.pub.At, &oc.pub.Precision, &oc.pub.Source
+			res.Published++
+		}
+		now := o.Now().UTC()
+		if _, err := db.Exec(ctx, `UPDATE web_page SET status = $2, attempts = attempts + 1, title = $3, site_name = $4, fetched_at = $5,
+                published_at = $6, published_precision = $7, published_source = $8, published_checked_at = $5
+            WHERE url_key = $1 AND status IN ('pending', 'failed')`, p.key, status, title, site, now, pubAt, pubPrec, pubSrc); err != nil {
 			return res, err
 		}
 	}
+	if o.Backfill > 0 {
+		return res, backfill(ctx, db, o, &res)
+	}
 	return res, nil
+}
+
+// backfill re-fetches up to o.Backfill 'ok' pages whose publication time
+// was never looked for (published_checked_at NULL), oldest first, and
+// stores only that: the time when the page (200 HTML, same host) states a
+// plausible one, and the mark. A failure of any kind only sets the mark,
+// so each page is requested once; status, attempts and title never change
+// here. It stops early, without an error, when ctx's deadline is near
+// (backfillReserve).
+func backfill(ctx context.Context, db DB, o Options, res *Result) error {
+	rows, err := db.Query(ctx, `SELECT url_key, url FROM web_page
+        WHERE status = 'ok' AND published_checked_at IS NULL
+        ORDER BY created_at, url_key LIMIT $1`, o.Backfill)
+	if err != nil {
+		return err
+	}
+	todo, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (pending, error) {
+		var p pending
+		return p, r.Scan(&p.key, &p.url)
+	})
+	if err != nil {
+		return err
+	}
+	for _, p := range todo {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if dl, ok := ctx.Deadline(); ok && time.Until(dl) < backfillReserve {
+			return nil
+		}
+		var pub *pagefetch.Published
+		if _, err := pagefetch.CheckURL(p.url); err == nil {
+			if res.Requests > 0 {
+				if err := o.Sleep(ctx, Delay); err != nil {
+					return err
+				}
+			}
+			res.Requests++
+			page, gerr := o.Client.Get(ctx, p.url)
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			pub = publishedOf(p, page, gerr, o.Now().UTC(), o.Logger)
+		}
+		res.Backfilled++
+		var pubAt *time.Time
+		var pubPrec, pubSrc *string
+		if pub != nil {
+			pubAt, pubPrec, pubSrc = &pub.At, &pub.Precision, &pub.Source
+			res.Published++
+		}
+		if _, err := db.Exec(ctx, `UPDATE web_page SET published_at = $2, published_precision = $3, published_source = $4, published_checked_at = $5
+            WHERE url_key = $1 AND status = 'ok' AND published_checked_at IS NULL`, p.key, pubAt, pubPrec, pubSrc, o.Now().UTC()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// publishedOf is the publication time of a re-fetched page: only from a
+// 200 HTML page on the queued URL's host; nil otherwise or on a panic.
+func publishedOf(p pending, page *pagefetch.Page, gerr error, now time.Time, log *slog.Logger) (out *pagefetch.Published) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("web page handling panicked", "url_key", p.key, "panic", fmt.Sprint(r))
+			out = nil
+		}
+	}()
+	if gerr != nil || page == nil || !page.IsHTML() || !sameHost(p.url, page.URL) {
+		return nil
+	}
+	if pub, ok := pagefetch.ExtractPublished(page, now); ok {
+		return &pub
+	}
+	return nil
 }
 
 type flag int
@@ -245,6 +357,7 @@ type outcome struct {
 	status, why string
 	title, site *string
 	flag        flag
+	pub         *pagefetch.Published // set by FetchPending for an 'ok' page
 }
 
 // outcomeOf decides the new status of page p from the Get result. A panic

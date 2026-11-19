@@ -73,11 +73,14 @@ const (
 )
 
 // Result is one handle's answer: on Found, ID and Handle (the canonical
-// spelling X returned) are set.
+// spelling X returned) are set, and Name and Description (the display name
+// and the profile description: user text, show it only escaped).
 type Result struct {
-	Outcome Outcome
-	ID      string
-	Handle  string
+	Outcome     Outcome
+	ID          string
+	Handle      string
+	Name        string
+	Description string
 }
 
 // Options configures New.
@@ -181,8 +184,10 @@ type problem struct {
 
 type response struct {
 	Data []struct {
-		ID       string `json:"id"`
-		Username string `json:"username"`
+		ID          string `json:"id"`
+		Username    string `json:"username"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
 	} `json:"data"`
 	Errors []problem `json:"errors"`
 }
@@ -195,6 +200,7 @@ func (c *Client) lookup(parent context.Context, batch []string, out map[string]R
 	defer cancel()
 	v := url.Values{}
 	v.Set("usernames", strings.Join(batch, ","))
+	v.Set("user.fields", "description") // id, name and username come by default
 	hdr := http.Header{}
 	hdr.Set("Authorization", "Bearer "+c.token)
 	hdr.Set("Accept", "application/json")
@@ -232,7 +238,7 @@ func (c *Client) lookup(parent context.Context, batch []string, out map[string]R
 		if !xconfig.ValidUserID(u.ID) || !xconfig.ValidHandle(u.Username) {
 			return fmt.Errorf("%w: response holds an invalid user id or username", ErrUpstream)
 		}
-		out[k] = Result{Outcome: Found, ID: u.ID, Handle: u.Username}
+		out[k] = Result{Outcome: Found, ID: u.ID, Handle: u.Username, Name: u.Name, Description: u.Description}
 	}
 	for _, p := range r.Errors {
 		s, _ := p.Value.(string)

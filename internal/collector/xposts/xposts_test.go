@@ -2,6 +2,7 @@ package xposts_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -139,9 +140,95 @@ func TestExtractCVEs(t *testing.T) {
 	}
 }
 
+func jsonStr(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
+func TestExtractGHSAs(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want []string
+	}{
+		{"ghsa-2cm2-m3w5-gp2f and GHSA-2CM2-M3W5-GP2F, GHSA-jmqv-2mx7-544h", []string{"GHSA-2cm2-m3w5-gp2f", "GHSA-jmqv-2mx7-544h"}},
+		{"https://github.com/advisories/GHSA-2cm2-m3w5-gp2f.", []string{"GHSA-2cm2-m3w5-gp2f"}},
+		{"https://github.com/foo/bar/security/advisories/GHSA-Jmqv-2mx7-544H?x=1", []string{"GHSA-jmqv-2mx7-544h"}},
+		{"在野利用GHSA-2cm2-m3w5-gp2f，见公告", []string{"GHSA-2cm2-m3w5-gp2f"}},
+		{"CVE-2026-1111 / GHSA-2cm2-m3w5-gp2f", []string{"GHSA-2cm2-m3w5-gp2f"}},
+		// letters outside GitHub's alphabet (a, b, d, e, i, k, l, n, o, s, t, u, y, z, 0, 1), short or glued ids
+		{"GHSA-aaaa-bbbb-cccc GHSA-2cm2-m3w5-gp2a GHSA-0cm2-m3w5-gp2f GHSA-2cm2-m3w5-gp2 XGHSA-2cm2-m3w5-gp2f GHSA_2cm2_m3w5_gp2f GHSA-2cm2-m3w5-gp2fa", nil},
+		{"no ids", nil},
+	} {
+		if got := xposts.ExtractGHSAs(tc.in); !slices.Equal(got, tc.want) {
+			t.Errorf("%q: %v want %v", tc.in, got, tc.want)
+		}
+		for _, g := range xposts.ExtractGHSAs(tc.in) {
+			if !model.IsGHSAID(g) {
+				t.Errorf("%q: %q is not canonical", tc.in, g)
+			}
+		}
+	}
+	// CVE ids are unaffected by GHSA ids and the other way round
+	if got := xposts.ExtractCVEs("GHSA-2cm2-m3w5-gp2f"); got != nil {
+		t.Errorf("%v", got)
+	}
+}
+
+// One post with a CVE id and a GHSA id: events for both (the pipeline turns
+// them into one when the GHSA id is an alias of the CVE), same detail; a post
+// with only a GHSA id gives its event and also the x_post_no_cve row.
+func TestNormalizeGHSA(t *testing.T) {
+	c := newC(t, script(t), nil, nil, "", nil)
+	norm := func(text string) *model.Normalized {
+		t.Helper()
+		v, err := pyjson.DecodeString(`{"post": {"id": "7", "author_id": "1", "created_at": "2026-11-12T00:00:00Z", "text": ` +
+			jsonStr(text) + `}, "author": {"id": "1", "username": "alice_sec"}}`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		n, err := c.Normalize(model.RawRecord{Source: xposts.Name, SourceKey: "7", Payload: v})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := n.Validate(); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	ids := func(n *model.Normalized) []string {
+		var out []string
+		for _, e := range n.Events {
+			out = append(out, e.CVEID)
+		}
+		return out
+	}
+	n := norm("CVE-2026-1111 is GHSA-2CM2-M3W5-GP2F")
+	if !slices.Equal(ids(n), []string{"CVE-2026-1111", "GHSA-2cm2-m3w5-gp2f"}) || len(n.PostsNoCVE) != 0 {
+		t.Fatalf("%v %d", ids(n), len(n.PostsNoCVE))
+	}
+	if pyjson.Repr(n.Events[0].Detail) != pyjson.Repr(n.Events[1].Detail) || n.Events[0].DedupeKey != n.Events[1].DedupeKey ||
+		n.Events[0].Detail["ghsas"] == nil {
+		t.Errorf("details differ: %v / %v", n.Events[0].Detail, n.Events[1].Detail)
+	}
+	n = norm("advisory https://github.com/advisories/GHSA-2cm2-m3w5-gp2f")
+	if !slices.Equal(ids(n), []string{"GHSA-2cm2-m3w5-gp2f"}) || len(n.PostsNoCVE) != 1 || n.PostsNoCVE[0].PostID != "7" {
+		t.Fatalf("%v %d", ids(n), len(n.PostsNoCVE))
+	}
+	// no ghsas key for a post without one (events of CVE-only posts do not change)
+	n = norm("CVE-2026-1111")
+	if _, ok := n.Events[0].Detail["ghsas"]; ok {
+		t.Error("ghsas key on a CVE-only post")
+	}
+	// an invalid GHSA id is no id: the post is a plain no-id post
+	n = norm("GHSA-aaaa-bbbb-cccc soon")
+	if len(n.Events) != 0 || len(n.PostsNoCVE) != 1 {
+		t.Fatalf("%v %d", ids(n), len(n.PostsNoCVE))
+	}
+}
+
 func TestBuildQueries(t *testing.T) {
 	q, err := xposts.BuildQueries(accounts, 512)
-	if err != nil || len(q) != 1 || q[0] != "(from:bob_sec OR from:alice_sec) CVE -is:retweet" {
+	if err != nil || len(q) != 1 || q[0] != "(from:bob_sec OR from:alice_sec) (CVE OR GHSA) -is:retweet" {
 		t.Fatalf("%q %v", q, err)
 	}
 	var many []xconfig.Account
@@ -168,6 +255,19 @@ func TestBuildQueries(t *testing.T) {
 			t.Errorf("max %d: %d accounts in queries", maxLen, n)
 		}
 	}
+	// the fixed part (head + tail) counts against the limit: with 15-char
+	// handles at 64 chars one account fits and two do not
+	one := []xconfig.Account{{UserID: "1", Handle: strings.Repeat("a", 15)}}
+	q1, err := xposts.BuildQueries(one, 64)
+	if err != nil || len(q1) != 1 || q1[0] != "(from:"+strings.Repeat("a", 15)+") (CVE OR GHSA) -is:retweet" || len(q1[0]) > 64 {
+		t.Fatalf("%q %v", q1, err)
+	}
+	if _, err := xposts.BuildQueries(one, 47); err == nil { // fixed 28 + 20 > 47
+		t.Error("account longer than the limit accepted")
+	}
+	if _, err := xposts.BuildQueries(one, 48); err != nil {
+		t.Error(err)
+	}
 	if _, err := xposts.BuildQueries(accounts[:1], 20); err == nil {
 		t.Error("too short max length accepted")
 	}
@@ -188,7 +288,7 @@ func TestFetchFirstRun(t *testing.T) {
 		t.Fatalf("%d requests", len(ft.Requests))
 	}
 	q1, q2 := query(t, ft.Requests[0].URL), query(t, ft.Requests[1].URL)
-	if q1.Get("query") != "(from:alice_sec OR from:bob_sec) CVE -is:retweet" || q1.Get("start_time") != "2026-11-06T13:00:00Z" ||
+	if q1.Get("query") != "(from:alice_sec OR from:bob_sec) (CVE OR GHSA) -is:retweet" || q1.Get("start_time") != "2026-11-06T13:00:00Z" ||
 		q1.Has("since_id") || q1.Get("max_results") != "100" ||
 		q1.Get("expansions") != "author_id,referenced_tweets.id,referenced_tweets.id.author_id,entities.mentions.username" ||
 		q1.Get("tweet.fields") != "author_id,created_at,lang,entities,note_tweet,referenced_tweets" || q1.Get("user.fields") != "username" || q1.Has("pagination_token") {
@@ -266,7 +366,7 @@ func TestFetchBatches(t *testing.T) {
 	ft := script(t, step{status: 200, file: "search_page1.json"}, step{status: 200, file: "search_page2.json"},
 		step{status: 200, file: "search_empty.json"})
 	s := xconfig.Defaults
-	s.MaxQueryLength = 40
+	s.MaxQueryLength = 50
 	c := newC(t, ft, &s, accounts, token, nil)
 	res, err := c.Fetch(context.Background(), model.CollectorState{Source: xposts.Name})
 	if err != nil {
@@ -276,7 +376,7 @@ func TestFetchBatches(t *testing.T) {
 		t.Fatalf("%d requests", len(ft.Requests))
 	}
 	got := []string{query(t, ft.Requests[0].URL).Get("query"), query(t, ft.Requests[1].URL).Get("query"), query(t, ft.Requests[2].URL).Get("query")}
-	want := []string{"(from:alice_sec) CVE -is:retweet", "(from:alice_sec) CVE -is:retweet", "(from:bob_sec) CVE -is:retweet"}
+	want := []string{"(from:alice_sec) (CVE OR GHSA) -is:retweet", "(from:alice_sec) (CVE OR GHSA) -is:retweet", "(from:bob_sec) (CVE OR GHSA) -is:retweet"}
 	if !slices.Equal(got, want) {
 		t.Errorf("%q", got)
 	}
@@ -481,7 +581,7 @@ func TestFetchKeepsNoCVE(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ft.Requests) != 1 || query(t, ft.Requests[0].URL).Get("query") != "(from:alice_sec OR from:bob_sec) CVE -is:retweet" {
+	if len(ft.Requests) != 1 || query(t, ft.Requests[0].URL).Get("query") != "(from:alice_sec OR from:bob_sec) (CVE OR GHSA) -is:retweet" {
 		t.Fatalf("%d requests", len(ft.Requests))
 	}
 	var keys []string

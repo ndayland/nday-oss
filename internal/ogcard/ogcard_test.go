@@ -2,6 +2,7 @@ package ogcard
 
 import (
 	"bytes"
+	"image"
 	"image/png"
 	"strings"
 	"testing"
@@ -146,4 +147,57 @@ func TestTextFits(t *testing.T) {
 	if s := fit(face, "", strings.Repeat("9", 300), 100); s == "" {
 		t.Error("fit of an over-long tail returned nothing")
 	}
+}
+
+// TestAddressCard: the address card prints the address in place of the
+// brand, only in the header band; it has its own key; a card without an
+// address keeps the key it had before the field existed (the plain cards'
+// URLs do not change).
+func TestAddressCard(t *testing.T) {
+	plain := sample()
+	if plain.Key() != "8cec58c08e" { // sample().Key() at b705e83, before Address
+		t.Errorf("plain key changed: %s", plain.Key())
+	}
+	addr := sample()
+	addr.Address = "nday.land/vuln/CVE-2026-102895"
+	if addr.Key() == plain.Key() {
+		t.Error("the address card has the plain card's key")
+	}
+	a, p := decode(t, render(t, addr)), decode(t, render(t, plain))
+	head, body := 0, 0
+	for y := 0; y < Height; y++ {
+		for x := 0; x < Width; x++ {
+			if a.At(x, y) != p.At(x, y) {
+				if y < ruleY {
+					head++
+				} else {
+					body++
+				}
+			}
+		}
+	}
+	if head == 0 || body != 0 {
+		t.Errorf("differing pixels: %d in the header, %d below it", head, body)
+	}
+	// the host alone is the brand: the same picture as the plain card
+	brand := sample()
+	brand.Address = "nday.land"
+	if !bytes.Equal(render(t, brand), render(t, plain)) {
+		t.Error("host-only address differs from the brand")
+	}
+	// the longest address with everything on the right still renders
+	long := Card{CVE: "GHSA-aaaa-bbbb-cccc", Rejected: true, Change: "KEV", TPlus: "T+12345d",
+		Address: "nday.land/vuln/GHSA-aaaa-bbbb-cccc"}
+	if _, err := Render(long); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func decode(t *testing.T, b []byte) image.Image {
+	t.Helper()
+	img, err := png.Decode(bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return img
 }

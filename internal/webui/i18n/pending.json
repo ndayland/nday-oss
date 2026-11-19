@@ -80,6 +80,24 @@
       "since": "2026-11-15"
     },
     {
+      "key": "vuln.withdrawn.banner",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "vulnerability pages of a withdrawn GitHub advisory without a CVE: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-16"
+    },
+    {
+      "key": "vuln.withdrawn.banner_at",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "vulnerability pages of a withdrawn GitHub advisory without a CVE: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-16"
+    },
+    {
+      "key": "status.withdrawn",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "status paragraph of a withdrawn GitHub advisory without a CVE: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-16"
+    },
+    {
       "key": "vuln.summary.upstream",
       "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
       "why": "vulnerability pages: which upstream record an untranslated summary is the text of; en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",

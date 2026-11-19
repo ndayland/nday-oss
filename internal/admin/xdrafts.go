@@ -11,6 +11,7 @@ import (
 
 	"nday.land/nday/internal/audit"
 	"nday.land/nday/internal/site"
+	"nday.land/nday/internal/xdraft"
 )
 
 // Draft posts for the brand X account (/admin/x/drafts; docs/admin.md,
@@ -27,10 +28,10 @@ const (
 	DraftDiscarded = "discarded"
 )
 
-// Page sizes of /admin/x/drafts (hard caps, newest first).
+// Page sizes of /admin/x/drafts (both numbered, newest first).
 const (
-	XDraftsPage  = 50
-	XHistoryPage = 20 // decided drafts per page
+	XDraftsPage  = ListPage // pending drafts per page
+	XHistoryPage = ListPage // decided drafts per page
 )
 
 // XDraftHistory is one page of the decided drafts (posted and discarded,
@@ -50,6 +51,7 @@ type XDraft struct {
 	Body       string
 	Status     string
 	PostURL    string
+	Form       string // how it was posted (xdraft.Forms); "" = not posted, or posted before forms existed
 	Version    int
 	DecidedBy  string // handle ("" when none or the account is gone)
 	DecidedAt  *time.Time
@@ -66,17 +68,21 @@ type XDraftRun struct {
 	Summary     map[string]any
 }
 
-// XDraftList reads the pending drafts (newest first, at most XDraftsPage),
-// their total, one page of the history (posted and discarded, newest
-// decision first, XHistoryPage per page) and the generator's state. hpage
-// is the 1-based history page; a page below 1 or past the end is clamped.
-func (s *Service) XDraftList(ctx context.Context, hpage int) (pending []XDraft, total int, history XDraftHistory, run *XDraftRun, err error) {
+// XDraftList reads one page of the pending drafts (newest first,
+// XDraftsPage per page; pw is its window), their total, one page of the
+// history (posted and discarded, newest decision first, XHistoryPage per
+// page) and the generator's state. ppage and hpage are the 1-based pages;
+// a page below 1 or past the end is clamped.
+func (s *Service) XDraftList(ctx context.Context, ppage, hpage int) (pending []XDraft, pw Window, history XDraftHistory, run *XDraftRun, err error) {
 	scan := func(rows pgx.Rows) ([]XDraft, error) {
 		return pgx.CollectRows(rows, func(r pgx.CollectableRow) (XDraft, error) {
 			var d XDraft
-			var url, by, uid *string
-			err := r.Scan(&d.ID, &d.CVE, &d.Stage, &d.EventID, &d.Body, &d.Status, &url, &d.Version, &uid, &by, &d.DecidedAt,
+			var url, by, uid, form *string
+			err := r.Scan(&d.ID, &d.CVE, &d.Stage, &d.EventID, &d.Body, &d.Status, &url, &form, &d.Version, &uid, &by, &d.DecidedAt,
 				&d.CreatedAt, &d.UpdatedAt)
+			if form != nil {
+				d.Form = *form
+			}
 			if url != nil {
 				d.PostURL = *url
 			}
@@ -89,18 +95,21 @@ func (s *Service) XDraftList(ctx context.Context, hpage int) (pending []XDraft, 
 			return d, err
 		})
 	}
-	const cols = `d.id, d.cve_id, d.stage, d.event_id, d.body, d.status, d.post_url, d.version, d.decided_by::text, u.handle,
+	const cols = `d.id, d.cve_id, d.stage, d.event_id, d.body, d.status, d.post_url, d.form, d.version, d.decided_by::text, u.handle,
 		d.decided_at, d.created_at, d.updated_at FROM x_draft d LEFT JOIN users u ON u.id = d.decided_by`
 	run = &XDraftRun{}
 	err = s.o.ReadDB.WithConn(ctx, func(c *pgx.Conn) error {
-		rows, err := c.Query(ctx, `SELECT `+cols+` WHERE d.status = 'draft' ORDER BY d.created_at DESC, d.id DESC LIMIT $1`, XDraftsPage)
+		var total int
+		if err := c.QueryRow(ctx, `SELECT count(*) FROM x_draft WHERE status = 'draft'`).Scan(&total); err != nil {
+			return err
+		}
+		pw = window(total, ppage)
+		rows, err := c.Query(ctx, `SELECT `+cols+` WHERE d.status = 'draft' ORDER BY d.created_at DESC, d.id DESC LIMIT $1 OFFSET $2`,
+			XDraftsPage, pw.Offset())
 		if err != nil {
 			return err
 		}
 		if pending, err = scan(rows); err != nil {
-			return err
-		}
-		if err := c.QueryRow(ctx, `SELECT count(*) FROM x_draft WHERE status = 'draft'`).Scan(&total); err != nil {
 			return err
 		}
 		if err := c.QueryRow(ctx, `SELECT count(*) FROM x_draft WHERE status <> 'draft'`).Scan(&history.Total); err != nil {
@@ -126,7 +135,7 @@ func (s *Service) XDraftList(ctx context.Context, hpage int) (pending []XDraft, 
 		}
 		return err
 	})
-	return pending, total, history, run, err
+	return pending, pw, history, run, err
 }
 
 // Refusals of the draft actions.
@@ -134,6 +143,9 @@ var (
 	ErrDraftNotFound = errors.New("no such draft")
 	ErrDraftState    = errors.New("the draft is not in a state that allows this")
 	ErrDraftStale    = errors.New("the draft was changed since the page was loaded")
+	// ErrDraftLinkTooLong: marked posted in the link form with a text that
+	// does not fit next to the link (only the image forms can post it).
+	ErrDraftLinkTooLong = errors.New("the text is too long to post with the link")
 )
 
 // draftLabel is the audit label: "CVE-2026-1234 +KEV".
@@ -145,8 +157,29 @@ func draftLabel(cve, stage string) string { return cve + " +" + site.StageCode(s
 // changes it tells why: not found, wrong status, stale version.
 func (s *Service) draftAction(ctx context.Context, actor string, id int64, version int, from, set, extra, action string,
 	details func(cve, stage string) map[string]any, args ...any) (int, error) {
+	return s.draftActionPre(ctx, actor, id, version, from, set, extra, action, nil, details, args...)
+}
+
+// draftActionPre is draftAction with a check of the row as it is (locked,
+// at the version the page was rendered with) before the UPDATE; pre is
+// not called when no such row is pending (the UPDATE then says why).
+func (s *Service) draftActionPre(ctx context.Context, actor string, id int64, version int, from, set, extra, action string,
+	pre func(body string) error, details func(cve, stage string) map[string]any, args ...any) (int, error) {
 	var newVersion int
 	err := s.writeTx(ctx, actor, func(tx pgx.Tx) error {
+		if pre != nil {
+			var body string
+			err := tx.QueryRow(ctx, `SELECT body FROM x_draft WHERE id = $1 AND version = $2 AND status = '`+from+`' FOR UPDATE`,
+				id, version).Scan(&body)
+			switch {
+			case err == nil:
+				if err := pre(body); err != nil {
+					return err
+				}
+			case !errors.Is(err, pgx.ErrNoRows):
+				return err
+			}
+		}
 		var cve, stage string
 		err := tx.QueryRow(ctx, `UPDATE x_draft SET `+set+`, version = version + 1, updated_at = now()
 			WHERE id = $1 AND version = $2 AND status = '`+from+`'`+extra+`
@@ -188,17 +221,27 @@ func (s *Service) XDraftSave(ctx context.Context, actor string, id int64, versio
 }
 
 // XDraftPosted marks a pending draft posted, with the post's URL (already
-// normalised) or none.
-func (s *Service) XDraftPosted(ctx context.Context, actor string, id int64, version int, postURL *string) (int, error) {
-	return s.draftAction(ctx, actor, id, version, DraftPending,
-		`status = 'posted', post_url = $3, decided_by = $4::uuid, decided_at = now()`, "", audit.XDraftPosted,
+// normalised) or none, and the form it was posted in (one of
+// xdraft.Forms, validated by the caller; the table's CHECK repeats it).
+// ErrDraftLinkTooLong for form link when the text does not fit with the
+// link (the save check allows up to xdraft.MaxWeighted for the image forms).
+func (s *Service) XDraftPosted(ctx context.Context, actor string, id int64, version int, postURL *string, form string) (int, error) {
+	// a text over the link budget can only have been posted without the link
+	pre := func(body string) error {
+		if form == xdraft.FormLink && !xdraft.FitsWithLink(body) {
+			return ErrDraftLinkTooLong
+		}
+		return nil
+	}
+	return s.draftActionPre(ctx, actor, id, version, DraftPending,
+		`status = 'posted', post_url = $3, decided_by = $4::uuid, decided_at = now(), form = $5`, "", audit.XDraftPosted, pre,
 		func(string, string) map[string]any {
-			d := map[string]any{}
+			d := map[string]any{"form": form}
 			if postURL != nil {
 				d["post_url"] = *postURL
 			}
 			return d
-		}, postURL, actor)
+		}, postURL, actor, form)
 }
 
 // XDraftDiscard discards a pending draft.

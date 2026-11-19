@@ -4,83 +4,87 @@
 
 ### kev_t5_patch_0of3 (CVE-2026-102895 shape)
 keys: status.lead.after.kev + status.patch.fixed + status.poc.none
-Se incluyó en el KEV 5 días después de la divulgación. Versión corregida: gpustack 2.2.0. Ninguna de las tres fuentes de PoC la recoge.
+Se incluyó en el KEV 5 días después de la divulgación. Versión corregida: gpustack 2.2.0. Ninguna de las cuatro fuentes de PoC la recoge.
 
 ### stub_no_record_kev_no_patch
 keys: status.no_record + status.kev.at + status.patch.none + status.poc.none
-nday aún no ha obtenido el registro CVE oficial de este identificador; se desconoce la fecha de divulgación. Fecha de inclusión en el KEV de CISA: 2026-11-09. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las tres fuentes de PoC la recoge.
+nday aún no ha obtenido el registro CVE oficial de este identificador; se desconoce la fecha de divulgación. Fecha de inclusión en el KEV de CISA: 2026-11-09. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las cuatro fuentes de PoC la recoge.
 
 ### disclosed_only
 keys: status.disclosed_at + status.patch.none + status.poc.none + status.kev.not_listed
-Fecha de divulgación: 2026-11-04T21:16Z. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las tres fuentes de PoC la recoge. No figura en el KEV de CISA.
+Fecha de divulgación: 2026-11-04T21:16Z. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las cuatro fuentes de PoC la recoge. No figura en el KEV de CISA.
 
 ### kev_same_day
 keys: status.lead.same_day + status.patch.none + status.poc.none
-Se incluyó en el KEV de CISA el mismo día de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las tres fuentes de PoC la recoge.
+Se incluyó en el KEV de CISA el mismo día de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las cuatro fuentes de PoC la recoge.
 
 ### kev_1_day_after
 keys: status.lead.after.kev + status.patch.none + status.poc.none
-Se incluyó en el KEV 1 día después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las tres fuentes de PoC la recoge.
+Se incluyó en el KEV 1 día después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las cuatro fuentes de PoC la recoge.
 
 ### kev_before_record_20d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-Se incluyó en el KEV 20 días antes de que se publicara el registro CVE. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las tres fuentes de PoC la recoge.
+Se incluyó en el KEV 20 días antes de que se publicara el registro CVE. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las cuatro fuentes de PoC la recoge.
 
 ### kev_before_record_1d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-Se incluyó en el KEV 1 día antes de que se publicara el registro CVE. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las tres fuentes de PoC la recoge.
+Se incluyó en el KEV 1 día antes de que se publicara el registro CVE. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las cuatro fuentes de PoC la recoge.
 
-### poc_t7_2of3
+### poc_t7_2of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-Apareció una PoC pública 7 días después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. La recogen 2 de las 3 fuentes de PoC: exploitdb y nuclei. No figura en el KEV de CISA.
+Apareció una PoC pública 7 días después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. La recogen 2 de las 4 fuentes de PoC: exploitdb y nuclei. No figura en el KEV de CISA.
 
-### poc_t1_1of3
+### poc_t1_1of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-Apareció una PoC pública 1 día después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. La recoge 1 de las 3 fuentes de PoC: metasploit. No figura en el KEV de CISA.
+Apareció una PoC pública 1 día después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. La recoge 1 de las 4 fuentes de PoC: metasploit. No figura en el KEV de CISA.
 
-### poc_time_unknown_3of3
+### poc_time_unknown_4of4
 keys: status.disclosed_at + status.patch.none + status.poc.all + status.kev.not_listed
-Fecha de divulgación: 2026-11-04T21:16Z. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. La recogen las tres fuentes de PoC. No figura en el KEV de CISA.
+Fecha de divulgación: 2026-11-04T21:16Z. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. La recogen las cuatro fuentes de PoC. No figura en el KEV de CISA.
+
+### poc_t30_github_only
+keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
+Apareció una PoC pública 30 días después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. La recoge 1 de las 4 fuentes de PoC: github. No figura en el KEV de CISA.
 
 ### patch_t3_known
 keys: status.lead.after.pat + status.patch.fixed + status.poc.none + status.kev.not_listed
-Hay constancia de un parche 3 días después de la divulgación. Versiones corregidas: a 1.0.1 y b 2.0. Ninguna de las tres fuentes de PoC la recoge. No figura en el KEV de CISA.
+Hay constancia de un parche 3 días después de la divulgación. Versiones corregidas: a 1.0.1 y b 2.0. Ninguna de las cuatro fuentes de PoC la recoge. No figura en el KEV de CISA.
 
 ### patch_same_day
 keys: status.lead.same_day + status.patch.no_version + status.poc.none + status.kev.not_listed
-Hay constancia de un parche el mismo día de la divulgación. Hay un parche registrado, pero la fuente no indica la versión corregida. Ninguna de las tres fuentes de PoC la recoge. No figura en el KEV de CISA.
+Hay constancia de un parche el mismo día de la divulgación. Hay un parche registrado, pero la fuente no indica la versión corregida. Ninguna de las cuatro fuentes de PoC la recoge. No figura en el KEV de CISA.
 
 ### patch_before_record_2d
 keys: status.lead.before.pat + status.patch.no_version + status.poc.none + status.kev.not_listed
-Hay constancia de un parche 2 días antes de que se publicara el registro CVE. Hay un parche registrado, pero la fuente no indica la versión corregida. Ninguna de las tres fuentes de PoC la recoge. No figura en el KEV de CISA.
+Hay constancia de un parche 2 días antes de que se publicara el registro CVE. Hay un parche registrado, pero la fuente no indica la versión corregida. Ninguna de las cuatro fuentes de PoC la recoge. No figura en el KEV de CISA.
 
 ### analysis_t2
 keys: status.lead.after.ana + status.patch.none + status.poc.none + status.kev.not_listed
-Se publicó un análisis técnico 2 días después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las tres fuentes de PoC la recoge. No figura en el KEV de CISA.
+Se publicó un análisis técnico 2 días después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las cuatro fuentes de PoC la recoge. No figura en el KEV de CISA.
 
 ### itw_t12
 keys: status.lead.after.itw + status.patch.none + status.poc.none + status.kev.not_listed
-Hay constancia de explotación activa 12 días después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las tres fuentes de PoC la recoge. No figura en el KEV de CISA.
+Hay constancia de explotación activa 12 días después de la divulgación. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las cuatro fuentes de PoC la recoge. No figura en el KEV de CISA.
 
 ### itw_before_record_3d
 keys: status.lead.before.itw + status.patch.none + status.poc.none + status.kev.not_listed
-Hay constancia de explotación activa 3 días antes de que se publicara el registro CVE. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las tres fuentes de PoC la recoge. No figura en el KEV de CISA.
+Hay constancia de explotación activa 3 días antes de que se publicara el registro CVE. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las cuatro fuentes de PoC la recoge. No figura en el KEV de CISA.
 
 ### patch_without_fixed_version
 keys: status.disclosed_at + status.patch.no_version + status.poc.none + status.kev.not_listed
-Fecha de divulgación: 2026-11-04T21:16Z. Hay un parche registrado, pero la fuente no indica la versión corregida. Ninguna de las tres fuentes de PoC la recoge. No figura en el KEV de CISA.
+Fecha de divulgación: 2026-11-04T21:16Z. Hay un parche registrado, pero la fuente no indica la versión corregida. Ninguna de las cuatro fuentes de PoC la recoge. No figura en el KEV de CISA.
 
 ### two_fixed_versions
 keys: status.disclosed_at + status.patch.fixed + status.poc.none + status.kev.not_listed
-Fecha de divulgación: 2026-11-04T21:16Z. Versiones corregidas: a 1 y b 2. Ninguna de las tres fuentes de PoC la recoge. No figura en el KEV de CISA.
+Fecha de divulgación: 2026-11-04T21:16Z. Versiones corregidas: a 1 y b 2. Ninguna de las cuatro fuentes de PoC la recoge. No figura en el KEV de CISA.
 
 ### many_fixed_versions
 keys: status.disclosed_at + status.patch.fixed_many + status.poc.none + status.kev.not_listed
-Fecha de divulgación: 2026-11-04T21:16Z. Versiones corregidas: a 1, b 2 y 1 más. Ninguna de las tres fuentes de PoC la recoge. No figura en el KEV de CISA.
+Fecha de divulgación: 2026-11-04T21:16Z. Versiones corregidas: a 1, b 2 y 1 más. Ninguna de las cuatro fuentes de PoC la recoge. No figura en el KEV de CISA.
 
 ### disclosure_unknown_kev_time_unknown
 keys: status.disclosure_unknown + status.kev.time_unknown + status.patch.none + status.poc.none
-Se desconoce la fecha de divulgación. Figura en el KEV de CISA; se desconoce la fecha de inclusión. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las tres fuentes de PoC la recoge.
+Se desconoce la fecha de divulgación. Figura en el KEV de CISA; se desconoce la fecha de inclusión. nday aún no tiene constancia de una corrección; eso no significa que no exista parche. Ninguna de las cuatro fuentes de PoC la recoge.
 
 ### rejected
 keys: status.rejected + status.disclosed_at
@@ -207,6 +211,10 @@ Nuclei tiene una plantilla de detección: <span lang="en">X - Auth Bypass</span>
 ### nuclei_bare
 keys: ev.nuclei.added + ev.nuclei.no_time
 Nuclei tiene una plantilla de detección para esta vulnerabilidad. La fuente no indica cuándo se publicó la plantilla.
+
+### github_repo
+keys: ev.github.repo + ev.github.created
+Repositorio de PoC en GitHub: acme/CVE-2026-1-poc. La fecha es el día de creación del repositorio.
 
 ### generic_itw
 keys: ev.generic

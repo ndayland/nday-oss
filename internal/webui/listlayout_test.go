@@ -18,6 +18,7 @@ import (
 	"nday.land/nday/internal/site/sitetest"
 	"nday.land/nday/internal/testutil"
 	"nday.land/nday/internal/web"
+	"nday.land/nday/internal/web/webtest"
 	"nday.land/nday/internal/webui"
 )
 
@@ -82,27 +83,23 @@ func TestHotFilterDisclosure(t *testing.T) {
 	}
 }
 
-var bareCmd = regexp.MustCompile(`(?s)(.{0,40})<div class="cmd">`)
-
-// Public pages show their API command only inside a closed disclosure.
-func TestAPICommandsFolded(t *testing.T) {
+// TestNoDataAPIOnPublicPages: public pages advertise no data API — no
+// curl command, no "raw JSON" shortcut (target or help entry), no feed link
+// (the head's alternate link included), no API section on /about. The endpoint reference and the reader's private
+// feed address are on the account page (TestAccountAPIPane).
+func TestNoDataAPIOnPublicPages(t *testing.T) {
 	e := newEnv(t)
-	for p, summary := range map[string]string{
-		"/tags":                 "Get this list from the API",
-		"/src":                  "Get this list from the API",
-		"/stats":                "Get these figures from the API",
-		"/vuln/" + sitetest.GPU: "Get this record from the API",
-		"/":                     "Get this list from the API",
-		"/discussed":            "Get this list from the API",
-	} {
-		_, body := e.get(t, p)
-		want := `<details class="apid">` + "\n<summary>" + summary + "</summary>\n" + `<div class="cmd">`
-		if !strings.Contains(body, want) {
-			t.Errorf("%s: no folded API command %q", p, summary)
+	for _, p := range []string{"/", "/?tag=remote-unauth", "/discussed", "/vuln", "/vuln?q=barracuda", "/vuln/" + sitetest.GPU,
+		"/src", "/stats", "/tags", "/tag/remote-unauth", "/about", "/zh-hans/about", "/ja/vuln/" + sitetest.GPU} {
+		resp, body := e.get(t, p)
+		if resp.StatusCode != 200 {
+			t.Errorf("%s: %d", p, resp.StatusCode)
+			continue
 		}
-		for _, m := range bareCmd.FindAllStringSubmatch(body, -1) {
-			if !strings.HasSuffix(m[1], "</summary>\n") {
-				t.Errorf("%s: an open command box after %q", p, m[1])
+		for _, bad := range []string{"curl ", `class="apid"`, "data-raw=", "application/atom+xml", "feed.xml", "about#api",
+			`id="api"`, "NDAY_TOKEN", "<dt><b>r</b></dt>"} {
+			if strings.Contains(body, bad) {
+				t.Errorf("%s: contains %q", p, bad)
 			}
 		}
 	}
@@ -144,6 +141,7 @@ func TestSingleUpstreamNote(t *testing.T) {
 	t.Cleanup(pool.Close)
 	now := func() time.Time { return sitetest.Now }
 	srv := web.New(web.Config{Store: site.New(pool).WithClock(now), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	srv.SetAPIAuth(webtest.BearerAuth{})
 	if _, err := webui.New(srv, webui.Options{Now: now}); err != nil {
 		t.Fatal(err)
 	}

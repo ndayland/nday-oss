@@ -93,6 +93,14 @@ go run ./tools/authdev               # then open http://localhost:8090/login
   signed-in post text shows the real link (needs
   `migrations/0019_xposts_links_candidates.sql`; existing sample posts keep
   their old text, new databases get the link in the text too).
+  Two GitHub repository links with fetched metadata are added too
+  (`github_repo`, needs `migrations/0023_github_repo.sql`; `docs/github.md`):
+  on `CVE-2024-3094` one repository with the CVE in its name, listed under
+  PoC, and on `CVE-2025-1974` one without, listed under code repositories.
+  Four repositories "found by search" for `CVE-2024-3094` (needs
+  `migrations/0025_github_discovery.sql`): one unverified (listed under PoC
+  with the "unverified" mark), one trusted by an admin, one rejected and one
+  unverified fork (both not listed); a re-run keeps review decisions.
   Four allowlist candidates show in the candidates section of `/admin/x`
   (`ivan_re`, `judy_bugs`, one without a handle that cannot be added, and
   `mallory_x` already dismissed); existing candidate rows are left as they

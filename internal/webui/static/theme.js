@@ -29,9 +29,21 @@
       apply();
     }
   };
-  function sys() { if (cur === 'system') apply(); }
+  // "system" follows the device while the page is open. The media query's
+  // change event is not delivered everywhere (a page restored from the
+  // back/forward cache, a tab that was in the background when the device
+  // switched, some embedded browsers), so the setting is read again whenever
+  // the page is shown or focused; applying it again is cheap and idempotent.
+  function sys() {
+    if (cur !== 'system') return;
+    var want = mq && mq.matches ? 'light' : 'dark';
+    if (r.getAttribute('data-theme') !== want) apply();
+  }
   if (mq && mq.addEventListener) mq.addEventListener('change', sys);
   else if (mq && mq.addListener) mq.addListener(sys);
+  window.addEventListener('pageshow', sys);
+  window.addEventListener('focus', sys);
+  d.addEventListener('visibilitychange', sys);
   // another tab changed the choice
   window.addEventListener('storage', function (e) {
     if (e.key === KEY || e.key === null) { cur = stored(); apply(); }

@@ -358,7 +358,6 @@ type TagsPageGroup struct {
 type TagsPage struct {
 	Groups   []TagsPageGroup
 	CountsAt template.HTML // convertible <time>, "" when never computed
-	Curl     CmdLine
 }
 
 func (u *UI) tagsReport(ctx context.Context) (*site.TagsReport, error) {
@@ -371,7 +370,7 @@ func (u *UI) tagsReport(ctx context.Context) (*site.TagsReport, error) {
 
 // BuildTagsPage builds /tags from the vocabulary and the counts.
 func BuildTagsPage(l *i18n.Locale, rep *site.TagsReport, api API) TagsPage {
-	p := TagsPage{Curl: CurlCmd(api.URL("/tags"), ".tags")}
+	p := TagsPage{}
 	if rep.CountsAt != nil {
 		p.CountsAt = minuteHTML(rep.CountsAt)
 	}
@@ -412,7 +411,7 @@ func (u *UI) tagsPage(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) 
 	u.page(w, r, loc, http.StatusOK, "tags", &Page{Title: loc.Text("tag.page.title"),
 		Description: loc.Text("tag.page.description"),
 		Nav:         "", Path: "~/tags", Pos: loc.Text("tag.sbar", "n", len(tags.Vocabulary)), Hints: helpHints(loc),
-		RawHref: u.api.Href("/tags"), Canonical: "/tags", Data: d})
+		Canonical: "/tags", Data: d})
 }
 
 // ---------------------------------------------------------- /tag/{slug}
@@ -425,7 +424,6 @@ type TagHead struct {
 	CountsAt template.HTML
 	CWEs     template.HTML // type tags: the CWE ids that assign it (links)
 	All      string        // /tags
-	Feed     string        // the feed of this list
 }
 
 func (u *UI) tagPage(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
@@ -455,8 +453,7 @@ func (u *UI) tagPage(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 		u.fail(w, r, loc, err)
 		return
 	}
-	head := &TagHead{Slug: t.Slug, Dim: t.Dim, Count: rep.CountsOf(t.Slug), All: loc.Path("/tags"),
-		Feed: loc.Path("/feed.xml") + "?" + tagQuery(f.AllTags())}
+	head := &TagHead{Slug: t.Slug, Dim: t.Dim, Count: rep.CountsOf(t.Slug), All: loc.Path("/tags")}
 	if rep.CountsAt != nil {
 		head.CountsAt = minuteHTML(rep.CountsAt)
 	}
@@ -487,18 +484,8 @@ func searchHref(q string, ts []string) string {
 	return "/vuln?" + strings.Join(parts, "&")
 }
 
-// searchAPIPath is the API path of a search.
-func searchAPIPath(q string, ts []string) string {
-	parts := []string{"q=" + url.QueryEscape(q)}
-	if len(ts) > 0 {
-		parts = append(parts, tagQuery(ts))
-	}
-	return "/search?" + strings.Join(parts, "&")
-}
-
 // addSearchTags adds the tag filter to the search page: active chips, row
-// chips (each adds its tag to the filter, keeping the query) and the API
-// command with the tags.
+// chips (each adds its tag to the filter, keeping the query).
 func addSearchTags(l *i18n.Locale, sv *SearchView, q string, ts []string, res *site.SearchResult, api API) {
 	sv.TagsHref = l.Path("/tags")
 	for _, s := range ts {
@@ -508,9 +495,6 @@ func addSearchTags(l *i18n.Locale, sv *SearchView, q string, ts []string, res *s
 	}
 	if res == nil {
 		return
-	}
-	if len(ts) > 0 {
-		sv.Curl = CurlCmd(api.URL(searchAPIPath(res.Query, ts)), ".rows")
 	}
 	for i := range sv.Rows {
 		if i < len(res.Rows) {

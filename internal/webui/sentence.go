@@ -121,7 +121,8 @@ func StatusSentence(l *i18n.Locale, v *site.VulnDetail) string {
 
 // StatusMessages chooses the sentences of the status paragraph, in order:
 //
-//  1. Rejected CVE: say so first (status.rejected).
+//  1. Rejected CVE: say so first (status.rejected; status.withdrawn for a
+//     withdrawn advisory keyed by its GHSA id).
 //  2. Lead: no disclosure event -> the official record is missing
 //     (status.no_record); disclosure time unknown (status.disclosure_unknown);
 //     otherwise the highest later stage with a known time and day count
@@ -150,7 +151,11 @@ func StatusMessages(v *site.VulnDetail) []Msg {
 	}
 	var out []Msg
 	if v.IsRejected {
-		out = append(out, msg("status.rejected"))
+		if site.IsGHSAID(v.CVEID) {
+			out = append(out, msg("status.withdrawn")) // a withdrawn GitHub advisory
+		} else {
+			out = append(out, msg("status.rejected"))
+		}
 	}
 	slot := func(i int) *site.DetailSlot {
 		if i < len(v.Slots) {

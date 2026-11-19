@@ -83,7 +83,7 @@ Catalog: `internal/webui/i18n/catalogs/zh-Hant.json` · golden: `internal/webui/
 - `ev.cve.cvss` 的 NONE 寫「嚴重程度為「無」」，略顯生硬，但「無風險」會誤導。
 - `tplus.title.after` 在 T+0d 時會出現「揭露後 0 天」：中文應說「揭露當天」，但此鍵無法依數字選擇變體（plural 規則為 none），建議程式在 0 天時改用另一個鍵。
 - `status.lead.same_day.PAT` 後接 `status.patch.no_version` 時讀作「揭露當天即有修補紀錄。已有修補紀錄，但來源未提供修補版本。」——兩句重複「修補紀錄」，是句子拆分造成的。
-- `status.poc.some` 的 {total} 為阿拉伯數字（「3 個 PoC 來源中有 2 個收錄」），而 `status.poc.none/all` 寫「三個」；兩者同段出現機率低，暫可接受。
+- `status.poc.some` 的 {total} 為阿拉伯數字（「4 個 PoC 來源中有 2 個收錄」），而 `status.poc.none/all` 寫「四個」；兩者同段出現機率低，暫可接受。
 - `ev.implied.basis` + `ev.implied.basis_ssvc`：為避免「kev 與 cvelist 中的 CISA 評估」被讀成兩者皆修飾，改寫為「CISA 評估（cvelist）」。
 - 香港讀者：用詞依臺灣（軟體、程式碼、網路、修補），HKCERT 用「保安」「修補程式」「中度風險」，本站不採港式用語；字型堆疊未加入 PingFang HK（香港字形標準），見登錄檔說明。
 - `hot.date_group` 使用全形括號，在等寬字型區塊中兩側留白稍大，視覺上可接受。

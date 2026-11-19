@@ -325,3 +325,30 @@ func TestGenerateConcurrency(t *testing.T) {
 	}
 	_ = tx.Rollback(ctx)
 }
+
+// A draft carries the effective title (docs/titles.md): the staff title,
+// else the record's, else the composed one.
+func TestGenerateEffectiveTitle(t *testing.T) {
+	x := newDB(t)
+	x.ev("CVE-2026-0001", "kev_added", "kev", false, 2*time.Hour, nil, "")
+	x.run(xdraft.Options{}) // baseline
+	x.vuln("CVE-2026-7101", "")
+	x.exec(`INSERT INTO vuln_title (cve_id, rule_version, form, product, weakness, composed_en)
+		VALUES ('CVE-2026-7101', 1, 'weakness', 'Java SE', 'buffer-overflow', 'Java SE: buffer overflow / out-of-bounds write')`)
+	x.vuln("CVE-2026-7102", "Record title")
+	x.exec(`INSERT INTO vuln_title (cve_id, staff_title, staff_at, staff_version) VALUES ('CVE-2026-7102', 'Staff title', now(), 1)`)
+	x.vuln("CVE-2026-7103", "Record only")
+	for _, c := range []string{"CVE-2026-7101", "CVE-2026-7102", "CVE-2026-7103"} {
+		x.ev(c, "kev_added", "kev", false, time.Hour, nil, "")
+	}
+	x.run(xdraft.Options{})
+	for cve, want := range map[string]string{"CVE-2026-7101": "Java SE: buffer overflow / out-of-bounds write",
+		"CVE-2026-7102": "Staff title", "CVE-2026-7103": "Record only"} {
+		if n := x.count(`SELECT count(*) FROM x_draft WHERE cve_id = $1 AND position($2 in body) > 0`, cve, want); n != 1 {
+			t.Errorf("%s: no draft with %q", cve, want)
+		}
+	}
+	if n := x.count(`SELECT count(*) FROM x_draft WHERE cve_id = 'CVE-2026-7102' AND position('Record title' in body) > 0`); n != 0 {
+		t.Errorf("the staff title does not replace the record's")
+	}
+}

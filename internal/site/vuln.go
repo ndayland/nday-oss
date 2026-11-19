@@ -15,14 +15,17 @@ import (
 	"nday.land/nday/internal/tags"
 )
 
-// PocSourceNames are the curated PoC sources counted in "n/3".
-var PocSourceNames = []string{"exploitdb", "metasploit", "nuclei"}
+// PocSourceNames are the PoC sources counted in "n/4": the three curated
+// feeds and trusted GitHub repositories (ghrepo.PoCSource, migration 0032).
+var PocSourceNames = []string{"exploitdb", "metasploit", "nuclei", "github"}
 
 // VulnDetail is everything the vulnerability page shows.
 type VulnDetail struct {
-	CVEID       string     `json:"cve_id"`
-	Title       *string    `json:"title"`
-	TitleZh     *string    `json:"title_zh"`
+	CVEID   string  `json:"cve_id"`
+	Title   *string `json:"title"`
+	TitleZh *string `json:"title_zh"`
+	// the effective title and its origin (titles.go)
+	TitleInfo
 	Description *string    `json:"description"`
 	SummaryZh   *string    `json:"summary_zh"`
 	PublishedAt *time.Time `json:"published_at"` // CVE record datePublished
@@ -56,8 +59,8 @@ type VulnDetail struct {
 	Events []Event `json:"events"`
 
 	Patches    []Patch     `json:"patches"`
-	Poc        []PocSource `json:"poc"`         // always 3: exploitdb, metasploit, nuclei
-	PocSources int         `json:"poc_sources"` // how many of the 3 have it
+	Poc        []PocSource `json:"poc"`         // always 4: exploitdb, metasploit, nuclei, github
+	PocSources int         `json:"poc_sources"` // how many of the 4 have it
 	KEV        *KEVFacts   `json:"kev"`
 	CVSS       *CVSS       `json:"cvss"`
 	SSVC       *SSVC       `json:"ssvc"`
@@ -87,7 +90,9 @@ type Alias struct {
 	Type  string `json:"type"` // "ghsa", ...
 }
 
-// Rejection: facts from a REJECTED CVE record.
+// Rejection: facts from a REJECTED CVE record, or from a withdrawn GitHub
+// advisory for a vulnerability keyed by its GHSA id (DateRejected is then
+// withdrawn_at; no reasons, no replacement).
 type Rejection struct {
 	DateRejected *string  `json:"date_rejected"` // as given by the record
 	Reasons      []string `json:"reasons"`
@@ -255,8 +260,8 @@ const (
 SELECT v.cve_id, v.title, v.title_zh, v.description, v.summary_zh, v.published_at, v.modified_at, v.first_seen_at,
        m.cve_id IS NOT NULL, m.stage, m.stage_rank, m.has_patch, m.has_analysis, m.has_poc, m.exploited, m.in_kev,
        m.is_rejected, m.disclosed_at, m.patch_at, m.analysis_at, m.poc_at, m.exploited_at, m.kev_at,
-       m.last_transition_at, m.last_transition_type, m.event_count, m.poc_sources
-FROM vuln v LEFT JOIN vuln_state_mat m USING (cve_id)
+       m.last_transition_at, m.last_transition_type, m.event_count, m.poc_sources, ` + titleCols + `
+FROM vuln v LEFT JOIN vuln_state_mat m USING (cve_id)` + titleJoinV + `
 WHERE v.cve_id = $1`
 	aliasSQL    = `SELECT alias, alias_type FROM vuln_alias WHERE cve_id = $1 ORDER BY alias_type, alias`
 	affectedSQL = `
@@ -274,7 +279,7 @@ SELECT e.id, e.type, e.source, e.url, e.occurred_at, e.observed_at, ee.effective
        e.dedupe_key, e.detail::text
 FROM event e JOIN event_effective ee ON ee.id = e.id
 WHERE e.cve_id = $1 AND ee.cve_id = $1 AND ` + publicEventSQL("e")
-	// Raw records that belong to this CVE: keyed by the CVE id (cvelist,
+	// Raw records that belong to this vulnerability: keyed by its id (cvelist,
 	// kev), by a GHSA alias, or by an event's dedupe key (ghsa advisory id,
 	// EDB id, Metasploit module, Nuclei template). Public sources and
 	// events only (public.go).
@@ -291,13 +296,15 @@ GROUP BY r.source, r.source_key
 ORDER BY r.source, r.source_key`
 )
 
-// Vuln returns the detail of one vulnerability. id is case-insensitive
+// Vuln returns the detail of one vulnerability. id is a CVE id or the GHSA id
+// of an advisory without a CVE (ParseVulnID), case-insensitive
 // ("cve-2026-102895"); a malformed id is an *InputError; an unknown one
-// returns found=false and no error.
+// returns found=false and no error. A GHSA id that is only an alias of a CVE
+// is unknown here (VulnsByGHSA finds the CVE).
 func (s *Store) Vuln(ctx context.Context, id string) (v *VulnDetail, found bool, err error) {
-	cve, ok := ParseCVEID(id)
+	cve, ok := ParseVulnID(id)
 	if !ok {
-		return nil, false, &InputError{Param: "cve", Msg: "not a CVE id (expected CVE-YYYY-NNNN...)"}
+		return nil, false, &InputError{Param: "cve", Msg: BadVulnIDMsg}
 	}
 	v = &VulnDetail{CVEID: cve, Aliases: []Alias{}, Products: []Product{}, Events: []Event{},
 		Patches: []Patch{}, CWEs: []CWE{}, RawRecords: []RawLink{}, Credits: []Credit{}}
@@ -318,17 +325,19 @@ func (s *Store) Vuln(ctx context.Context, id string) (v *VulnDetail, found bool,
 		var stage, lastType *string
 		var rank, evCount, pocN *int
 		var hp, ha, hpoc, ex, kev, rej *bool
-		err := br.QueryRow().Scan(&v.CVEID, &v.Title, &v.TitleZh, &v.Description, &v.SummaryZh,
+		var ts titleScan
+		err := br.QueryRow().Scan(append([]any{&v.CVEID, &v.Title, &v.TitleZh, &v.Description, &v.SummaryZh,
 			&v.PublishedAt, &v.ModifiedAt, &v.FirstSeenAt,
 			&hasState, &stage, &rank, &hp, &ha, &hpoc, &ex, &kev, &rej,
 			&st.DisclosedAt, &st.PatchAt, &st.AnalysisAt, &st.PocAt, &st.ExploitedAt, &st.KEVAt,
-			&st.LastTransitionAt, &lastType, &evCount, &pocN)
+			&st.LastTransitionAt, &lastType, &evCount, &pocN}, ts.dest()...)...)
 		if err == pgx.ErrNoRows {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
+		v.TitleInfo = ts.info(v.Title)
 		found = true
 		if hasState {
 			st.Stage, st.StageRank, st.EventCount, st.PocSources = *stage, *rank, *evCount, *pocN
@@ -574,6 +583,14 @@ func assemble(v *VulnDetail) {
 				v.SSVC = &SSVC{Exploitation: jstr(s, "exploitation"), Automatable: jstr(s, "automatable"),
 					TechnicalImpact: jstr(s, "technical_impact"), Timestamp: jstr(s, "timestamp"),
 					Source: "cvelist:CISA-ADP"}
+			}
+		case e.Type == "disclosed" && e.Source == "ghsa" && IsGHSAID(v.CVEID):
+			// the advisory of a vulnerability keyed by its GHSA id is its
+			// record: a withdrawn one reads like a rejected CVE record
+			// (vuln_state does the same, migrations/0027)
+			if s := jstr(d, "state"); s != nil && *s == "REJECTED" {
+				v.IsRejected = true
+				v.Rejection = &Rejection{DateRejected: jstr(d, "withdrawn_at"), Reasons: []string{}, ReplacedBy: []string{}}
 			}
 		case e.Type == "patch_released":
 			p := Patch{EventID: e.ID, Source: e.Source, AdvisoryID: jstr(d, "ghsa_id"), URL: e.URL,

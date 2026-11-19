@@ -24,6 +24,9 @@ import (
 type User struct {
 	ID       string
 	Username string // canonical spelling
+	// Name ("" = "<username> (fake)") and Description (sent only when
+	// user.fields=description is asked for, like the X API).
+	Name, Description string
 }
 
 // Server is the fake API. Set the maps before serving; they are read
@@ -155,7 +158,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				"resource_type": "user", "parameter": "usernames", "resource_id": n,
 				"type": "https://api.twitter.com/2/problems/resource-unavailable"})
 		case ok:
-			data = append(data, map[string]any{"id": u.ID, "name": u.Username + " (fake)", "username": u.Username})
+			d := map[string]any{"id": u.ID, "name": u.Username + " (fake)", "username": u.Username}
+			if u.Name != "" {
+				d["name"] = u.Name
+			}
+			if r.URL.Query().Get("user.fields") == "description" {
+				d["description"] = u.Description
+			}
+			data = append(data, d)
 		default:
 			errs = append(errs, map[string]any{"value": n, "detail": "Could not find user with usernames: [" + n + "].",
 				"title": "Not Found Error", "resource_type": "user", "parameter": "usernames", "resource_id": n,

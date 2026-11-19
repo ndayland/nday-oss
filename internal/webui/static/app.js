@@ -43,9 +43,13 @@
     var ms = iso ? Date.parse(iso) : NaN;
     return isNaN(ms) ? '' : nday.formatTime(ms, nday.offsetAt(ms), style || 'long');
   };
-  (function localTimes() {
+  // localTimes(root) converts the times inside root (the page, or a list
+  // region that replaced another: "paging" below); the status bar note is
+  // set once per page view.
+  var tzOn = false;
+  function localTimes(root) {
     var shifted = false;
-    Array.prototype.forEach.call(d.querySelectorAll('time[data-lt]'), function (el) {
+    Array.prototype.forEach.call(root.querySelectorAll('time[data-lt]'), function (el) {
       var iso = el.getAttribute('datetime');
       var ms = Date.parse(iso);
       if (isNaN(ms)) return;
@@ -56,29 +60,63 @@
       shifted = true;
     });
     var now = nday.offsetAt(Date.now());
-    if (!shifted && now === 0) return;
-    // the status bar no longer says "all times UTC" (words from the page)
-    var note = d.getElementById('utc');
-    var text = body.getAttribute('data-t-local-time');
-    if (note && text) {
-      note.textContent = text.replace('{offset}', nday.offsetLabel(now));
-      var lang = body.getAttribute('data-t-local-time-lang');
-      if (lang) note.setAttribute('lang', lang);
+    if (!tzOn && !shifted && now === 0) return;
+    if (!tzOn) {
+      tzOn = true;
+      // the status bar no longer says "all times UTC" (words from the page)
+      var note = d.getElementById('utc');
+      var text = body.getAttribute('data-t-local-time');
+      if (note && text) {
+        note.textContent = text.replace('{offset}', nday.offsetLabel(now));
+        var lang = body.getAttribute('data-t-local-time-lang');
+        if (lang) note.setAttribute('lang', lang);
+      }
     }
     // hot list: rows stay grouped under UTC dates; say so on each header
     // (not on the catalogue's "time unknown" header, which is no date)
-    Array.prototype.forEach.call(d.querySelectorAll('.dgroup:not(.nodate)'), function (h) {
+    Array.prototype.forEach.call(root.querySelectorAll('.dgroup:not(.nodate)'), function (h) {
       var m = d.createElement('span');
       m.className = 'tz';
       m.textContent = ' UTC';
       (h.querySelector('.dgh') || h).appendChild(m);
     });
-  })();
+  }
+  localTimes(d);
+
+  // escMenu(menu, when): a <details> menu that Escape closes, focus going
+  // back to its summary (the share menu, the landing's header menu). An open
+  // menu inside it (language, theme) closes first.
+  // when(), if given, says whether it may close now. Returns close(back).
+  function escMenu(menu, when) {
+    var sum = menu.querySelector('summary');
+    function close(back) {
+      if (!menu.open || (when && !when())) return;
+      menu.open = false;
+      if (back && sum) sum.focus();
+    }
+    menu.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || !menu.open || e.defaultPrevented || (when && !when())) return;
+      e.preventDefault();
+      // an open menu inside it without its own Escape (language) closes first
+      var inner = e.target instanceof Element ? e.target.closest('details') : null;
+      if (inner && inner !== menu && inner.open) {
+        inner.open = false;
+        var s = inner.querySelector('summary');
+        if (s) s.focus();
+        return;
+      }
+      close(true);
+    });
+    return close;
+  }
 
   // Phones (the stylesheet's 720px breakpoint): the list filters (hot.tmpl
   // details.flt, open in the HTML so they work without script) fold into
   // their summary line unless a selection other than the defaults is set
-  // (data-keep); wide screens always show them. The page links scroll
+  // (data-keep); wide screens always show them. The same for the header
+  // menu of the /vuln landing (base.tmpl details.topm): folded behind its
+  // ">" on phones, always open on wide screens (its summary is not shown
+  // there); Escape folds it again (escMenu). The page links scroll
   // sideways there; the current one is brought into view.
   (function phones() {
     if (!window.matchMedia) return;
@@ -88,6 +126,13 @@
     if (flt) {
       fold();
       if (mq.addEventListener) mq.addEventListener('change', fold);
+    }
+    var topm = d.querySelector('details.topm');
+    function foldMenu() { topm.open = !mq.matches; }
+    if (topm) {
+      foldMenu();
+      if (mq.addEventListener) mq.addEventListener('change', foldMenu);
+      escMenu(topm, function () { return mq.matches; });
     }
     // the menu rows that scroll sideways on phones (main nav, admin menu): bring the current item into view
     Array.prototype.forEach.call(d.querySelectorAll('.nav,.adm-nav'), function (nav) {
@@ -156,29 +201,107 @@
   }
 
   // Copy buttons are hidden in the HTML; they only work with this script.
-  Array.prototype.forEach.call(d.querySelectorAll('button[data-copy]'), function (b) {
-    b.hidden = false;
-    var label = b.textContent;
-    b.addEventListener('click', function () {
-      copy(b.getAttribute('data-copy'), function (ok) {
-        b.textContent = ok ? word('copied', '\u2713') : word('copy-failed', '\u2717');
-        setTimeout(function () { b.textContent = label; }, 1200);
+  // copyButtons(root) sets up those inside root (the page or a new region).
+  function copyButtons(root) {
+    Array.prototype.forEach.call(root.querySelectorAll('button[data-copy]'), function (b) {
+      b.hidden = false;
+      var label = b.textContent;
+      b.addEventListener('click', function () {
+        copy(b.getAttribute('data-copy'), function (ok) {
+          b.textContent = ok ? word('copied', '\u2713') : word('copy-failed', '\u2717');
+          setTimeout(function () { b.textContent = label; }, 1200);
+        });
       });
     });
-  });
+  }
+  copyButtons(d);
+
+  // Two-step confirm (admin.js, account.js, discuss.js): confirmStep(btn,
+  // note) is false on a first click, which arms the button for 5 s, and true
+  // on the second one. An armed button shows the word of its data-confirm
+  // over its label (app.css "two-step confirm": the button is as wide as the
+  // wider of the two from the start, so nothing moves); its accessible name
+  // becomes "<word>: <label>" and note, if any, its title. Blur, Escape or
+  // the 5 s put it back. data-confirm is rendered by the server, or set by
+  // confirmable(btn) where a script builds the button.
+  (function confirmSteps() {
+    var tpl = d.getElementById('acct-msgs');
+    var saved = new WeakMap(); // armed button -> { label, title, timer }
+    function confirmWord() {
+      var s = tpl && tpl.content.querySelector('[data-k="btn.confirm"]');
+      return s ? s.textContent : '';
+    }
+    function confirmable(btn) {
+      if (btn && !btn.hasAttribute('data-confirm')) btn.setAttribute('data-confirm', confirmWord());
+      return btn;
+    }
+    function restore(btn, attr, v) {
+      if (v === null) btn.removeAttribute(attr);
+      else btn.setAttribute(attr, v);
+    }
+    function onKey(e) { if (e.key === 'Escape') disarm(e.currentTarget); }
+    function onBlur(e) { disarm(e.currentTarget); }
+    function disarm(btn) {
+      var s = btn && saved.get(btn);
+      if (!s) return;
+      saved.delete(btn);
+      clearTimeout(s.timer);
+      btn.removeAttribute('data-armed');
+      restore(btn, 'aria-label', s.label);
+      restore(btn, 'title', s.title);
+      btn.removeEventListener('blur', onBlur);
+      btn.removeEventListener('keydown', onKey);
+    }
+    function confirmStep(btn, note) {
+      if (saved.has(btn)) {
+        disarm(btn);
+        return true;
+      }
+      confirmable(btn);
+      saved.set(btn, {
+        label: btn.getAttribute('aria-label'), title: btn.getAttribute('title'),
+        timer: setTimeout(function () { disarm(btn); }, 5000),
+      });
+      btn.setAttribute('data-armed', '1');
+      btn.setAttribute('aria-label', btn.getAttribute('data-confirm') + ': ' + (btn.getAttribute('aria-label') || btn.textContent.trim()));
+      if (note) btn.setAttribute('title', note);
+      btn.addEventListener('blur', onBlur);
+      btn.addEventListener('keydown', onKey);
+      return false;
+    }
+    nday.confirmable = confirmable;
+    nday.confirmStep = confirmStep;
+    nday.disarm = disarm;
+  })();
 
   // Clicking a row (not a link inside it) moves the cursor there (rows may
-  // be reordered later: the hot list's pinned group). One listener for all
-  // rows, on their container: a row moved or added later is still handled.
-  if (rows.length) {
-    (d.querySelector('main') || d).addEventListener('click', function (e) {
-      var t = e.target;
-      if (!t || !t.closest) return;
-      var r = t.closest('[data-row]');
-      if (!r || t.closest('a, button, summary, pre')) return;
-      var i = rows.indexOf(r);
-      if (i >= 0) select(i, false);
-    });
+  // be reordered later: the hot list's pinned group, or replaced: another
+  // page of the list). One listener for all rows, on their container: a row
+  // moved or added later is still handled.
+  (d.querySelector('main') || d).addEventListener('click', function (e) {
+    var t = e.target;
+    if (!rows.length || !t || !t.closest) return;
+    var r = t.closest('[data-row]');
+    if (!r || t.closest('a, button, summary, pre')) return;
+    var i = rows.indexOf(r);
+    if (i >= 0) select(i, false);
+  });
+
+  // rowsIn(root): the list's rows changed inside root (a region replaced by
+  // another page's). The cursor stays on its row if that row is still on
+  // the page; if it was on a row that went (or the page starts with one),
+  // it moves to the first new row.
+  function rowsIn(root) {
+    var was = cur >= 0 ? rows[cur] : null;
+    rows = Array.prototype.slice.call(d.querySelectorAll('[data-row]'));
+    cur = was ? rows.indexOf(was) : -1;
+    if (cur >= 0) {
+      if (pos && body.hasAttribute('data-pos')) pos.textContent = (cur + 1) + '/' + rows.length;
+      return;
+    }
+    var first = root.querySelector('[data-row]');
+    if (first && (was || body.hasAttribute('data-autosel'))) select(rows.indexOf(first), false);
+    else if (pos && body.hasAttribute('data-pos')) pos.textContent = '0/' + rows.length;
   }
 
   if (search) {
@@ -244,8 +367,13 @@
   // Decoration only: nothing without JS; it runs only while the area is on
   // screen and the tab is visible, at about 14 frames a second; with
   // prefers-reduced-motion it is one still frame. CSS fades its edges.
-  (function heroField() {
-    var el = d.querySelector('.cbg');
+  // heroField(el) draws in one backdrop; it stops for good once el has
+  // left the page (the area turned compact: "paging" below). On the /vuln
+  // landing (body.landing) the stylesheet fixes the backdrop to the whole
+  // viewport; there the columns are centred in its width, so no column is
+  // cut off at either edge, and a resize or rotation lays them out again
+  // (the ResizeObserver below, as everywhere).
+  function heroField(el) {
     if (!el || !window.HTMLCanvasElement) return;
     var cv = d.createElement('canvas');
     var ctx = cv.getContext && cv.getContext('2d');
@@ -253,7 +381,8 @@
     el.appendChild(cv);
     var glyphs = '01{}[]()<>/\\#$%&*+=-_:;|?@!0123456789ABCDEF';
     var CW = 16, CH = 18, TICK = 70;
-    var cols = [], w = 0, h = 0, head = '#fff', tail = '#0f0', timer = 0, onScreen = true;
+    var full = body.classList.contains('landing');
+    var cols = [], w = 0, h = 0, x0 = 3, head = '#fff', tail = '#0f0', timer = 0, onScreen = true;
     function rnd(n) { return Math.floor(Math.random() * n); }
     function glyph() { return glyphs.charAt(rnd(glyphs.length)); }
     function colours() {
@@ -275,6 +404,7 @@
       ctx.font = '13px ' + (window.getComputedStyle(el).fontFamily || 'monospace');
       ctx.textBaseline = 'top';
       var n = Math.ceil(w / CW), rowsN = Math.ceil(h / CH);
+      if (full) { n = Math.max(1, Math.floor(w / CW)); x0 = Math.floor((w - n * CW) / 2) + 4; }
       cols = [];
       for (var i = 0; i < n; i++) cols.push(rnd(100) < 62 ? column(rowsN, true) : null); // some columns stay empty
       return true;
@@ -296,17 +426,17 @@
           if (row < 0 || row > rowsN) continue;
           ctx.globalAlpha = k === 0 ? 0.95 : Math.max(0.08, 0.8 * (1 - k / c.len));
           ctx.fillStyle = k === 0 ? head : tail;
-          ctx.fillText(c.chars[k], i * CW + 3, row * CH + 2);
+          ctx.fillText(c.chars[k], i * CW + x0, row * CH + 2);
         }
       }
       ctx.globalAlpha = 1;
     }
-    function running() { return onScreen && !d.hidden && !reduce; }
+    function running() { return onScreen && !d.hidden && !reduce && el.isConnected; }
     function sync() {
-      if (running() && !timer) timer = window.setInterval(function () { frame(true); }, TICK);
+      if (running() && !timer) timer = window.setInterval(function () { if (el.isConnected) frame(true); else sync(); }, TICK);
       else if (!running() && timer) { window.clearInterval(timer); timer = 0; }
     }
-    function reset() { colours(); if (layout()) frame(false); sync(); }
+    function reset() { if (!el.isConnected) return; colours(); if (layout()) frame(false); sync(); }
     reset();
     if (window.ResizeObserver) new window.ResizeObserver(reset).observe(el);
     else window.addEventListener('resize', reset);
@@ -314,8 +444,9 @@
       new window.IntersectionObserver(function (es) { onScreen = es[es.length - 1].isIntersecting; sync(); }).observe(el);
     }
     d.addEventListener('visibilitychange', sync);
-    d.addEventListener('nday:theme', function () { colours(); frame(false); });
-  })();
+    d.addEventListener('nday:theme', function () { if (el.isConnected) { colours(); frame(false); } });
+  }
+  heroField(d.querySelector('.cbg'));
 
   (function themeMenu() {
     var menu = d.querySelector('details.theme');
@@ -343,6 +474,27 @@
     });
     d.addEventListener('nday:theme', mark);
     mark();
+  })();
+
+  // Share menu next to the id on a vulnerability page (vuln.tmpl
+  // details.share): a <details> like the language and theme menus. "post
+  // on X" is a plain link (new tab), "copy text" a copy button (above).
+  // Escape closes it and returns focus to its summary; so does following
+  // the link or copying, and a click outside or focus leaving closes it.
+  (function shareMenu() {
+    var menu = d.querySelector('details.share');
+    if (!menu) return;
+    var close = escMenu(menu);
+    var a = menu.querySelector('a');
+    if (a) a.addEventListener('click', function () { close(false); });
+    var b = menu.querySelector('button[data-copy]');
+    if (b) b.addEventListener('click', function () { setTimeout(function () { close(d.activeElement === b); }, 1200); });
+    menu.addEventListener('focusout', function (e) {
+      if (e.relatedTarget && !menu.contains(e.relatedTarget)) close(false);
+    });
+    d.addEventListener('click', function (e) {
+      if (menu.open && !menu.contains(e.target)) close(false);
+    });
   })();
 
   // Account slot and sign-in result banner (only when accounts are enabled:
@@ -402,25 +554,144 @@
       setTimeout(function () { put(p, 'acct.banner.' + code); }, 50); // after the live region exists
     }
 
-    // Staff accounts (moderator or admin, not suspended) get a link to the
-    // back office next to the slot; the server decides access on its own.
-    function adminLink(u) {
-      var old = d.getElementById('acct-admin');
-      if (old) old.parentNode.removeChild(old);
-      if (!adminPath || !u || (u.role !== 'moderator' && u.role !== 'admin') || u.status === 'suspended') return;
+    // Signed in, the slot becomes a menu: a <details> like the language and
+    // theme menus, built here once. Its items are the account page's
+    // sections, the back office for staff (moderator or admin, not
+    // suspended; the server decides access on its own) and signing out.
+    var menu = null, sum = null, admItem = null, csrf = '';
+    function menuItems() { return Array.prototype.slice.call(menu.querySelectorAll('[role="menuitem"]')).filter(function (el) { return !el.parentNode.hidden; }); }
+    function closeMenu(back) {
+      if (!menu || !menu.open) return;
+      menu.open = false;
+      if (back) sum.focus();
+    }
+    function openMenu() {
+      menu.open = true;
+      var it = menuItems();
+      if (it.length) it[0].focus();
+    }
+    function li(ul, el) {
+      var l = d.createElement('li');
+      l.setAttribute('role', el ? 'none' : 'separator');
+      if (el) {
+        el.setAttribute('role', 'menuitem');
+        el.tabIndex = -1;
+        l.appendChild(el);
+      }
+      ul.appendChild(l);
+      return l;
+    }
+    function link(ul, key, path) {
       var a = d.createElement('a');
-      a.id = 'acct-admin';
-      a.className = 'acct';
-      a.classList.add('adm-link');
-      a.href = adminPath;
-      put(a, 'admin.slot');
-      var here = window.location.pathname;
-      if (here === adminPath || here.indexOf(adminPath + '/') === 0) a.setAttribute('aria-current', 'page');
-      slot.parentNode.insertBefore(a, slot.nextSibling);
+      a.href = path;
+      put(a, key);
+      a.addEventListener('click', function () { closeMenu(false); });
+      return li(ul, a);
+    }
+    function buildMenu() {
+      menu = d.createElement('details');
+      menu.className = 'acctm';
+      sum = d.createElement('summary');
+      sum.className = 'acct';
+      sum.id = 'acct-m';
+      sum.setAttribute('aria-haspopup', 'menu');
+      sum.setAttribute('aria-expanded', 'false');
+      var ul = d.createElement('ul');
+      ul.setAttribute('role', 'menu');
+      ul.setAttribute('aria-labelledby', 'acct-m');
+      link(ul, 'acct.profile.h2', accountPath + '#profile');
+      link(ul, 'acct.follows.h2', accountPath + '#follows');
+      link(ul, 'acct.security.h2', accountPath + '#security');
+      link(ul, 'acct.developer.h2', accountPath + '#developer');
+      if (adminPath) {
+        admItem = link(ul, 'admin.slot', adminPath);
+        var here = window.location.pathname;
+        if (here === adminPath || here.indexOf(adminPath + '/') === 0) admItem.firstChild.setAttribute('aria-current', 'page');
+      }
+      li(ul);
+      var out = d.createElement('button');
+      out.type = 'button';
+      put(out, 'acct.menu.signout');
+      out.addEventListener('click', function () { closeMenu(true); signOut(out); });
+      li(ul, out);
+      menu.appendChild(sum);
+      menu.appendChild(ul);
+      slot.parentNode.insertBefore(menu, slot.nextSibling);
+      menu.addEventListener('toggle', function () { sum.setAttribute('aria-expanded', menu.open ? 'true' : 'false'); });
+      // Enter or Space (a click without a pointer) and ArrowDown open it
+      // on the first item; a pointer click only opens it
+      sum.addEventListener('click', function (e) {
+        if (e.detail === 0 && !menu.open) { e.preventDefault(); openMenu(); }
+      });
+      sum.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); openMenu(); }
+      });
+      ul.addEventListener('keydown', function (e) {
+        var it = menuItems();
+        var i = it.indexOf(d.activeElement);
+        var to = -1;
+        if (e.key === 'ArrowDown') to = (i + 1) % it.length;
+        else if (e.key === 'ArrowUp') to = (i <= 0 ? it.length : i) - 1;
+        else if (e.key === 'Home') to = 0;
+        else if (e.key === 'End') to = it.length - 1;
+        if (to < 0 || !it.length) return;
+        e.preventDefault();
+        it[to].focus();
+      });
+      menu.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && menu.open) { e.preventDefault(); closeMenu(true); }
+      });
+      // focus moving elsewhere (Tab) or a click outside closes it
+      menu.addEventListener('focusout', function (e) {
+        if (e.relatedTarget && !menu.contains(e.relatedTarget)) closeMenu(false);
+      });
+      d.addEventListener('click', function (e) {
+        if (menu.open && !menu.contains(e.target)) closeMenu(false);
+      });
+    }
+    // Signing out, as the account page does it (a same-origin POST with the
+    // CSRF header), then the page loads again in the signed-out state.
+    function signOut(btn) {
+      if (!csrf || btn.getAttribute('aria-busy') === 'true') return;
+      btn.setAttribute('aria-busy', 'true');
+      var path = '/auth/signout';
+      window.fetch(path, {
+        method: 'POST', credentials: 'same-origin', cache: 'no-store', redirect: 'error',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+      }).then(function (r) {
+        if (r.ok) window.location.reload();
+        else nday.fetchMe();
+      }, function () { nday.fetchMe(); }).then(function () { btn.removeAttribute('aria-busy'); });
+    }
+    function showMenu(u) {
+      if (!menu) buildMenu();
+      clear(sum);
+      var name = u.handle ? '@' + u.handle : (u.display_name || '');
+      var n = d.createElement('bdi');
+      n.className = 'an';
+      if (name) n.textContent = name; else put(n, 'acct.slot.account');
+      sum.appendChild(n);
+      if (u.role === 'moderator' || u.role === 'admin') {
+        var b = d.createElement('span');
+        b.className = 'rb';
+        put(b, 'acct.role.badge#' + u.role);
+        sum.appendChild(b);
+      }
+      if (window.location.pathname === accountPath) sum.setAttribute('aria-current', 'page');
+      else sum.removeAttribute('aria-current');
+      if (admItem) admItem.hidden = (u.role !== 'moderator' && u.role !== 'admin') || u.status === 'suspended';
+      menu.hidden = false;
+      slot.hidden = true;
+    }
+    function hideMenu() {
+      csrf = '';
+      if (!menu) return;
+      closeMenu(false);
+      menu.hidden = true;
     }
 
     function signedOut() {
-      adminLink(null);
+      hideMenu();
       clear(slot);
       put(slot, 'acct.slot.signin');
       slot.removeAttribute('aria-current');
@@ -429,32 +700,28 @@
       }
     }
 
-    function signedIn(u) {
-      clear(slot);
-      slot.removeAttribute('lang');
-      var name = u.handle ? '@' + u.handle : (u.display_name || '');
-      var n = d.createElement('bdi');
-      n.className = 'an';
-      if (name) n.textContent = name; else put(n, 'acct.slot.account');
-      slot.appendChild(n);
-      if (u.role === 'moderator' || u.role === 'admin') {
-        var b = d.createElement('span');
-        b.className = 'rb';
-        put(b, 'acct.role.badge#' + u.role);
-        slot.appendChild(b);
-      }
-      slot.href = accountPath;
-      if (window.location.pathname === accountPath) slot.setAttribute('aria-current', 'page');
-      else slot.removeAttribute('aria-current');
-      adminLink(u);
+    function signedIn(me) {
+      csrf = me.csrf_token || '';
+      showMenu(me.user);
+    }
+
+    // Parts of a page for signed-in readers only (data-signed-in, hidden in
+    // the HTML: links to /raw/..., which needs a session) show while signed in.
+    function forSignedIn(yes) {
+      Array.prototype.forEach.call(d.querySelectorAll('[data-signed-in]'), function (el) { el.hidden = !yes; });
     }
 
     // render(me): me is the /api/me object, {disabled: true} for a 404
     // (accounts off) or null when the state is unknown.
+    var known = false, last = null;
     nday.render = function (me) {
-      if (me && me.disabled) { slot.hidden = true; return; }
+      known = true;
+      last = me;
+      if (me && me.disabled) { hideMenu(); slot.hidden = true; forSignedIn(false); return; }
       slot.hidden = false;
-      if (me && me.signed_in && me.user) signedIn(me.user); else signedOut();
+      var inn = !!(me && me.signed_in && me.user);
+      if (inn) signedIn(me); else signedOut();
+      forSignedIn(inn);
     };
     nday.fetchMe = function () {
       return window.fetch('/api/me', { credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
@@ -467,6 +734,10 @@
         .then(function (me) { nday.render(me); return me; });
     };
     nday.me = nday.fetchMe(); // this page view's state (account.js reuses it)
+    // the address changed without a page load ("paging" below): the
+    // sign-in link's return path and the signed-in-only parts of a new
+    // region follow the state already known (no new request)
+    nday.rerender = function () { if (known) nday.render(last); };
   })();
 
   // Hot list, signed in with at least one follow (docs/follows.md): rows of
@@ -475,14 +746,16 @@
   // date headers (words from the table's data-pin). A date header left
   // without rows goes. Only the rows of this page are looked at. Nothing
   // moves for anyone else, and any failure leaves the list as it is.
-  (function pinFollows() {
-    var tbl = d.querySelector('.tbl-in[data-pin]');
-    if (!tbl || !nday.me || !rows.length || !window.JSON) return;
+  // pinFollows(root): the list inside root (the page, or a new region).
+  function pinFollows(root) {
+    var tbl = root.querySelector('.tbl-in[data-pin]');
+    var mine = tbl ? Array.prototype.slice.call(tbl.querySelectorAll('[data-row]')) : [];
+    if (!tbl || !nday.me || !mine.length || !window.JSON) return;
     nday.me.then(function (me) {
       var u = me && me.signed_in && me.user;
       if (!u || !u.follows || !u.follows.length || !me.csrf_token) return null;
       var ids = [];
-      rows.forEach(function (r) {
+      mine.forEach(function (r) {
         var id = r.getAttribute('data-id');
         if (id && ids.length < 200) ids.push(id);
       });
@@ -493,7 +766,7 @@
         body: JSON.stringify({ cve_ids: ids }),
       }).then(function (r) { return r.ok ? r.json() : null; });
     }).then(function (j) {
-      if (j && j.matches && j.matches.length) regroup(j.matches);
+      if (j && j.matches && j.matches.length && tbl.isConnected) regroup(j.matches);
     }).then(null, function () { /* silent: the list stays as it is */ });
 
     function regroup(ids) {
@@ -562,23 +835,262 @@
         select(first ? 0 : rows.indexOf(selected), false);
       }
     }
+  }
+  pinFollows(d);
+
+  // Paging in place (docs/pagination.md). Every paged list sits with its
+  // pager in a region: an element with an id and data-page-region="<id>". A
+  // plain click on a page link of a region (a link of its pager, or a link
+  // to "#<id>": a filter of that list alone) loads that page in the
+  // background and replaces only that region with the same region of the
+  // loaded page; the address follows (history.pushState, the link's own URL)
+  // and back / forward swap the regions back the same way. The rest of the
+  // page keeps its state; what outside the regions depends on a list's
+  // position is taken from the loaded page (outside()). Anything unexpected
+  // (a network error, a status other than 200, a redirect, not HTML, the
+  // region missing) loads the page normally instead. Without this script the
+  // links are plain links.
+  (function paging() {
+    var main = d.querySelector('main');
+    if (!main || !main.querySelector('[data-page-region]') || !window.fetch || !window.DOMParser || !window.URL ||
+      !window.history || !window.history.pushState || !window.Promise) return;
+    var KEY = 'ndayPages';
+    var SKIP = '.acctm, .langhint, .authbanner'; // parts this script builds: not in a loaded page
+    var here = window.location.pathname + window.location.search; // the page the regions show
+    var shown = {}; // region id -> the page (path and query) its content came from
+    var docs = {}, kept = []; // loaded pages by path and query, for back / forward
+    var job = null; // the navigation in flight: { ctl, els }
+    var seq = 0;
+    function regionIds() {
+      return Array.prototype.map.call(main.querySelectorAll('[data-page-region]'), function (r) { return r.id; });
+    }
+    regionIds().forEach(function (id) { shown[id] = here; });
+    function keys() {
+      var o = {};
+      for (var k in shown) if (Object.prototype.hasOwnProperty.call(shown, k)) o[k] = shown[k];
+      return o;
+    }
+    // this history entry records which page each region shows
+    function record() {
+      var s = {}, old = window.history.state;
+      if (old && typeof old === 'object') for (var k in old) if (Object.prototype.hasOwnProperty.call(old, k)) s[k] = old[k];
+      s[KEY] = keys();
+      window.history.replaceState(s, '');
+    }
+    try { record(); } catch (e) { return; }
+
+    // pathOf(a): the path of a same-origin link ('' for any other link)
+    function pathOf(a) {
+      try {
+        var u = new window.URL(a.getAttribute('href'), window.location.href);
+        return u.origin === window.location.origin ? u.pathname : '';
+      } catch (e) { return ''; }
+    }
+    function regionOf(el) {
+      var r = el.closest('[data-page-region]');
+      return r && r.id && r.getAttribute('data-page-region') === r.id ? r : null;
+    }
+
+    function keep(path, doc) {
+      if (!docs[path]) kept.push(path);
+      docs[path] = doc;
+      while (kept.length > 10) delete docs[kept.shift()];
+    }
+    function fetchDoc(path, ctl) {
+      return window.fetch(path, { credentials: 'same-origin', headers: { Accept: 'text/html' }, signal: ctl ? ctl.signal : undefined })
+        .then(function (r) {
+          var type = (r.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+          if (r.status !== 200 || r.redirected || type !== 'text/html') throw new Error(String(r.status));
+          return r.text();
+        })
+        .then(function (text) {
+          var doc = new window.DOMParser().parseFromString(text, 'text/html');
+          keep(path, doc);
+          return doc;
+        });
+    }
+
+    function stop() {
+      if (!job) return;
+      if (job.ctl) job.ctl.abort();
+      job.els.forEach(function (x) { x.removeAttribute('aria-busy'); });
+      job = null;
+    }
+
+    // go: show page path (address url; null: back / forward, the address is
+    // already there) with the regions ids replaced by the loaded page's.
+    function go(path, url, ids) {
+      stop();
+      var my = ++seq;
+      var ctl = window.AbortController ? new window.AbortController() : null;
+      var els = ids.map(function (id) { return d.getElementById(id); }).filter(Boolean);
+      els.forEach(function (x) { x.setAttribute('aria-busy', 'true'); });
+      job = { ctl: ctl, els: els };
+      var pushed = false; // after this, a failure reloads the address already shown
+      var got = url === null && docs[path] ? Promise.resolve(docs[path]) : fetchDoc(path, ctl);
+      got.then(function (doc) {
+        if (my !== seq) return;
+        stop();
+        ids.forEach(function (id) {
+          var n = doc.getElementById(id);
+          if (!n || n.getAttribute('data-page-region') !== id || !d.getElementById(id)) throw new Error(id);
+        });
+        if (url !== null) {
+          var s = {};
+          s[KEY] = keys();
+          ids.forEach(function (id) { s[KEY][id] = path; });
+          window.history.pushState(s, '', url);
+          pushed = true;
+        }
+        var lost = !d.activeElement || d.activeElement === body;
+        var fresh = ids.map(function (id) {
+          var old = d.getElementById(id);
+          if (old.contains(d.activeElement)) lost = true;
+          var nw = d.importNode(doc.getElementById(id), true);
+          old.parentNode.replaceChild(nw, old);
+          shown[id] = path;
+          init(nw);
+          return nw;
+        });
+        here = path;
+        outside(doc, ids);
+        if (url === null) record();
+        if (nday.rerender) nday.rerender();
+        var el = fresh[0];
+        if (!el) return;
+        if (url !== null || lost) {
+          el.setAttribute('tabindex', '-1');
+          el.focus({ preventScroll: true });
+        }
+        if (url !== null && el.getBoundingClientRect().top < 0) el.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+        announce(el);
+      }).then(null, function () {
+        if (my !== seq) return; // a newer navigation took over (and aborted this one)
+        stop();
+        if (url !== null && !pushed) window.location.assign(url);
+        else window.location.reload();
+      });
+    }
+
+    // init(el): what the page's script set up at load, for a new region
+    function init(el) {
+      localTimes(el);
+      copyButtons(el);
+      rowsIn(el);
+      pinFollows(el);
+      if (nday.adminInit) nday.adminInit(el);
+    }
+
+    // the new position, in the status bar's live region (the pager's words)
+    function announce(el) {
+      var p = el.querySelector('.pager .pg-pos');
+      if (!p) return;
+      var parts = Array.prototype.map.call(p.children, function (s) { return s.textContent; }).filter(Boolean);
+      if (parts.length) say(parts.join(', '));
+    }
+
+    // pageLinks(root, ids), hiddenFields(root, ids): the links to this same page (other positions,
+    // filters) and the hidden fields of its forms, outside the regions ids
+    // and the parts this script builds, in document order.
+    function outsideOf(x, ids) {
+      if (x.closest(SKIP)) return false;
+      var r = x.closest('[data-page-region]');
+      return !r || ids.indexOf(r.id) < 0;
+    }
+    function pageLinks(root, ids) {
+      var p = window.location.pathname;
+      return Array.prototype.filter.call(root.querySelectorAll('a[href]'), function (a) { return outsideOf(a, ids) && pathOf(a) === p; });
+    }
+    function hiddenFields(root, ids) {
+      return Array.prototype.filter.call(root.querySelectorAll('input[type="hidden"]'), function (i) { return i.closest('form') && outsideOf(i, ids); });
+    }
+    // relink: copy the loaded page's links and hidden fields onto this page's,
+    // pair by pair; false when the two pages do not have the same ones.
+    function relink(doc, ids) {
+      var a = pageLinks(d, ids), b = pageLinks(doc, ids);
+      var f = hiddenFields(d, ids), g = hiddenFields(doc, ids);
+      if (a.length !== b.length || f.length !== g.length) return false;
+      for (var i = 0; i < f.length; i++) if (f[i].name !== g[i].name) return false;
+      a.forEach(function (x, i) {
+        var h = b[i].getAttribute('href');
+        if (x.getAttribute('href') !== h) x.setAttribute('href', h);
+      });
+      f.forEach(function (x, i) { x.value = g[i].value; x.setAttribute('value', g[i].value); });
+      return true;
+    }
+
+    // outside(doc, ids): the rest of the page after the regions ids came
+    // from doc. The other regions keep their rows and selections; their
+    // links that carry the swapped list's position (pagers, filters) and the
+    // page's other such links and hidden fields are taken from doc. If doc
+    // differs there (its lists changed meanwhile), the other regions are
+    // replaced as well. Then the title, the head's links, the language
+    // links and the catalogue's search area (compact after page 1).
+    function outside(doc, ids) {
+      if (!relink(doc, ids)) {
+        var all = regionIds().filter(function (id) { return doc.getElementById(id); });
+        all.forEach(function (id) {
+          if (ids.indexOf(id) >= 0) return;
+          var nw = d.importNode(doc.getElementById(id), true);
+          var old = d.getElementById(id);
+          old.parentNode.replaceChild(nw, old);
+          shown[id] = here;
+          init(nw);
+        });
+        relink(doc, all);
+      }
+      if (doc.title) d.title = doc.title;
+      ['meta[name="robots"]', 'link[rel="canonical"]', 'meta[property="og:url"]'].forEach(function (sel) {
+        var x = d.head.querySelector(sel), y = doc.head ? doc.head.querySelector(sel) : null;
+        if (x && y) x.parentNode.replaceChild(d.importNode(y, true), x);
+        else if (x) x.parentNode.removeChild(x);
+        else if (y) d.head.appendChild(d.importNode(y, true));
+      });
+      var langs = {}, alts = {};
+      Array.prototype.forEach.call(doc.querySelectorAll('.langs a[hreflang]'), function (a) { langs[a.getAttribute('hreflang')] = a.getAttribute('href'); });
+      Array.prototype.forEach.call(doc.querySelectorAll('link[rel="alternate"][hreflang]'), function (l) { alts[l.getAttribute('hreflang')] = l.getAttribute('href'); });
+      Array.prototype.forEach.call(d.querySelectorAll('a[hreflang], link[rel="alternate"][hreflang]'), function (x) {
+        var h = (x.tagName === 'A' ? langs : alts)[x.getAttribute('hreflang')];
+        if (h && x.getAttribute('href') !== h) x.setAttribute('href', h);
+      });
+      var ch = d.querySelector('.chero'), nh = doc.querySelector('.chero');
+      if (ch && nh) {
+        ch.className = nh.className;
+        var bg = ch.querySelector('.cbg'), nb = nh.querySelector('.cbg');
+        if (bg && !nb) bg.parentNode.removeChild(bg);
+        else if (nb && !bg) {
+          bg = d.importNode(nb, true);
+          ch.insertBefore(bg, ch.firstChild);
+          heroField(bg);
+        }
+      }
+    }
+
+    d.addEventListener('click', function (e) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      var el = a && regionOf(a);
+      if (!el || a.hasAttribute('download') || (a.getAttribute('target') && a.getAttribute('target') !== '_self')) return;
+      if (!a.closest('.pager') && a.hash !== '#' + el.id) return;
+      if (pathOf(a) !== window.location.pathname) return;
+      var path = a.pathname + a.search;
+      if (path === here) return;
+      e.preventDefault();
+      if (el.getAttribute('aria-busy') === 'true') return;
+      go(path, path + a.hash, [el.id]);
+    });
+
+    window.addEventListener('popstate', function (e) {
+      var path = window.location.pathname + window.location.search;
+      if (path === here) return; // only the fragment moved
+      var k = e.state && e.state[KEY];
+      go(path, null, regionIds().filter(function (id) { return !k || k[id] !== shown[id]; }));
+    });
   })();
 
   function currentId() {
     if (cur >= 0 && rows[cur].getAttribute('data-id')) return rows[cur].getAttribute('data-id');
     return body.getAttribute('data-id') || '';
-  }
-
-  function toggleRaw() {
-    var blocks = cur >= 0 ? rows[cur].querySelectorAll('details.raw') : d.querySelectorAll('details.raw');
-    if (!blocks.length) {
-      var href = body.getAttribute('data-raw');
-      if (href) window.location.href = href;
-      return;
-    }
-    var open = false;
-    Array.prototype.forEach.call(blocks, function (x) { if (!x.open) open = true; });
-    Array.prototype.forEach.call(blocks, function (x) { x.open = open; });
   }
 
   function up() {
@@ -607,6 +1119,165 @@
       } catch (e) { /* this page view only */ }
     });
   }
+
+  // Row details (parts.tmpl "rowclose"; app.css "row pattern"): the back
+  // office lists, the account page and the discussion. A button data-rowx
+  // with aria-expanded and aria-controls opens the detail it names (an
+  // .adm-detail or .row-detail, hidden until then) right under its row; one
+  // is open per list (the nearest [data-rows], paging region, table,
+  // .adm-list or section). Escape inside a detail, or its data-rowx-close
+  // button, closes it and gives the focus back to its button. Registered
+  // before the keyboard shortcuts, so Escape closes the detail first.
+  var ROWBOX = '.adm-detail, .row-detail';
+  function rowList(el) {
+    return el.closest('[data-rows], [data-page-region], table, .adm-list, section') || el.closest('main') || body;
+  }
+  function rowClose(btn, focus) {
+    var box = d.getElementById(btn.getAttribute('aria-controls') || '');
+    if (box) box.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+    if (focus) btn.focus();
+  }
+  function rowToggle(btn) {
+    var box = d.getElementById(btn.getAttribute('aria-controls') || '');
+    if (!box) return;
+    var open = btn.getAttribute('aria-expanded') !== 'true';
+    rowList(btn).querySelectorAll('[data-rowx][aria-expanded="true"]').forEach(function (o) {
+      if (o !== btn) rowClose(o, false);
+    });
+    box.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      var first = box.querySelector('input:not([type=hidden]), textarea, select, button');
+      if (first) first.focus();
+    }
+  }
+  function rowTrigger(box) {
+    return box && box.id ? rowList(box).querySelector('[data-rowx][aria-controls="' + box.id + '"]') : null;
+  }
+  d.addEventListener('click', function (e) {
+    var b = e.target instanceof Element ? e.target.closest('button') : null;
+    if (!b) return;
+    if (b.hasAttribute('data-rowx')) {
+      rowToggle(b);
+    } else if (b.hasAttribute('data-rowx-close')) {
+      var o = rowTrigger(b.closest(ROWBOX));
+      if (o) rowClose(o, true);
+    }
+  });
+  d.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !(e.target instanceof Element)) return;
+    var o = rowTrigger(e.target.closest(ROWBOX));
+    if (o) {
+      e.preventDefault();
+      rowClose(o, true);
+    }
+  });
+  nday.rowClose = rowClose;
+
+  // The re-verification dialog (parts.tmpl "reauthpanel": the account page
+  // and the admin pages that act), for actions that need a recent sign-in.
+  // UI only: the page script keeps its CSRF token and makes the requests in
+  // its callbacks:
+  //   o.provider(p)  get a reauth ticket and leave for the provider (promise)
+  //   o.passkey()    sign in with a passkey, reload the page's state (promise)
+  //   o.say(el, key, vars, kind), o.fail(el, e)  the page's status words
+  //   o.done(from)   after a passkey sign-in with nothing to continue
+  //   o.webauthn     passkeys work in this browser
+  // open(me, from, retry): from is the control that needed it (focus goes
+  // back there on close); retry, if given, runs once after a passkey sign-in.
+  nday.reauthDialog = function (o) {
+    var dlg = d.getElementById('reauth');
+    if (!dlg) return null;
+    var st = dlg.querySelector('.acct-st');
+    var none = d.getElementById('reauth-none');
+    var cancel = d.getElementById('reauth-close');
+    var methods = Array.prototype.slice.call(dlg.querySelectorAll('[data-reauth]'));
+    var native = typeof dlg.showModal === 'function';
+    var from = null;
+    var retry = null;
+    var busy = false;
+    function shown() { return dlg.hasAttribute('open'); }
+    function closed() {
+      var back = from;
+      from = null;
+      retry = null;
+      if (back && back.isConnected && back.focus) back.focus();
+    }
+    function close() {
+      if (!shown()) return;
+      if (native) dlg.close(); else dlg.removeAttribute('open');
+      closed();
+    }
+    function open(me, f, r) {
+      var u = me && me.user;
+      if (!u) return;
+      var linked = (u.identities || []).map(function (i) { return i.provider; });
+      var enabled = me.providers || [];
+      var first = null;
+      methods.forEach(function (b) {
+        var p = b.getAttribute('data-reauth');
+        var ok = p === 'passkey'
+          ? !!(o.webauthn && me.passkeys && me.passkeys.enabled && (u.passkeys || []).length > 0)
+          : linked.indexOf(p) >= 0 && enabled.indexOf(p) >= 0;
+        b.parentNode.hidden = !ok;
+        if (ok && !first) first = b;
+      });
+      none.hidden = !!first;
+      if (!busy) o.say(st, '');
+      from = f || null;
+      retry = r || null;
+      if (!shown()) {
+        try {
+          if (native) dlg.showModal(); else dlg.setAttribute('open', '');
+        } catch (e) {
+          dlg.setAttribute('open', '');
+        }
+      }
+      (first || cancel).focus();
+    }
+    function act(b) {
+      if (busy) return;
+      var p = b.getAttribute('data-reauth');
+      var f = from;
+      var r = retry;
+      var job;
+      busy = true;
+      methods.forEach(function (m) { m.disabled = true; });
+      b.setAttribute('aria-busy', 'true');
+      o.say(st, 'acct.busy');
+      try {
+        job = Promise.resolve(p === 'passkey' ? o.passkey() : o.provider(p));
+      } catch (e) {
+        job = Promise.reject(e);
+      }
+      job.then(function () {
+        if (p !== 'passkey') return; // on the way to the provider
+        o.say(st, '');
+        var still = shown() && from === f; // not cancelled (or reopened for another control) meanwhile
+        if (still) close();
+        if (still && r) r(); else o.done(f);
+      }, function (e) {
+        o.fail(st, e);
+      }).then(function () {
+        busy = false;
+        b.removeAttribute('aria-busy');
+        methods.forEach(function (m) { m.disabled = false; });
+      });
+    }
+    methods.forEach(function (b) { b.addEventListener('click', function () { act(b); }); });
+    cancel.addEventListener('click', close);
+    // Esc (native: the cancel event closes it, then this) or any other close
+    dlg.addEventListener('close', function () { if (from) closed(); });
+    if (!native) {
+      dlg.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        close();
+        e.preventDefault();
+      });
+    }
+    return { open: open, close: close };
+  };
 
   // The help panel is a non-modal dialog: opening it moves focus into it,
   // closing it (?, Esc) returns focus where it was.
@@ -666,7 +1337,6 @@
         copy(id, function (ok) { say(ok ? word('copied-id', '{id}').replace('{id}', id) : word('copy-failed', '\u2717')); });
         break;
       }
-      case 'r': toggleRaw(); break;
       case 'o': {
         if (cur < 0) return;
         var a = rows[cur].querySelector('a[data-src]');
@@ -814,4 +1484,121 @@
   }
   all();
   d.addEventListener('nday:theme', all); // static/theme.js: the colour changed
+})();
+
+// Dots of the lifecycle chart (vulnerability pages; internal/webui
+// chartdots.go). Each dot is <a class="dot" data-pop="<id>"> (without this
+// script a link to the section that lists its items); here it becomes a
+// button that shows its popover (the hidden element <id> after the chart)
+// on hover, keyboard focus and tap. The popover stays open while the
+// pointer moves from the dot onto it, closes on Escape, when focus leaves
+// both and on a tap elsewhere, and is placed in the viewport (position:
+// fixed: neither the chart's scroller nor the viewport edges cut it; below
+// the dot, above when there is no room). Enter on a dot moves focus into
+// its popover; Tab from the popover's last link goes on to the next dot.
+(function () {
+  'use strict';
+  var d = document;
+  var dots = Array.prototype.slice.call(d.querySelectorAll('a.dot[data-pop]'));
+  if (!dots.length) return;
+  var cur = null, timer = 0, touch = false;
+  function popOf(a) { return d.getElementById(a.getAttribute('data-pop')); }
+  function links(p) { return Array.prototype.slice.call(p.querySelectorAll('a[href]')); }
+  function place(a, p) {
+    var r = a.getBoundingClientRect(), w = p.offsetWidth, h = p.offsetHeight;
+    var vw = d.documentElement.clientWidth, vh = d.documentElement.clientHeight;
+    var cx = r.left + r.width / 2, foot = r.bottom; // the drawn dot sits at the foot of its box
+    var left = Math.max(8, Math.min(cx - w / 2, vw - w - 8));
+    var top = foot + 4;
+    if (top + h > vh - 8 && foot - r.height - h - 4 >= 8) top = foot - r.height - h - 4;
+    if (top + h > vh - 8) top = Math.max(8, vh - h - 8);
+    p.style.left = Math.round(left) + 'px';
+    p.style.top = Math.round(top) + 'px';
+  }
+  function hide() {
+    window.clearTimeout(timer);
+    if (!cur) return;
+    popOf(cur).hidden = true;
+    cur.setAttribute('aria-expanded', 'false');
+    cur.removeAttribute('data-shown');
+    cur = null;
+  }
+  function show(a) {
+    window.clearTimeout(timer);
+    if (cur === a) return;
+    hide();
+    var p = popOf(a);
+    p.hidden = false;
+    a.setAttribute('aria-expanded', 'true');
+    cur = a;
+    place(a, p);
+  }
+  function later() {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(function () {
+      var f = d.activeElement;
+      if (cur && !(f && (cur === f || popOf(cur).contains(f)))) hide();
+    }, 250);
+  }
+  function inside(t) { return cur && t && (cur.contains(t) || popOf(cur).contains(t)); }
+  dots.forEach(function (a, i) {
+    var p = popOf(a);
+    if (!p) return;
+    a.setAttribute('role', 'button');
+    a.setAttribute('aria-expanded', 'false');
+    a.setAttribute('aria-controls', p.id);
+    a.addEventListener('pointerdown', function (e) { touch = e.pointerType !== 'mouse'; });
+    a.addEventListener('mouseenter', function () { if (!touch) show(a); });
+    a.addEventListener('mouseleave', later);
+    a.addEventListener('focus', function () {
+      if (a.hasAttribute('data-esc')) { a.removeAttribute('data-esc'); return; } // back from Escape: stay closed
+      show(a);
+    });
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (e.detail === 0) { // keyboard: into the popover
+        show(a);
+        var ls = links(p);
+        if (ls.length) ls[0].focus();
+        return;
+      }
+      if (touch && cur === a && a.hasAttribute('data-shown')) { hide(); return; }
+      show(a);
+      a.setAttribute('data-shown', '1');
+    });
+    a.addEventListener('keydown', function (e) {
+      if (e.key === ' ') { e.preventDefault(); a.click(); }
+    });
+    p.addEventListener('mouseenter', function () { window.clearTimeout(timer); });
+    p.addEventListener('mouseleave', later);
+    p.addEventListener('keydown', function (e) {
+      if (e.key !== 'Tab') return;
+      var ls = links(p);
+      if (e.shiftKey && e.target === ls[0]) {
+        e.preventDefault();
+        a.focus();
+      } else if (!e.shiftKey && e.target === ls[ls.length - 1] && dots[i + 1]) {
+        e.preventDefault();
+        dots[i + 1].focus();
+      }
+    });
+  });
+  d.addEventListener('focusout', function (e) {
+    if (!cur || !inside(e.target)) return;
+    window.setTimeout(function () { if (cur && !inside(d.activeElement)) hide(); }, 0);
+  });
+  d.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !cur) return;
+    var back = cur, f = d.activeElement;
+    var wasIn = inside(f);
+    hide();
+    if (wasIn && f !== back) {
+      back.setAttribute('data-esc', '1');
+      back.focus();
+    }
+  }, true);
+  d.addEventListener('pointerdown', function (e) { if (cur && !inside(e.target)) hide(); }, true);
+  function again() { if (cur) place(cur, popOf(cur)); }
+  window.addEventListener('resize', again);
+  window.addEventListener('scroll', again, true);
 })();

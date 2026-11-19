@@ -67,6 +67,12 @@
   --poc: #F5B83D;
   --itw: #FF8A4C;
   --kev: #FF5C6C;
+  /* lifecycle chart dots by item type (chartdots.go): hues set apart from the stage colours above; >= 3:1 on
+     --bg and --bar */
+  --dot-post: #FFFFFF;
+  --dot-art: #E2DC5A;
+  --dot-poc: #FF6FD8;
+  --dot-pat: #48E0A4;
   /* weakness-type tag chips by category (tagview.go typeCategory): text and border only, hues set apart from
      the stage colours; each >= 7:1 on --bg, --bar and --sel */
   --tc-exec: #FF7A9A;
@@ -110,6 +116,10 @@
   --poc: #7A5000;
   --itw: #9C3E05;
   --kev: #B31B2A;
+  --dot-post: #14140F;
+  --dot-art: #666300;
+  --dot-poc: #A8127A;
+  --dot-pat: #00704F;
   --tc-exec: #A51D49;
   --tc-mem: #76502F;
   --tc-authz: #84319F;
@@ -179,7 +189,7 @@ time { white-space: nowrap; }
 .search input::placeholder { color: var(--fg3); opacity: 1; }
 .search input::-webkit-search-cancel-button { display: none; }
 .search kbd { font-size: 11px; color: var(--fg2); border: 1px solid var(--line); padding: 0 6px; }
-.toplinks { display: flex; gap: 16px; margin-left: auto; }
+.toplinks { display: flex; align-items: center; gap: 16px; margin-left: auto; }
 .toplinks a { color: var(--fg2); }
 .toplinks a[aria-current="page"] { color: var(--fg); }
 
@@ -233,10 +243,6 @@ time { white-space: nowrap; }
 .cmd.sm { gap: 10px; padding: 7px 8px 7px 10px; }
 .cmd.sm code { font-size: 12px; }
 .dhead .cmd { max-width: 760px; }
-/* the hot list's API command, folded away (hot.tmpl) */
-.apid > summary { cursor: pointer; font-size: 12px; color: var(--fg2); width: max-content; max-width: 100%; }
-.apid > summary:hover, .apid[open] > summary { color: var(--fg); }
-.apid[open] > summary { margin-bottom: 8px; }
 /* the list filters (hot.tmpl): always shown on wide screens, where the summary line is not; folded on phones */
 .flt > summary { display: none; cursor: pointer; font-size: 12px; color: var(--fg2); width: max-content; max-width: 100%; }
 .flt > summary:hover, .flt[open] > summary { color: var(--fg); }
@@ -308,6 +314,20 @@ time { white-space: nowrap; }
 a.ttl { color: var(--fg); text-decoration: none; }
 a.ttl:hover { color: var(--hover); text-decoration: underline; text-underline-offset: 3px; }
 .vul .ttl.missing, .vul .vend { color: var(--fg3); }
+/* the origin marker after a title nday composed or staff set (parts.tmpl titlemark): a small dim glyph that
+   never wraps away from the title's last word; in a one-line title it stays visible after the cut text */
+.tmark { color: var(--fg3); font-size: .75em; font-weight: 400; line-height: 0; vertical-align: super; margin-left: 1px; white-space: nowrap; cursor: help; }
+.ttl.tm { display: flex; align-items: baseline; }
+.ttl.tm > .ttx { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ttl.tm > .tmark { flex: none; }
+/* the title cell of /admin/titles: one line, cut, the marker kept after the cut text */
+.adm-ttid { white-space: nowrap; }
+/* a cell that stays on one line (job names, statuses, short counts) */
+.adm-nw { white-space: nowrap; }
+.adm-ttd { width: 50%; }
+.adm-ttl { display: flex; align-items: baseline; min-width: 24ch; max-width: 60ch; }
+.adm-ttl > .adm-ttx { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-ttl > .tmark { flex: none; }
 .vul .vend { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* hot list rows (parts.tmpl hotrow): the title has the first line to itself, the full width of the column, on
    one line; the second holds the ID, its badges, then the tags and products (cut first when space runs out) */
@@ -353,7 +373,31 @@ a.ttl:hover { color: var(--hover); text-decoration: underline; text-underline-of
 .legend > details[open] > summary { margin-bottom: 8px; }
 .legend > details > .ln + .ln { margin-top: 8px; }
 
-.pager { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 12px; color: var(--fg3); }
+/* A paged list and its pager (data-page-region; app.js "paging" swaps it for another page's): a public list's
+   region keeps the column's spacing; while the next page loads the region is dimmed (aria-busy); it takes the
+   focus after a swap without drawing an outline. */
+.pgr { display: flex; flex-direction: column; gap: inherit; min-width: 0; }
+[data-page-region][aria-busy="true"] { opacity: .55; transition: opacity .15s; }
+[data-page-region]:focus { outline: none; }
+
+/* The pager of every paginated list (parts.tmpl "pager"): the position on the left, the buttons first /
+   previous / next on the right. A button that does not apply stays in its place, dimmed (aria-disabled), so
+   nothing moves between pages. Phones: the position on its own line, the buttons share the full width. */
+.pager { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; font-size: 12px; color: var(--fg3); }
+.pg-pos { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-variant-numeric: tabular-nums; }
+.pg-pos:empty { display: none; }
+.pg-pos > span:first-child { color: var(--fg2); }
+.pg-ctl { display: flex; gap: 6px; margin-left: auto; }
+.pg { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 12px;
+  border: 1px solid var(--ctl); color: var(--fg2); font-family: var(--mono); font-size: 12px; white-space: nowrap; text-decoration: none; }
+a.pg:hover { color: var(--fg); border-color: var(--fg3); }
+.pg[aria-disabled="true"] { color: var(--fg3); border-color: var(--line); opacity: .55; cursor: default; }
+.pg-g { font-size: 14px; line-height: 1; }
+@media (max-width: 720px) {
+  .pg-pos { flex: 1 1 100%; }
+  .pg-ctl { flex: 1 1 100%; margin-left: 0; }
+  .pg { flex: 1 1 0; min-width: 0; height: 44px; padding: 0 8px; }
+}
 .empty { padding: 28px 16px; color: var(--fg2); font-family: var(--sans); font-size: 14px; display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
 
 /* aside panels */
@@ -393,6 +437,17 @@ a.ttl:hover { color: var(--hover); text-decoration: underline; text-underline-of
 .crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
 .crumb .id { font-size: 20px; font-weight: 700; margin-left: -14px; }
 .crumb a { color: var(--fg2); text-underline-offset: 3px; }
+/* share menu next to the id (vuln.tmpl; app.js shareMenu): a <details> like the language menu, so
+   "post on X" works without script; "copy text" is a copy button (hidden without script) */
+.share { position: relative; }
+.share > summary { list-style: none; display: inline-flex; align-items: center; }
+.share > summary::-webkit-details-marker { display: none; }
+.share[open] > summary { color: var(--fg); border-color: var(--fg3); }
+.share ul { position: absolute; left: 0; top: calc(100% + 6px); z-index: 20; margin: 0; padding: 6px 0; list-style: none; background: var(--bar); border: 1px solid var(--line); min-width: 150px; max-width: calc(100vw - 32px); }
+.share li a, .share li button { display: block; width: 100%; padding: 6px 14px; border: 0; background: transparent; color: var(--fg2); font: inherit; font-size: 13px; text-align: left; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.share li a[data-fav] { padding-inline-start: 36px; } /* the site icon (siteicons.go) in front of "post on X" */
+.share li a[data-fav] > .fav { inset-inline-start: 14px; top: calc(50% - 8px); }
+.share li a:hover, .share li a:focus, .share li button:hover, .share li button:focus { color: var(--fg); background: var(--sel); }
 .vt { font-family: var(--sans); font-size: 26px; line-height: 1.3; font-weight: 600; max-width: 980px; overflow-wrap: anywhere; }
 .vt.missing { color: var(--fg3); font-size: 20px; }
 .orig { font-size: 12px; color: var(--fg3); max-width: 980px; overflow-wrap: anywhere; }
@@ -430,14 +485,80 @@ a.ttl:hover { color: var(--hover); text-decoration: underline; text-underline-of
 .axis .now { fill: var(--green); }
 .grid { stroke: var(--line2); stroke-width: 1; }
 .nowl { stroke: var(--nowline); stroke-width: 1; }
+/* a line down every row under each researcher-post triangle, drawn like the "now" line, in the triangle's colour */
+.postl { stroke: var(--dot-post); stroke-width: 1; }
 .lbl { font-size: 11px; fill: var(--fg2); paint-order: stroke; stroke: var(--bg); stroke-width: 8px; stroke-linejoin: round; }
 .nolbl { font-size: 12px; fill: var(--fg3); paint-order: stroke; stroke: var(--bg); stroke-width: 12px; stroke-linejoin: round; }
 .barhalo { fill: none; stroke: currentColor; stroke-opacity: 0.3; stroke-width: 6; }
 .st-kev .barhalo { stroke-opacity: 0.32; }
+/* dots of external items on the chart (chartdots.go): an 8px dot (a ring for "not after") at the foot of a
+   24px hit box (32px on phones), drawn over the plot by an SVG overlay; the popovers live after the chart
+   (not clipped by its scroller) and app.js places them (position: fixed) */
+.pc { position: relative; min-width: 0; }
+.dots { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.dot { position: relative; display: block; width: 24px; height: 24px; margin: 12px auto 0; pointer-events: auto; text-decoration: none; border-radius: 4px; }
+.dot::before { content: ""; display: block; box-sizing: border-box; width: 12px; height: 12px; margin: 11px auto 0; border-radius: 50%; background: currentColor; border: 2px solid currentColor; }
+.dot.ring::before { background: var(--bg); }
+.chead .dot.ring::before { background: var(--bar); }
+.dot .dn { position: absolute; left: 20px; top: 4px; font-size: 10px; line-height: 1; color: var(--fg2); }
+.dot:hover::before, .dot[aria-expanded="true"]::before { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px currentColor; }
+.dot:focus-visible { outline: 2px solid var(--fg); outline-offset: -2px; }
+.d-post { color: var(--dot-post); }
+/* researcher posts: a triangle pointing down at the day, not a dot (it sits on the date axis, and a round
+   mark in a stage-like blue was easy to miss) */
+.d-post::before, .d-post.ring::before { width: 0; height: 0; margin-top: 10px; border-radius: 0; background: none; border: solid transparent; border-width: 13px 8px 0; border-top-color: currentColor; }
+.d-post:hover::before, .d-post[aria-expanded="true"]::before { box-shadow: none; transform: scale(1.25); transform-origin: 50% 100%; }
+.d-art { color: var(--dot-art); }
+.d-poc { color: var(--dot-poc); }
+.d-pat { color: var(--dot-pat); }
+.dpop { position: fixed; left: 0; top: 0; z-index: 30; width: max-content; max-width: min(420px, calc(100vw - 16px)); padding: 8px 10px; background: var(--bar); border: 1px solid var(--line); font-size: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, .35); }
+.dpop[hidden] { display: none; }
+.dpop ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dpop li { overflow-wrap: anywhere; }
+.dp-k, .dp-d { color: var(--fg3); }
+.dp-d { white-space: nowrap; }
+.dp-tx { display: block; color: var(--fg2); }
+a.dp-tx { color: var(--fg); }
+.dp-more { display: inline-block; margin-top: 6px; }
+@media (max-width: 720px) {
+  .dot { width: 32px; height: 32px; margin-top: 4px; }
+  .dot::before { margin-top: 19px; }
+  .d-post::before, .d-post.ring::before { margin-top: 18px; }
+  .dot .dn { left: 24px; top: 12px; }
+}
+/* A row with dots (chartdots.go Lane) is 64px tall: its stage marks and "time unknown" cell keep the
+   upper 36px (the row label is centred on the whole row), the dots get the lane under them (box from y 34, laneFY; mark centred at y 50). A mark of
+   several items is a bubble with the count inside, sized by the count (b2: 2-9, b3: 10-99, b4: 100+; bubblePx);
+   its hit box is at least 24px and 2px wider than the mark on each side (hitPx), 32px on phones. */
+.crow.lane .plot { height: 64px; }
+/* the row label is centred on the whole (taller) row; .lab already centres its content */
+.crow.lane .unk { padding-bottom: 32px; }
+.lane .dot { display: flex; align-items: center; justify-content: center; margin-top: 4px; }
+.lane .dot::before { flex: none; margin: 0; }
+.lane .dot.b2::before { width: 18px; height: 18px; }
+.lane .dot.b3 { width: 26px; height: 26px; margin-top: 3px; }
+.lane .dot.b3::before { width: 22px; height: 22px; }
+.lane .dot.b4 { width: 30px; height: 30px; margin-top: 1px; }
+.lane .dot.b4::before { width: 26px; height: 26px; }
+.lane .dot .dn { left: 0; top: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: var(--bg); font-variant-numeric: tabular-nums; }
+.lane .dot.ring .dn { color: inherit; }
+@media (max-width: 720px) {
+  .lane .dot, .lane .dot.b3, .lane .dot.b4 { width: 32px; height: 32px; margin-top: 0; }
+}
 
 .cols { display: flex; flex-wrap: wrap; gap: 36px 48px; align-items: flex-start; }
 .cols > .main { flex: 999 1 640px; gap: 28px; }
 .cols > .side { flex: 1 1 320px; gap: 26px; padding-top: 0; }
+/* The corrections, researcher posts and discussion sections are part of the main column, so it runs on
+   beside the side column instead of leaving the space under a short event log empty. When the columns stack
+   (below 1072px) the side column keeps its place before those three sections. */
+@media (max-width: 1071px) {
+  .cols { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 28px; }
+  .cols > .main { display: contents; }
+  .cols > .side { flex: none; order: 1; }
+  .cols > .main > #correction, .cols > .main > #research, .cols > .main > #discussion { order: 2; }
+}
 /* upstream description (template "text", prose.go): paragraphs keep their line breaks; code blocks
    scroll inside themselves, never the page */
 .summary, .orig-t { max-width: 760px; min-width: 0; display: flex; flex-direction: column; gap: 10px; font-family: var(--sans); overflow-wrap: anywhere; }
@@ -548,6 +669,7 @@ a.ttl:hover { color: var(--hover); text-decoration: underline; text-underline-of
 .api { display: flex; flex-direction: column; gap: 16px; max-width: 900px; }
 .api .ep { display: flex; flex-direction: column; gap: 6px; }
 .api .ep .d { font-family: var(--sans); color: var(--fg2); }
+.api .ep .ep-n { font-weight: 600; overflow-wrap: anywhere; }
 .keylist { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 6px 14px; max-width: 760px; }
 .keylist dd { margin: 0; font-family: var(--sans); color: var(--fg2); }
 .errbox { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
@@ -560,6 +682,17 @@ a.ttl:hover { color: var(--hover); text-decoration: underline; text-underline-of
 .acct { color: var(--fg2); white-space: nowrap; }
 .acct[aria-current="page"] { color: var(--fg); }
 .acct .an { display: inline-block; max-width: 18ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+/* account menu (app.js builds it when signed in): a <details> menu like the language and theme ones */
+.acctm { position: relative; }
+.acctm > summary { list-style: none; cursor: pointer; }
+.acctm > summary::-webkit-details-marker { display: none; }
+.acctm > summary::after { content: " \25BE"; color: var(--fg3); }
+.acctm > summary:hover, .acctm[open] > summary { color: var(--fg); }
+.acctm ul { position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; margin: 0; padding: 6px 0; list-style: none; background: var(--bar); border: 1px solid var(--line); min-width: 160px; max-width: calc(100vw - 32px); }
+.acctm [role="menuitem"] { display: block; width: 100%; padding: 8px 16px; font-size: 13px; border: 0; background: transparent; color: var(--fg2); text-align: left; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.acctm [role="menuitem"]:hover, .acctm [role="menuitem"]:focus { color: var(--fg); background: var(--sel); }
+.acctm [role="menuitem"][aria-current="page"]::before { content: "\25B8  "; color: var(--green); }
+.acctm [role="separator"] { margin: 6px 0; border-top: 1px solid var(--line); }
 .acct .rb, .rb { display: inline-block; margin-left: 6px; padding: 0 5px; background: var(--green); color: var(--bg); font-size: 11px; font-weight: 700; line-height: 16px; text-decoration: none; vertical-align: 1px; }
 .authbanner { border-bottom: 1px solid var(--line2); background: var(--sel); font-size: 12px; }
 .authbanner .wrap { display: flex; align-items: center; gap: 14px; padding-top: 6px; padding-bottom: 6px; }
@@ -575,6 +708,15 @@ a.ttl:hover { color: var(--hover); text-decoration: underline; text-underline-of
 .btn:disabled { color: var(--fg3); border-color: var(--line2); cursor: not-allowed; }
 .btn[aria-busy="true"] { cursor: progress; }
 .btn[aria-busy="true"]::after { content: " \2026"; }
+/* two-step confirm (app.js confirmStep): from the start the button is as wide as the wider of its label and its
+   data-confirm word (the word sits in a row of no height under the label); armed, the word covers the label in
+   the same box, so arming and disarming never move anything. Busy, the ellipsis sits in the right padding. */
+.btn[data-confirm] { position: relative; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; }
+.btn[data-confirm]::before { content: attr(data-confirm); order: 1; height: 0; overflow: hidden; visibility: hidden; white-space: nowrap; }
+.btn[data-confirm][data-armed="1"] { -webkit-text-fill-color: transparent; }
+.btn[data-confirm][data-armed="1"]::after { content: attr(data-confirm); position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; white-space: nowrap; -webkit-text-fill-color: currentcolor; }
+.btn[data-confirm][aria-busy="true"]::after { content: "\2026"; position: absolute; top: 0; bottom: 0; right: 1px; display: flex; align-items: center; }
 .acct-form { display: flex; flex-direction: column; gap: 6px; max-width: 640px; }
 /* field captions: a label placed straight in the form, in one of its rows, or
    in a field group; other labels (the terms checkbox, a label inside a
@@ -605,11 +747,20 @@ select.acct-in { flex: 0 1 260px; }
 .acct-acts { display: flex; gap: 8px; }
 .acct-pk { max-width: 860px; }
 .acct-pk td { vertical-align: middle; }
-.acct-pk .acct-acts { justify-content: flex-end; flex-wrap: wrap; }
+.acct-pk .acct-acts { justify-content: flex-end; }
 .acct-pk input { width: 100%; max-width: none; }
-.acct-panel { border: 1px solid var(--fg3); background: var(--bar); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; max-width: 760px; }
-.acct-panel h2:focus { outline: none; }
-.acct-panel h2:focus-visible { outline: 1px solid var(--fg); }
+.acct-pk .row-detail input { max-width: 360px; } /* the rename row (account.js passkeyRow) */
+.acct-feed .cmd { flex: 1 1 auto; } /* the feed address, then its reset (app.css "row pattern") */
+/* the re-verification dialog (parts.tmpl "reauthpanel", app.js nday.reauthDialog); without showModal
+   the script sets [open] and the same rules centre it */
+.dlg { box-sizing: border-box; width: 100%; max-width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+  overflow: auto; margin: auto; padding: 16px; border: 1px solid var(--fg3); background: var(--bar); color: var(--fg); }
+.dlg:not([open]) { display: none; }
+.dlg[open] { position: fixed; inset: 0; z-index: 50; height: fit-content; display: flex; flex-direction: column; gap: 12px; }
+.dlg .h2 { margin: 0; }
+.dlg .btn.acct-btn { height: auto; padding-top: 7px; padding-bottom: 7px; line-height: 18px; white-space: normal; text-align: left; }
+.dlg::backdrop { background: rgba(0, 0, 0, .6); }
+:root[data-theme="light"] .dlg::backdrop { background: rgba(0, 0, 0, .35); }
 .acct-susp { max-width: 760px; }
 .acct-danger { border-top: 1px solid var(--line); padding-top: 18px; }
 /* the account page: the menu on the left, the chosen section on the right
@@ -621,13 +772,15 @@ select.acct-in { flex: 0 1 260px; }
 .acct-menu a { display: block; padding: 7px 10px; color: var(--fg2); text-decoration: none; overflow-wrap: anywhere; }
 .acct-menu a:hover { color: var(--fg); }
 .acct-menu a[aria-current="page"] { background: var(--fg); color: var(--bg); font-weight: 600; }
-.acct-menu .acct-mdel { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
-.acct-menu .acct-mdel a { color: var(--kev); }
-.acct-menu .acct-mdel a[aria-current="page"] { background: var(--kev); color: var(--bg); }
 .acct-pane { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 30px; }
 .btn.acct-del:not(:disabled) { color: var(--fg); border-color: var(--kev); }
 .btn.acct-del:not(:disabled):hover { background: var(--kev); color: var(--bg); }
 .acct-item.fol { grid-template-columns: minmax(0, 1fr) auto; }
+/* the API section: sub-headings, the new token's secret (shown once) */
+.acct-h3 { margin: 8px 0 0; font-size: 13px; font-weight: 600; }
+/* a block of an account page section (Security: methods, passkeys, sessions; ...) */
+.acct-sub + .acct-sub { margin-top: 18px; }
+.acct-secret { display: flex; flex-direction: column; gap: 6px; max-width: 760px; }
 
 /* first-sign-in page (/welcome; internal/webui/welcome.go) */
 .wel-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
@@ -704,8 +857,10 @@ select.acct-in { flex: 0 1 260px; }
 .cm-src { margin: 0; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg2);
   border: 1px dashed var(--line); padding: 6px 8px; max-height: 240px; overflow: auto; }
 .cm-note { font-family: var(--sans); font-size: 12px; color: var(--fg2); overflow-wrap: anywhere; }
-.cm-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
-.cm-acts .acct-st { flex-basis: 100%; }
+/* a comment's actions: one line (app.css "row pattern"), its status line under it; a form opens right below */
+.cm-acts { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.cm-acts > .row-acts { max-width: 100%; gap: 6px 8px; }
+.cm > div.row-detail { margin-top: 0; }
 .cm-flag { font-size: 11px; color: var(--fg3); }
 .disc-page { font-size: 12px; }
 .cm-more { margin-left: var(--cm-indent); }
@@ -766,10 +921,16 @@ select.acct-in { flex: 0 1 260px; }
 .rp-list + .btn { align-self: flex-start; } /* discuss.js "show more" after the posts */
 .rp-l { overflow-wrap: anywhere; }
 .rsrc-k { margin: 12px 0 4px; font-size: 12px; font-weight: 600; color: var(--fg2); }
+/* PoC / exploit code stands out among the groups: the danger colour, bold */
+.rsrc-k.k-poc { color: var(--kev); font-weight: 700; }
 .rsrc-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .rsrc-list li { font-size: 13px; overflow-wrap: anywhere; min-width: 0; }
 .rsrc-n { font-size: 12px; color: var(--fg2); }
 .rsrc-host { font-size: 12px; color: var(--fg2); }
+/* the repositories that do not count as a PoC: collapsed, dim, never the danger colour */
+.rsrc-u > summary { cursor: pointer; width: max-content; max-width: 100%; }
+.rsrc-u > summary:hover { color: var(--fg); }
+.rsrc-u .rsrc-list a { color: var(--fg2); }
 .rsch-b { color: var(--fg2); }
 .pin-b { color: var(--fg2); }
 
@@ -798,10 +959,13 @@ select.acct-in { flex: 0 1 260px; }
   .acct-menu ul::-webkit-scrollbar { display: none; }
   .acct-menu li { flex: none; }
   .acct-menu a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; white-space: nowrap; overflow-wrap: normal; }
-  .acct-menu .acct-mdel { margin: 0 0 0 6px; padding: 0 0 0 6px; border-top: 0; border-left: 1px solid var(--line); }
   .cm-replies { margin-left: calc(var(--cm-indent) - 10px); padding-left: 10px; }
   .adm-charts, .adm-tops { grid-template-columns: minmax(0, 1fr); }
   .adm-filter .acct-row label { min-width: 0; flex-basis: 100%; }
+  /* the second-level admin menu: one row that scrolls sideways, as the admin menu */
+  .adm-subnav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .adm-subnav::-webkit-scrollbar { display: none; }
+  .adm-subnav a { flex: none; white-space: nowrap; }
   .wel-side { max-width: none; }
 }
 
@@ -825,6 +989,15 @@ select.acct-in { flex: 0 1 260px; }
 .tfc .tg { display: inline-flex; align-items: center; height: 30px; padding: 0 8px; font-size: 12px; }
 .tx { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 30px; border: 1px solid var(--line); border-left: 0; color: var(--fg3); text-decoration: none; }
 .tx:hover { color: var(--fg); border-color: var(--fg3); }
+/* tag icons (tagicons.go): the brand mark of a product or ecosystem tag, in the label's colour, one
+   cap-height square before it. svg.tgi references the sprite; span.tgi is the mask fallback (tagicons.css).
+   A tag page heading keeps mark and name together (.tgh). */
+.tgi { display: inline-block; flex: none; width: 1.15em; height: 1.15em; margin-inline-end: 0.35em; vertical-align: -0.22em; fill: currentColor; }
+span.tgi { background-color: currentColor; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain; }
+.tgh { display: inline-flex; align-items: baseline; }
+.tgh .tgi { align-self: center; width: 0.9em; height: 0.9em; }
+@media (forced-colors: active) { span.tgi { forced-color-adjust: none; } }
 .tall { font-size: 12px; color: var(--fg3); text-underline-offset: 3px; }
 .vtags { display: flex; flex-direction: column; gap: 6px; max-width: 980px; }
 .tgline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; font-size: 12px; }
@@ -880,9 +1053,7 @@ select.acct-in { flex: 0 1 260px; }
   .langs { position: static; }
   .langs ul { left: auto; right: 0; }
   .theme { position: static; }
-  /* keep brand and links on one row: the api link is also on the about page */
-  .toplinks .tl-api { display: none; }
-
+  .acctm { position: static; }
   /* the first screen goes to the list: the hot list's lede goes, the filters
      fold into their summary line (app.js closes them on load), and the status
      line moves under the content unless a collector is failing */
@@ -940,19 +1111,28 @@ select.acct-in { flex: 0 1 260px; }
   .langs li a { padding-top: 12px; padding-bottom: 12px; }
   .theme > summary { width: 44px; height: 44px; font-size: 20px; }
   .theme button { padding-top: 12px; padding-bottom: 12px; }
+  .acctm > summary { display: inline-flex; align-items: center; min-height: 44px; }
+  .acctm [role="menuitem"] { display: flex; align-items: center; min-height: 44px; padding-top: 0; padding-bottom: 0; }
   .seg a { height: 44px; }
   .tx { width: 44px; height: auto; min-height: 44px; }
   .btn { min-height: 44px; }
-  .apid > summary, .flt > summary, .why > summary, .tgmore > summary, .legend > details > summary, .corr-d > summary {
+  .flt > summary, .why > summary, .tgmore > summary, .legend > details > summary, .corr-d > summary, .rsrc-u > summary {
     min-height: 44px; padding-top: 12px; padding-bottom: 12px; }
   .tg, .rtags .tg { line-height: 30px; }
   .rtags, .tgd, .tglist dt { gap: 8px; }
   .tgline { row-gap: 8px; }
   .vul .id { display: inline-flex; align-items: center; min-height: 32px; }
+  /* the id, its copy button and the share menu stay on one line: the decorative "~/vuln/" goes,
+     the controls sit closer */
+  .crumb { column-gap: 8px; }
+  .crumb > .weak { display: none; }
+  .crumb .id { margin-left: 0; font-size: 18px; }
+  .crumb > .btn, .share > summary { padding: 0 6px; }
+  .share ul { left: auto; right: 0; } /* the menu sits at the end of the line: open it leftwards */
+  .share li a, .share li button { display: flex; align-items: center; min-height: 44px; padding-top: 0; padding-bottom: 0; }
 }
 
 /* staff back office (/admin; see internal/webui/admin.go) */
-.acct.adm-link { color: var(--green); }
 .adm { gap: 22px; }
 .adm-nav { display: flex; flex-wrap: wrap; gap: 4px 18px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
 .adm-nav a { color: var(--fg2); text-decoration: none; }
@@ -1023,6 +1203,10 @@ select.acct-in { flex: 0 1 260px; }
 .adm-reps { margin: 0; padding-left: 18px; font-size: 12px; display: flex; flex-direction: column; gap: 3px; }
 .adm-reason { color: var(--fg); }
 .adm-lnk { display: inline-flex; align-items: center; text-decoration: none; }
+/* the posting form of a draft (admin_xdrafts.tmpl; admin.js draftCount) */
+.adm-xdforms { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--fg2); }
+.adm-xdforms label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.adm-xdforms input { margin: 0; accent-color: var(--green); }
 .adm-ta { flex: none; height: auto; min-height: 52px; max-width: 640px; padding: 6px 10px; font-family: var(--sans); resize: vertical; }
 .adm-filter .acct-row label { min-width: 120px; }
 .adm-det { font-size: 11px; color: var(--fg3); overflow-wrap: anywhere; white-space: pre-wrap; }
@@ -1042,6 +1226,41 @@ select.acct-in { flex: 0 1 260px; }
 .adm-cost dd { color: var(--poc); font-size: 22px; }
 .adm-tweet { white-space: pre-wrap; display: block; }
 .adm-import { min-height: 120px; font-family: var(--mono); }
+/* the second-level menu of a menu group (/admin/x, /admin/x/drafts, /admin/github): chips, the current one filled */
+.adm-subnav { flex-wrap: wrap; }
+.adm-subnav a[aria-current="page"] { position: relative; z-index: 1; border: 1px solid var(--fg); background: var(--fg); color: var(--bg); font-weight: 600; }
+/* row pattern (parts.tmpl "rowclose"; app.js "row details"): actions on one line (the destructive last), long
+   text on one line, the full text and the row's forms in a detail right under the row. The back office uses the
+   adm-* names, the account page and the discussion the row-* names; the rules are the same. */
+.row-acts, .adm-rowacts { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; white-space: nowrap; }
+.row-acts .btn, .adm-rowacts .btn { flex: none; }
+.adm-clip { display: block; max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-clip.s { max-width: 16ch; }
+.adm-rowacts .adm-clip { display: inline-block; vertical-align: middle; }
+tr.row-detail > td, tr.adm-detail > td { background: var(--strip); padding: 10px 12px; }
+.row-dbox, .adm-dbox { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 760px; }
+.adm-dbox p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+div.row-detail, div.adm-detail { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+div.row-detail[hidden], tr.row-detail[hidden], div.adm-detail[hidden], tr.adm-detail[hidden] { display: none; }
+/* phones: a row's actions stay one line and scroll sideways inside it (buttons are 44px high there) */
+@media (max-width: 720px) {
+  .row-acts, .adm-rowacts { max-width: 100%; min-width: 0; overflow-x: auto; scrollbar-width: thin; padding: 2px; }
+}
+/* /admin/github flags: whole words, wrapped only between flags */
+.adm-tbl td.adm-words { overflow-wrap: normal; }
+/* /admin/github: "found by" on one line; sortable headers (a link, the order's glyph after the label) on one line */
+.adm-tbl td.adm-nw, .adm-sort { white-space: nowrap; overflow-wrap: normal; }
+.adm-sort a { color: inherit; }
+.adm-sort[aria-sort="ascending"] a, .adm-sort[aria-sort="descending"] a { color: var(--fg); }
+.adm-sg { margin-inline-start: 3px; font-size: 9px; }
+.adm-xacc-tbl { min-width: 720px; }
+/* selection of a review list (admin.js "bulk") */
+.adm-pick { width: 1px; }
+.adm-pick input, .cm-h input[data-pick] { margin: 0; vertical-align: middle; }
+.adm-bulk { position: sticky; top: 0; z-index: 2; background: var(--bg); border: 1px solid var(--line); padding: 6px 10px; margin-bottom: 8px; }
+.adm-bulk[hidden] { display: none; }
+.adm-bulk-n { font-size: 12px; font-weight: 600; margin-right: 6px; }
+.adm-pickrow { margin: 0 0 6px; }
 /* the allowlist edit form is one compact row (handle, note, save), so the
    inputs' flex-basis is a width here */
 .acct-form.adm-xedit { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
@@ -1103,6 +1322,8 @@ select.acct-in { flex: 0 1 260px; }
 .cex { overflow-wrap: anywhere; }
 .cex a { color: var(--fg2); text-underline-offset: 3px; font-family: var(--mono); }
 .cex a:hover { color: var(--fg); }
+/* the landing's "browse all" link: the examples line's look, one line below it */
+.cbrowse { margin: 0; }
 .cstages ul { margin: 0; padding: 0 0 1px 1px; list-style: none; display: flex; flex-wrap: wrap; }
 .cstages li { display: flex; }
 .cstages a, .cstages li > span { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; margin: 0 0 -1px -1px;
@@ -1165,4 +1386,61 @@ body:has(.chero:not(.compact)) .top .search { display: none; }
   .cat .empty a { display: inline-flex; align-items: center; min-height: 44px; }
   /* the catalogue has its own, larger search box: on phones the header one would repeat it */
   body:has(.csearch) .top .search { display: none; }
+}
+
+/* Site icons (docs/siteicons.md): on the vulnerability page every link that leaves the site starts with the
+   target site's 16x16 icon (served from our origin) or, without one, an empty box of the same size. The link
+   reserves the room at its start and the icon sits in it, so it never wraps away from the link's first word
+   and nothing shifts when the image arrives. Decorative: alt="" / aria-hidden. */
+a[data-fav] { position: relative; padding-inline-start: 20px; }
+a[data-fav] > .fav { position: absolute; inset-inline-start: 0; top: calc(0.6em - 8px); width: 16px; height: 16px; }
+img.fav { display: block; object-fit: contain; }
+/* a dark icon (GitHub's, X's) on the dark ground: a light plate behind every icon there; the light theme needs none */
+:root:not([data-theme="light"]) img.fav { background: #e8e6df; border-radius: 3px; }
+span.fav { display: block; box-sizing: border-box; border: 1px solid var(--line); background: var(--line3); }
+
+/* The /vuln landing (body.landing, server-rendered: render.go Page.Landing).
+   The page is the search: no bottom status bar, the header search box is not
+   rendered, and the search block sits in the middle of whatever height is left
+   under the header (body is a column at least one viewport tall, dvh where
+   known; .page and its column stretch, .chero centres). Taller content than
+   that scrolls as usual. The backdrop (.cbg, drawn by app.js heroField) is
+   fixed to the viewport, edge to edge, behind everything (z-index -1 under the
+   in-flow blocks; the body's background is on the canvas below it), 100lvh
+   tall so mobile browser bars coming and going do not resize it; the header
+   is see-through over it. */
+body.landing { min-height: 100vh; min-height: 100dvh; }
+.landing .sbar { display: none; }
+.landing .top { background: var(--bg); background: color-mix(in srgb, var(--bg) 80%, transparent); }
+.landing .page { display: flex; flex-direction: column; }
+.landing .page > .wrap { flex: 1 0 auto; align-items: stretch; padding-top: 0; padding-bottom: 0; }
+.landing .main.cat { flex: 1 1 100%; }
+.landing .chero:not(.compact) { flex: 1 0 auto; min-height: 0; padding: 24px 0; }
+.landing .chero > .cbg { position: fixed; top: 0; right: 0; bottom: auto; left: 0; z-index: -1; height: 100vh; height: 100lvh;
+  -webkit-mask-image: none; mask-image: none; }
+/* the header menus sit in details.topm (open in the HTML); wide screens never
+   see its summary and lay the links out as before: the page links, then the
+   other links at the right */
+.topm > summary { display: none; list-style: none; }
+.topm > summary::-webkit-details-marker { display: none; }
+.topm { flex: 1 1 auto; min-width: 0; }
+@media (min-width: 721px) {
+  .topm .nav { display: inline-flex; vertical-align: middle; min-height: 32px; }
+  .topm .toplinks { float: right; min-height: 32px; }
+  .topm::after { content: ""; display: table; clear: both; }
+}
+/* phones: only the logo and a ">" toggle; the toggle opens the links in place
+   under it (app.js folds it on load and on Escape; without script it starts
+   open and still toggles) */
+@media (max-width: 720px) {
+  .landing .top .wrap { flex-wrap: nowrap; align-items: flex-start; }
+  .landing .brand { line-height: 44px; flex: none; white-space: nowrap; }
+  .topm > summary { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; cursor: pointer;
+    color: var(--fg2); font-weight: 700; }
+  .topm > summary:hover, .topm[open] > summary { color: var(--fg); }
+  .topm-g { display: inline-block; transition: transform .15s; }
+  .topm[open] .topm-g { transform: rotate(90deg); }
+  .topm[open] { padding-bottom: 6px; }
+  .topm .nav { order: 0; flex: none; flex-wrap: wrap; overflow-x: visible; }
+  .topm .toplinks { margin-left: 0; padding: 0 10px; }
 }

@@ -22,7 +22,7 @@ const (
 // Search kinds (SearchResult.Kind).
 const (
 	SearchCVE      = "cve_id"    // exact/prefix match on the CVE id
-	SearchAlias    = "alias"     // exact GHSA id
+	SearchAlias    = "alias"     // exact GHSA id: the vuln keyed by it, then CVEs with it as alias
 	SearchText     = "text"      // substring of title, title_zh, vendor, product
 	SearchTooShort = "too_short" // fewer than 2 characters: nothing searched
 	SearchEmpty    = "empty"     // blank query
@@ -31,9 +31,11 @@ const (
 
 // SearchRow is one search hit.
 type SearchRow struct {
-	CVEID            string     `json:"cve_id"`
-	Title            *string    `json:"title"`
-	TitleZh          *string    `json:"title_zh"`
+	CVEID   string  `json:"cve_id"`
+	Title   *string `json:"title"`
+	TitleZh *string `json:"title_zh"`
+	// the effective title and its origin (titles.go)
+	TitleInfo
 	Products         []Product  `json:"products"` // up to 2
 	ProductCount     int        `json:"product_count"`
 	Stage            *string    `json:"stage"` // nil if the vuln has no events
@@ -55,9 +57,42 @@ type SearchResult struct {
 var (
 	// "CVE-2026-1028", "cve2026", "cve-2026-", "2026-1028"
 	cvePrefixRe = regexp.MustCompile(`^(?i:cve)[-_ ]?([0-9]{1,4})(-([0-9]{0,19}))?$|^([0-9]{4})-([0-9]{0,19})$`)
-	ghsaRe      = regexp.MustCompile(`^(?i)ghsa(-[0-9a-z]{4}){3}$`)
+	ghsaRe      = regexp.MustCompile(`^(?i)ghsa(-[0-9a-z]{4}){3}$`) // any alphabet, unlike ParseGHSAID
 	spaceRe     = regexp.MustCompile(`\s+`)
 )
+
+// MaxGHSALookup is how many CVE ids VulnsByGHSA returns at most: enough to
+// tell none, one and several apart.
+const MaxGHSALookup = 3
+
+// VulnsByGHSA returns the CVE ids (sorted) that have the GHSA id as an alias,
+// at most MaxGHSALookup. Only CVEs the vuln table holds, which is what the
+// detail page and search show. id is case-insensitive; one that is not a GHSA
+// id is an *InputError.
+func (s *Store) VulnsByGHSA(ctx context.Context, id string) ([]string, error) {
+	g, ok := ParseGHSAID(id)
+	if !ok {
+		return nil, &InputError{Param: "ghsa", Msg: "not a GHSA id (expected GHSA-xxxx-xxxx-xxxx)"}
+	}
+	out := []string{}
+	err := s.db.WithConn(ctx, func(conn *pgx.Conn) error {
+		rows, err := conn.Query(ctx, `SELECT DISTINCT a.cve_id FROM vuln_alias a JOIN vuln v USING (cve_id)
+WHERE a.alias_type = 'ghsa' AND a.alias = $1 ORDER BY a.cve_id LIMIT $2`, g, MaxGHSALookup)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var c string
+			if err := rows.Scan(&c); err != nil {
+				return err
+			}
+			out = append(out, c)
+		}
+		return rows.Err()
+	})
+	return out, err
+}
 
 // NormalizeQuery trims and collapses whitespace; an over-long query is an
 // *InputError.
@@ -101,11 +136,11 @@ func cvePrefix(q string) (string, bool) {
 
 const searchCols = `
 SELECT v.cve_id, v.title, v.title_zh, s.stage, s.last_transition_at, COALESCE(s.is_rejected, false),
-       COALESCE(af.n, 0), COALESCE(af.vendors, '{}'), COALESCE(af.products, '{}')`
+       COALESCE(af.n, 0), COALESCE(af.vendors, '{}'), COALESCE(af.products, '{}'), ` + titleCols
 
 const searchFrom = `
 LEFT JOIN vuln_state_mat s USING (cve_id)
-LEFT JOIN LATERAL (` + productsLateral + `) af ON true`
+LEFT JOIN LATERAL (` + productsLateral + `) af ON true` + titleJoinV
 
 // Prefix scan on vuln_cve_id_c_idx: bytewise range [prefix, prefix+1).
 // The exact id sorts first (shortest), then longer ids with that prefix.
@@ -118,41 +153,62 @@ WITH m AS (
 FROM m JOIN vuln v USING (cve_id)` + searchFrom + `
 ORDER BY length(v.cve_id), v.cve_id COLLATE "C"`
 
+// GHSA id: the vulnerability keyed by it (first), then the CVEs that have
+// it as an alias.
 const searchAliasSQL = `
-WITH m AS (SELECT DISTINCT cve_id FROM vuln_alias WHERE alias_type = 'ghsa' AND alias = $1%s LIMIT $2)` +
-	searchCols + `
+WITH m AS (
+    SELECT DISTINCT a.cve_id FROM (
+        SELECT cve_id FROM vuln_alias WHERE alias_type = 'ghsa' AND alias = $1
+        UNION SELECT cve_id FROM vuln WHERE cve_id = $1) a
+    WHERE true%s
+    LIMIT $2)` + searchCols + `
 FROM m JOIN vuln v USING (cve_id)` + searchFrom + `
-ORDER BY v.cve_id`
+ORDER BY v.cve_id = $1 DESC, v.cve_id`
 
-// Text: ILIKE with escaped pattern (trigram indexes from migration 0003
-// when pg_trgm is available). Most recently active first.
-const searchTextSQL = `
+// idOrderDesc is the ORDER BY tail "newest id first" on the id column of
+// table alias t: CVE ids by year, then sequence number, numerically
+// (CVE-2026-100000 before CVE-2026-99999); GHSA ids, which carry no order,
+// after them, by text. The casts only run on CVE ids.
+func idOrderDesc(t string) string {
+	c := t + ".cve_id"
+	isCVE := "left(" + c + ", 4) = 'CVE-'" // no "%": the SQL goes through fmt.Sprintf
+	return "CASE WHEN " + isCVE + " THEN split_part(" + c + ", '-', 2)::int END DESC NULLS LAST, " +
+		"CASE WHEN " + isCVE + " THEN split_part(" + c + ", '-', 3)::numeric END DESC NULLS LAST, " + c + " DESC"
+}
+
+// Text: ILIKE with escaped pattern (trigram indexes from migrations 0003
+// and 0031 when pg_trgm is available) on the record's titles, the composed
+// and staff titles (vuln_title), vendors and products. Most recently
+// active first.
+var searchTextSQL = `
 WITH m AS (
     SELECT cve_id FROM vuln WHERE title ILIKE $1 ESCAPE '\' OR title_zh ILIKE $1 ESCAPE '\'
+    UNION
+    SELECT cve_id FROM vuln_title WHERE composed_en ILIKE $1 ESCAPE '\' OR staff_title ILIKE $1 ESCAPE '\'
     UNION
     SELECT cve_id FROM affected WHERE vendor ILIKE $1 ESCAPE '\' OR product ILIKE $1 ESCAPE '\'),
 r AS (
     SELECT m.cve_id FROM m LEFT JOIN vuln_state_mat s USING (cve_id)
     WHERE true%s
     ORDER BY s.last_transition_at DESC NULLS LAST,
-             split_part(m.cve_id, '-', 2)::int DESC, split_part(m.cve_id, '-', 3)::numeric DESC
+             ` + idOrderDesc("m") + `
     LIMIT $2)` + searchCols + `
 FROM r JOIN vuln v USING (cve_id)` + searchFrom + `
 ORDER BY s.last_transition_at DESC NULLS LAST,
-         split_part(v.cve_id, '-', 2)::int DESC, split_part(v.cve_id, '-', 3)::numeric DESC`
+         ` + idOrderDesc("v")
 
 // Tags only (blank query): every CVE with all the tags, most recently
 // active first, like the text search.
-const searchTagsSQL = `
+var searchTagsSQL = `
 WITH r AS (
     SELECT v.cve_id FROM vuln v LEFT JOIN vuln_state_mat s USING (cve_id)
     WHERE true%s
     ORDER BY s.last_transition_at DESC NULLS LAST,
-             split_part(v.cve_id, '-', 2)::int DESC, split_part(v.cve_id, '-', 3)::numeric DESC
+             ` + idOrderDesc("v") + `
     LIMIT $1)` + searchCols + `
 FROM r JOIN vuln v USING (cve_id)` + searchFrom + `
 ORDER BY s.last_transition_at DESC NULLS LAST,
-         split_part(v.cve_id, '-', 2)::int DESC, split_part(v.cve_id, '-', 3)::numeric DESC`
+         ` + idOrderDesc("v")
 
 // Search is SearchTagged without a tag filter.
 func (s *Store) Search(ctx context.Context, q string, limit int) (*SearchResult, error) {
@@ -161,7 +217,8 @@ func (s *Store) Search(ctx context.Context, q string, limit int) (*SearchResult,
 
 // SearchTagged finds up to limit vulnerabilities (default 20, max 50): a query
 // that looks like a CVE id (with or without "CVE-", any case) is an exact
-// or prefix match on the id; a GHSA id matches aliases; anything else is a
+// or prefix match on the id; a GHSA id matches the vulnerability keyed by it
+// and the CVEs that have it as an alias; anything else is a
 // case-insensitive substring match on title, title_zh, vendor and product.
 // tagSlugs (validated by NormalizeTags) restrict every kind to CVEs with all
 // the tags; a blank query with tags lists every CVE with them (kind "tags").
@@ -196,7 +253,7 @@ func (s *Store) SearchTagged(ctx context.Context, q string, tagSlugs []string, l
 	case ghsaRe.MatchString(q):
 		res.Kind = SearchAlias
 		res.Query = "GHSA" + strings.ToLower(q[4:])
-		sql, args, col = searchAliasSQL, []any{res.Query, limit + 1}, "vuln_alias.cve_id"
+		sql, args, col = searchAliasSQL, []any{res.Query, limit + 1}, "a.cve_id"
 	default:
 		if p, ok := cvePrefix(q); ok {
 			res.Kind = SearchCVE
@@ -223,8 +280,10 @@ func (s *Store) SearchTagged(ctx context.Context, q string, tagSlugs []string, l
 		res.Rows, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (SearchRow, error) {
 			x := SearchRow{Tags: []string{}}
 			var vendors, products []string
-			err := r.Scan(&x.CVEID, &x.Title, &x.TitleZh, &x.Stage, &x.LastTransitionAt, &x.IsRejected,
-				&x.ProductCount, &vendors, &products)
+			var ts titleScan
+			err := r.Scan(append([]any{&x.CVEID, &x.Title, &x.TitleZh, &x.Stage, &x.LastTransitionAt, &x.IsRejected,
+				&x.ProductCount, &vendors, &products}, ts.dest()...)...)
+			x.TitleInfo = ts.info(x.Title)
 			x.Products = make([]Product, 0, 2)
 			for i := range vendors {
 				if i < len(products) {

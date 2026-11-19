@@ -87,6 +87,23 @@ func TestVulnJSONUnchangedExceptClassification(t *testing.T) {
 			t.Errorf("%s: credits is not an empty array: %v", id, m["credits"])
 		}
 		delete(m, "credits")
+		// migration 0031 (docs/titles.md): effective_title and title_origin
+		// are added; title stays the record's
+		if et, eo := m["effective_title"], m["title_origin"]; (m["title"] == nil) != (et == nil) || (et != nil && (et != m["title"] || eo != "record")) {
+			t.Errorf("%s: effective_title %v title_origin %v next to title %v", id, et, eo, m["title"])
+		}
+		delete(m, "effective_title")
+		delete(m, "title_origin")
+		// migration 0032 (docs/github.md): trusted GitHub repositories are a
+		// fourth PoC source, appended to poc; the first three entries keep
+		// their place and meaning (no github events in the fixture)
+		if p, ok := m["poc"].([]any); !ok || len(p) != 4 {
+			t.Errorf("%s: poc is not 4 entries: %v", id, m["poc"])
+		} else if g, _ := p[3].(map[string]any); g["source"] != "github" || g["present"] != false {
+			t.Errorf("%s: poc[3] %v", id, p[3])
+		} else {
+			m["poc"] = p[:3]
+		}
 		if !reflect.DeepEqual(m, want[id]) {
 			a, _ := json.Marshal(m)
 			b, _ := json.Marshal(want[id])
@@ -120,9 +137,9 @@ func TestVulnClassificationObject(t *testing.T) {
 	t.Cleanup(pool.Close)
 	store := site.New(pool).WithClock(func() time.Time { return sitetest.Now })
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	single := httptest.NewServer(web.New(web.Config{Store: store, Logger: log}).Handler())
+	single := httptest.NewServer(gated(web.New(web.Config{Store: store, Logger: log})).Handler())
 	t.Cleanup(single.Close)
-	two := httptest.NewServer(web.New(web.Config{Store: store, Logger: log, PublicURL: testPublic, APIURL: testAPI}).Handler())
+	two := httptest.NewServer(gated(web.New(web.Config{Store: store, Logger: log, PublicURL: testPublic, APIURL: testAPI})).Handler())
 	t.Cleanup(two.Close)
 	want := `{"cvss":[{"base_score":9.8,"severity":"CRITICAL","source":"nvd-primary","source_org":"nvd@nist.gov","vector":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H","version":"3.1"}],` +
 		`"cwe":[{"id":"CWE-287","sources":[{"source":"nvd-primary","source_org":"nvd@nist.gov"},{"source":"nvd-secondary","source_org":"security-advisories@github.com"}]}]}`

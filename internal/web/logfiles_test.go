@@ -94,7 +94,7 @@ func newLogEnv(t *testing.T, withDB bool, start time.Time, before func(dir strin
 		e.src = &failingSrc{ConnSource: pool}
 		wc.Store = site.New(e.src).WithClock(func() time.Time { return sitetest.Now })
 	}
-	srv := web.New(wc)
+	srv := gated(web.New(wc))
 	registerFakeSite(srv)
 	srv.HandleFunc("GET /boom", func(http.ResponseWriter, *http.Request) { panic("kaboom") })
 	srv.HandleFunc("POST /echo", func(w http.ResponseWriter, r *http.Request) { _, _ = io.Copy(w, r.Body) })

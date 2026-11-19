@@ -12,10 +12,6 @@
 {{template "tagfilter" .}}
 </div>
 {{- if ne .Kind "too_short"}}
-<details class="apid">
-<summary>{{t "hot.api.summary"}}</summary>
-{{template "cmd" .Curl}}
-</details>
 {{- if .Rows}}
 <div class="tbl list">
 <div class="tbl-in">
@@ -25,7 +21,7 @@
 <div class="cur" aria-hidden="true"></div>
 <div class="b {{.StageClass}}">{{.Stage}}</div>
 <div class="vul">
-<div class="l1"><a class="id" href="{{.Href}}">{{.CVE}}</a>{{if .Rejected}} <span class="tag">REJECTED</span>{{end}}<span class="ttl{{if .TitleMissing}} missing{{end}}" title="{{.Title}}"{{with .TitleLang}} lang="{{.}}"{{end}}>{{.Title}}</span></div>
+<div class="l1"><a class="id" href="{{.Href}}">{{.CVE}}</a>{{if .Rejected}} <span class="tag">REJECTED</span>{{end}}<span class="ttl{{if .TitleMissing}} missing{{end}}{{if .Mark}} tm{{end}}" title="{{.Title}}"{{with .TitleLang}} lang="{{.}}"{{end}}>{{if .Mark}}<span class="ttx">{{.Title}}</span>{{template "titlemark" .Mark}}{{else}}{{.Title}}{{end}}</span></div>
 <div class="vend">{{template "tagrow" .Tags}}{{or .Vendor "—"}}</div>
 </div>
 <div class="r dim">{{.Last}}</div>

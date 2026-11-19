@@ -80,8 +80,8 @@ type ReportGroup struct {
 
 // Page sizes and caps of the moderation module.
 const (
-	QueuePage       = 20
-	RecentPage      = 50
+	QueuePage       = ListPage
+	RecentPage      = ListPage
 	MaxGroupReports = 50
 	MaxRevisions    = 20
 )
@@ -126,21 +126,24 @@ func decodeAny(s string) *Cursor {
 	return &c
 }
 
-// ReportQueue lists comments with open reports, the one reported first
-// first.
-func (s *Service) ReportQueue(ctx context.Context, after *Cursor) ([]ReportGroup, *Cursor, error) {
-	cur := Cursor{At: time.Unix(0, 0).UTC(), ID: "00000000-0000-0000-0000-000000000000"}
-	if after != nil {
-		cur = *after
-	}
+// ReportQueue lists one page of the comments with open reports, the one
+// reported first first (numbered: the queue is small and counted).
+func (s *Service) ReportQueue(ctx context.Context, page int) ([]ReportGroup, Window, error) {
 	var out []ReportGroup
+	var w Window
 	err := s.o.ReadDB.WithConn(ctx, func(c *pgx.Conn) error {
+		var total int
+		if err := c.QueryRow(ctx, `SELECT count(*)::int FROM (SELECT comment_id FROM comment_reports WHERE resolved_at IS NULL
+			GROUP BY comment_id) g JOIN comments c ON c.id = g.comment_id`).Scan(&total); err != nil {
+			return err
+		}
+		w = window(total, page)
 		rows, err := c.Query(ctx, `WITH g AS (
 				SELECT comment_id, min(created_at) AS first, count(*)::int AS total,
 				       count(DISTINCT coalesce(reporter_id::text, '-'))::int AS reporters
 				FROM comment_reports WHERE resolved_at IS NULL GROUP BY comment_id)
 			SELECT `+commentCols+`, g.first, g.total, g.reporters`+commentFrom+`JOIN g ON g.comment_id = c.id
-			WHERE (g.first, c.id) > ($1, $2::uuid) ORDER BY g.first, c.id LIMIT $3`, cur.At, cur.ID, QueuePage+1)
+			ORDER BY g.first, c.id LIMIT $1 OFFSET $2`, ListPage, w.Offset())
 		if err != nil {
 			return err
 		}
@@ -190,15 +193,9 @@ func (s *Service) ReportQueue(ctx context.Context, after *Cursor) ([]ReportGroup
 		return nil
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, Window{}, err
 	}
-	var next *Cursor
-	if len(out) > QueuePage {
-		out = out[:QueuePage]
-		last := out[len(out)-1]
-		next = &Cursor{At: last.First, ID: last.Comment.ID}
-	}
-	return out, next, nil
+	return out, w, nil
 }
 
 func revisions(ctx context.Context, c *pgx.Conn, id string) ([]Revision, error) {
@@ -218,21 +215,47 @@ func revisions(ctx context.Context, c *pgx.Conn, id string) ([]Revision, error) 
 // CommentStatuses are the patrol list's status filter values ("" = all).
 var CommentStatuses = []string{"visible", "hidden", "deleted"}
 
-// RecentComments lists comments newest first, optionally of one status
-// (and of one author when author != "").
-func (s *Service) RecentComments(ctx context.Context, status, author string, after *Cursor, limit int) ([]*Comment, *Cursor, error) {
-	if limit <= 0 || limit > RecentPage {
-		limit = RecentPage
-	}
-	cur := Cursor{At: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), ID: "ffffffff-ffff-ffff-ffff-ffffffffffff"}
-	if after != nil {
-		cur = *after
-	}
+// RecentComments lists one page of the comments newest first (keyset both
+// ways; RecentCommentsCount is its length), optionally of one status.
+func (s *Service) RecentComments(ctx context.Context, status string, pos Keyset[Cursor]) ([]*Comment, *Cursor, *Cursor, error) {
+	return keysetPage(pos, RecentPage, func(cur *Cursor, back bool, n int) ([]*Comment, error) {
+		cmp, ord := "<", "DESC"
+		if back {
+			cmp, ord = ">", "ASC"
+		}
+		at, id := time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), "ffffffff-ffff-ffff-ffff-ffffffffffff"
+		if cur != nil {
+			at, id = cur.At, cur.ID
+		}
+		return s.comments(ctx, `WHERE (c.created_at, c.id) `+cmp+` ($1, $2::uuid) AND ($3 = '' OR c.status = $3)
+			ORDER BY c.created_at `+ord+`, c.id `+ord+` LIMIT $4`, at, id, status, n)
+	}, func(c *Comment) Cursor { return Cursor{At: c.CreatedAt, ID: c.ID} })
+}
+
+// RecentCommentsCount is the length of the patrol list for status ("" =
+// all): the comments table, an index-only scan of comments_created_idx or a
+// pass over the table.
+func (s *Service) RecentCommentsCount(ctx context.Context, status string) (n int, err error) {
+	err = s.o.ReadDB.WithConn(ctx, func(c *pgx.Conn) error {
+		return c.QueryRow(ctx, `SELECT count(*)::int FROM comments c WHERE ($1 = '' OR c.status = $1)`, status).Scan(&n)
+	})
+	return n, err
+}
+
+// UserComments lists one page of a user's comments, newest first
+// (numbered: total is the user's comment count).
+func (s *Service) UserComments(ctx context.Context, author string, total, page int) ([]*Comment, Window, error) {
+	w := window(total, page)
+	rows, err := s.comments(ctx, `WHERE c.author_id = $1::uuid ORDER BY c.created_at DESC, c.id DESC LIMIT $2 OFFSET $3`,
+		author, ListPage, w.Offset())
+	return rows, w, err
+}
+
+// comments runs the comment query with this WHERE … ORDER BY … tail.
+func (s *Service) comments(ctx context.Context, tail string, args ...any) ([]*Comment, error) {
 	var out []*Comment
 	err := s.o.ReadDB.WithConn(ctx, func(c *pgx.Conn) error {
-		rows, err := c.Query(ctx, `SELECT `+commentCols+commentFrom+`WHERE (c.created_at, c.id) < ($1, $2::uuid)
-			AND ($3 = '' OR c.status = $3) AND ($4 = '' OR c.author_id::text = $4)
-			ORDER BY c.created_at DESC, c.id DESC LIMIT $5`, cur.At, cur.ID, status, author, limit+1)
+		rows, err := c.Query(ctx, `SELECT `+commentCols+commentFrom+tail, args...)
 		if err != nil {
 			return err
 		}
@@ -246,16 +269,7 @@ func (s *Service) RecentComments(ctx context.Context, status, author string, aft
 		}
 		return rows.Err()
 	})
-	if err != nil {
-		return nil, nil, err
-	}
-	var next *Cursor
-	if len(out) > limit {
-		out = out[:limit]
-		last := out[len(out)-1]
-		next = &Cursor{At: last.CreatedAt, ID: last.ID}
-	}
-	return out, next, nil
+	return out, err
 }
 
 // History returns the earlier bodies of a comment, newest first.

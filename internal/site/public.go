@@ -59,7 +59,34 @@ import (
 //     (x_post_link.title) when non-empty, else the title nday fetched
 //     from the page itself (web_page.title, status 'ok';
 //     internal/webpages), cleaned (pagefetch.CleanTitle). Titles are
-//     third-party text and appear only in this panel. Never who posted
+//     third-party text and appear only in this panel. For a link to a
+//     repository root on github.com (kind code) under the repository's
+//     current name, whose repository nday fetched from the GitHub API
+//     (internal/ghrepo, state 'ok'; repos.go), ONLY the
+//     repository's full name as GitHub returns it, its star count and
+//     its creation date (UTC day) — never its description, topics,
+//     owner type or anything else stored; such a link is shown under
+//     PoC when the repository's name, description or topics name the
+//     page's CVE. Since 2026-11-16 (GitHub discovery, repos.go
+//     AddSearchRepos) the PoC group also lists fetched repositories
+//     whose name, description or topics name the page's CVE (found by
+//     search or linked elsewhere), with the same three fields plus
+//     whether the repository is unverified (a mark) — never its review
+//     details (who decided, when), its source or the other fields.
+//     Since 2026-11-19 (ResourceRepo.Counted) the repositories under PoC
+//     are split by whether they count as a PoC source of the CVE (a
+//     github poc_published event, public anyway): counted ones in the PoC
+//     group with stars, the others in a collapsed "unreviewed" group
+//     without stars. Never why a repository is trusted (admin, post rule
+//     or trusted account look the same).
+//     Per link also (since 2026-11-17, owner's decision; Resource.Published,
+//     Resource.FirstMentioned): the publication time the linked page states
+//     about itself (web_page.published_at with its precision; third-party
+//     data, internal/webpages) and the "first mentioned" day: the UTC day
+//     of the EARLIEST researcher post that carried the link — a day only,
+//     never that post's time, id, URL, text or author. This day is the
+//     only fact about the posts carrying a link that is public.
+//     Never who posted
 //     it, the post id, the post text or the post time: which author
 //     posted which link stays signed-in only.
 //
@@ -69,7 +96,12 @@ import (
 // Store.MemberPosts (posts.go), which only the auth-class endpoint
 // GET /api/posts/{cve} (internal/posts) calls (with each post's resolved
 // links, MemberPost.Links). A post never changes a stage,
-// event_count, tags, the feed or the sitemap.
+// event_count, tags, the feed or the sitemap by itself. One indirect way
+// since migration 0032 (owner's decision): a repository the post rule
+// trusted whose own name, description or topics name the CVE is a PoC
+// source, an event of source github (docs/github.md "PoC events"); that
+// event holds only the repository's name, URL and creation day, never
+// anything about the post.
 //
 // Posts count and show only while their author is an ENABLED row of
 // x_accounts (researcherPostFrom): disabling an account removes its posts
@@ -296,6 +328,19 @@ type Resource struct {
 	// title of the URL's rows, else the fetched page title. Untrusted
 	// third-party text, cleaned (pagefetch.CleanTitle); escape on display.
 	Title string `json:"title"`
+	// Repo is the GitHub repository of a code link on github.com whose
+	// metadata nday fetched (state 'ok'; repos.go); nil otherwise.
+	Repo *ResourceRepo `json:"repo,omitempty"`
+	// Published is the publication time the linked page states about
+	// itself (web_page.published_at, status 'ok'; pagefetch.ExtractPublished),
+	// nil when unknown; PublishedPrecision is "exact" or "day" (then
+	// Published is midnight UTC of the stated date).
+	Published          *time.Time `json:"published,omitempty"`
+	PublishedPrecision string     `json:"published_precision,omitempty"`
+	// FirstMentioned is the UTC day (YYYY-MM-DD) of the earliest researcher
+	// post that carried the link ("" for a repository listed by
+	// AddSearchRepos): public, unlike everything else about that post.
+	FirstMentioned string `json:"first_mentioned,omitempty"`
 }
 
 // ResourceLink is one link row of a researcher post, as Resources reads it
@@ -307,6 +352,7 @@ type ResourceLink struct {
 	Kind   string
 	Author string // author id
 	Title  string // x_post_link.title (the API's link title; "" when absent)
+	Day    string // UTC day of the post (YYYY-MM-DD; the first row of a key gives Resource.FirstMentioned)
 }
 
 // resourceRank is the display rank of a kind (-1 = not shown).
@@ -330,7 +376,8 @@ func ResourceKey(u string) (key string, ok bool) { return pagefetch.URLKey(u) }
 // ResourcesFor turns link rows (oldest post first) into the public
 // resources: shown kinds and valid URLs only, de-duplicated by ResourceKey
 // (the first-seen spelling, host and kind are kept; Title is the first
-// non-empty cleaned API title of the key's rows), researchers = distinct
+// non-empty cleaned API title of the key's rows; FirstMentioned the
+// earliest Day of the key's rows), researchers = distinct
 // authors; ordered by kind (ResourceKinds), researchers descending, then
 // first seen; at most MaxResources.
 func ResourcesFor(rows []ResourceLink) []Resource {
@@ -360,6 +407,9 @@ func ResourcesFor(rows []ResourceLink) []Resource {
 			a = &acc{r: Resource{URL: u, Host: host, Kind: l.Kind}, first: i, authors: map[string]bool{}}
 			byKey[key] = a
 			list = append(list, a)
+		}
+		if l.Day != "" && (a.r.FirstMentioned == "" || l.Day < a.r.FirstMentioned) {
+			a.r.FirstMentioned = l.Day
 		}
 		if a.r.Title == "" && l.Title != "" {
 			a.r.Title = pagefetch.CleanTitle(l.Title, "")
@@ -396,7 +446,8 @@ func (s *Store) Resources(ctx context.Context, cve string) ([]Resource, error) {
 	now := s.clock()
 	var rows []ResourceLink
 	err := s.db.WithConn(ctx, func(conn *pgx.Conn) error {
-		rs, err := conn.Query(ctx, `SELECT l.final_url, COALESCE(l.host, ''), l.kind, COALESCE(p.detail->>'author_id', ''), COALESCE(l.title, '')
+		rs, err := conn.Query(ctx, `SELECT l.final_url, COALESCE(l.host, ''), l.kind, COALESCE(p.detail->>'author_id', ''), COALESCE(l.title, ''),
+    to_char(p.occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
 FROM `+researcherPostFrom+`
 JOIN x_post_link l ON l.post_id = p.dedupe_key
 WHERE `+researcherPostWhere+` AND p.cve_id = $1 AND p.occurred_at <= $2
@@ -409,7 +460,7 @@ LIMIT $3`, cve, now, resourceScanCap)
 		defer rs.Close()
 		for rs.Next() {
 			var l ResourceLink
-			if err := rs.Scan(&l.URL, &l.Host, &l.Kind, &l.Author, &l.Title); err != nil {
+			if err := rs.Scan(&l.URL, &l.Host, &l.Kind, &l.Author, &l.Title, &l.Day); err != nil {
 				return err
 			}
 			rows = append(rows, l)
@@ -420,23 +471,22 @@ LIMIT $3`, cve, now, resourceScanCap)
 		return nil, err
 	}
 	out := ResourcesFor(rows)
-	if err := s.pageTitles(ctx, out); err != nil {
+	if err := s.pageMeta(ctx, out); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return s.repoResources(ctx, cve, out)
 }
 
-// pageTitles fills the Title of resources without an API title from the
-// web page queue (web_page.title of the same key, status 'ok'; cleaned by
-// pagefetch when stored, not again: entities are decoded once). Without migration
-// 0020 (no web_page table) titles stay empty.
-func (s *Store) pageTitles(ctx context.Context, rs []Resource) error {
+// pageMeta fills, from the web page queue (same key, status 'ok'), the
+// Title of resources without an API title (web_page.title; cleaned by
+// pagefetch when stored, not again: entities are decoded once) and the
+// publication time of every resource (web_page.published_at). Without
+// migration 0020 (no web_page table) both stay empty; without 0029 (no
+// published_at) the publication times do.
+func (s *Store) pageMeta(ctx context.Context, rs []Resource) error {
 	var keys []string
 	idx := map[string][]int{}
 	for i, r := range rs {
-		if r.Title != "" {
-			continue
-		}
 		if k, ok := ResourceKey(r.URL); ok {
 			if _, seen := idx[k]; !seen {
 				keys = append(keys, k)
@@ -448,22 +498,39 @@ func (s *Store) pageTitles(ctx context.Context, rs []Resource) error {
 		return nil
 	}
 	return s.db.WithConn(ctx, func(conn *pgx.Conn) error {
-		rows, err := conn.Query(ctx, `SELECT url_key, title FROM web_page WHERE url_key = ANY($1) AND status = 'ok' AND title IS NOT NULL`, keys)
-		if err != nil {
+		state := func(err error) string {
 			var se interface{ SQLState() string }
-			if errors.As(err, &se) && se.SQLState() == "42P01" {
+			if errors.As(err, &se) {
+				return se.SQLState()
+			}
+			return ""
+		}
+		rows, err := conn.Query(ctx, `SELECT url_key, COALESCE(title, ''), published_at, COALESCE(published_precision, '')
+FROM web_page WHERE url_key = ANY($1) AND status = 'ok'`, keys)
+		if state(err) == "42703" { // before migration 0029
+			rows, err = conn.Query(ctx, `SELECT url_key, COALESCE(title, ''), NULL::timestamptz, '' FROM web_page WHERE url_key = ANY($1) AND status = 'ok'`, keys)
+		}
+		if err != nil {
+			if state(err) == "42P01" {
 				return nil
 			}
 			return err
 		}
 		defer rows.Close()
 		for rows.Next() {
-			var k, t string
-			if err := rows.Scan(&k, &t); err != nil {
+			var k, t, prec string
+			var at *time.Time
+			if err := rows.Scan(&k, &t, &at, &prec); err != nil {
 				return err
 			}
 			for _, i := range idx[k] {
-				rs[i].Title = t
+				if rs[i].Title == "" {
+					rs[i].Title = t
+				}
+				if at != nil && (prec == pagefetch.PublishedExact || prec == pagefetch.PublishedDay) {
+					u := at.UTC()
+					rs[i].Published, rs[i].PublishedPrecision = &u, prec
+				}
 			}
 		}
 		return rows.Err()

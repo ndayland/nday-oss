@@ -8,7 +8,8 @@
 // and <a> only ever carries href (an absolute http:// or https:// URL that
 // net/url parses, without user info, made of printable ASCII; or a path built
 // by Options.CVELink and checked here) and the fixed rel="nofollow ugc
-// noopener noreferrer". Everything else is escaped text.
+// noopener noreferrer", plus target="_blank" on an absolute URL when
+// Options.NewTab says so. Everything else is escaped text.
 //
 // Syntax (see docs/discuss.md for the exact rules):
 //
@@ -60,11 +61,21 @@ const Rel = "nofollow ugc noopener noreferrer"
 // appears twice, escaped).
 const MaxExpansion = 20
 
+// newTab is the target attribute of an absolute link: Options.NewTab.
+const newTab = ` target="_blank"`
+
+func (o Options) target(href string) string {
+	if o.NewTab != nil && o.NewTab(href) {
+		return newTab
+	}
+	return ""
+}
+
 // MaxPathLen is the longest path accepted from Options.CVELink.
 const MaxPathLen = 128
 
-// MaxCVELinks is the number of CVE ids linked per rendering; later ones
-// are plain text.
+// MaxCVELinks is the number of vulnerability ids (CVE and GHSA ids
+// together) linked per rendering; later ones are plain text.
 const MaxCVELinks = 30
 
 // MaxURLLen is the longest URL that becomes a link.
@@ -73,13 +84,19 @@ const MaxURLLen = 2048
 // Options control rendering.
 type Options struct {
 	// Links: when false, [text](url) and bare URLs are rendered as plain
-	// text (comments written by new accounts). CVE ids are still linked.
+	// text (comments written by new accounts). CVE and GHSA ids are still
+	// linked.
 	Links bool
 	// CVELink returns the site path of a vulnerability page for a canonical
-	// CVE id ("CVE-2026-1234"), e.g. "/zh-hans/vuln/CVE-2026-1234". nil: CVE
-	// ids are not linked. A result that is not a plain absolute path (see
-	// SafePath) is ignored and the id is rendered as text.
+	// CVE id ("CVE-2026-1234") or GHSA id ("GHSA-gpwc-27cw-rh9r"), e.g.
+	// "/zh-hans/vuln/CVE-2026-1234". nil: ids are not linked. A result that
+	// is not a plain absolute path (see SafePath) is ignored and the id is
+	// rendered as text.
 	CVELink func(id string) string
+	// NewTab, when set, is asked about each absolute http(s) link; true adds
+	// target="_blank" after rel (server-rendered pages). Nil: no target, as
+	// in body_html.
+	NewTab func(href string) bool
 }
 
 // MaxMarks is the number of consecutive combining marks (categories Mn
@@ -642,6 +659,13 @@ func (p *inl) run() {
 				p.lit(s[i : i+1])
 				i++
 			}
+		case (c == 'g' || c == 'G') && p.links && boundaryBefore(s, i, cveGlue):
+			if j, ok := p.ghsa(i); ok {
+				i = j
+			} else {
+				p.lit(s[i : i+1])
+				i++
+			}
 		default:
 			// copy a run of ordinary bytes at once
 			j := i + 1
@@ -656,7 +680,7 @@ func (p *inl) run() {
 
 func special(c byte) bool {
 	switch c {
-	case '\\', '\n', '`', '*', '[', 'h', 'H', 'c', 'C':
+	case '\\', '\n', '`', '*', '[', 'h', 'H', 'c', 'C', 'g', 'G':
 		return true
 	}
 	return false
@@ -747,7 +771,7 @@ func (p *inl) link(i int) (int, bool) {
 	var b strings.Builder
 	b.WriteString(`<a href="`)
 	escapeTo(&b, href)
-	b.WriteString(`" rel="` + Rel + `">`)
+	b.WriteString(`" rel="` + Rel + `"` + p.opt.target(href) + `>`)
 	if text == "" {
 		escapeTo(&b, s[u0:end])
 	} else {
@@ -839,7 +863,7 @@ func (p *inl) autolink(i int) (int, bool) {
 	var b strings.Builder
 	b.WriteString(`<a href="`)
 	escapeTo(&b, href)
-	b.WriteString(`" rel="` + Rel + `">`)
+	b.WriteString(`" rel="` + Rel + `"` + p.opt.target(href) + `>`)
 	escapeTo(&b, raw)
 	b.WriteString("</a>")
 	p.pieces = append(p.pieces, piece{html: b.String()})
@@ -871,7 +895,43 @@ func (p *inl) cve(i int) (int, bool) {
 	if k-j < 4 || (k < len(s) && (isASCIIAlnum(s[k]) || s[k] == '_')) {
 		return 0, false
 	}
-	id := "CVE-" + s[i+4:k]
+	return p.idLink(i, k, "CVE-"+s[i+4:k])
+}
+
+// ghsaAlphabet is the alphabet of the groups of a GHSA id.
+const ghsaAlphabet = "23456789cfghjmpqrvwx"
+
+// ghsa tries a GHSA id ("GHSA-gpwc-27cw-rh9r", any case) at s[i].
+func (p *inl) ghsa(i int) (int, bool) {
+	s := p.s
+	if p.opt.CVELink == nil || !hasPrefixFold(s[i:], "ghsa") {
+		return 0, false
+	}
+	k := i + 4
+	for g := 0; g < 3; g++ {
+		if k+5 > len(s) || s[k] != '-' {
+			return 0, false
+		}
+		for _, c := range []byte(s[k+1 : k+5]) {
+			if c >= 'A' && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			if strings.IndexByte(ghsaAlphabet, c) < 0 {
+				return 0, false
+			}
+		}
+		k += 5
+	}
+	if k < len(s) && (isASCIIAlnum(s[k]) || s[k] == '_') {
+		return 0, false
+	}
+	return p.idLink(i, k, "GHSA"+strings.ToLower(s[i+4:k]))
+}
+
+// idLink links the vulnerability id s[i:k] (canonical form id) to its page,
+// within MaxCVELinks; ok=false leaves it to be rendered as text.
+func (p *inl) idLink(i, k int, id string) (int, bool) {
+	s := p.s
 	if *p.cves >= MaxCVELinks {
 		return 0, false
 	}

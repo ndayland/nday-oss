@@ -579,20 +579,61 @@ func TestNormalizeUnpatchedAdvisoryNoEvent(t *testing.T) {
 	}
 }
 
-func TestNormalizeNoCVEEmitsNothing(t *testing.T) {
+// No CVE: the vulnerability is keyed by the GHSA id; the advisory is its own
+// record (authoritative vuln, disclosed event at published_at) and brings
+// the same patch_released event as an advisory with a CVE.
+func TestNormalizeNoCVEKeyedByGHSA(t *testing.T) {
 	f := load(t)
 	n, err := norm(t, f.noCVE)
-	if err != nil || len(n.Vulns)+len(n.Aliases)+len(n.Affected)+len(n.Events) != 0 {
-		t.Errorf("%+v %v", n, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gid := str(f.noCVE.Get("ghsa_id"))
+	pub, _ := parseTS(f.noCVE.Get("published_at"))
+	upd, _ := parseTS(f.noCVE.Get("updated_at"))
+	if len(n.Aliases)+len(n.Affected) != 0 || len(n.Vulns) != 1 || len(n.Events) != 2 {
+		t.Fatalf("%+v", n)
+	}
+	v := n.Vulns[0]
+	if v.CVEID != gid || !v.Authoritative || *v.Title != f.noCVE.Get("summary") || *v.Description != f.noCVE.Get("description") ||
+		!v.PublishedAt.Equal(pub) || !v.ModifiedAt.Equal(upd) {
+		t.Errorf("vuln %+v", v)
+	}
+	e := n.Events[0]
+	if e.CVEID != gid || e.Type != model.EventDisclosed || e.Source != Name || e.DedupeKey != gid ||
+		e.OccurredAt == nil || !e.OccurredAt.Equal(pub) || *e.URL != f.noCVE.Get("html_url") ||
+		e.Detail["state"] != "PUBLISHED" || e.Detail["ghsa_id"] != gid || e.Detail["withdrawn_at"] != nil {
+		t.Errorf("disclosed %+v", e)
+	}
+	if p := n.Events[1]; p.CVEID != gid || p.Type != model.EventPatchReleased || p.OccurredAt != nil || p.DedupeKey != gid {
+		t.Errorf("patch %+v", p)
+	}
+	if err := n.Validate(); err != nil {
+		t.Error(err)
+	}
+	// no patched version: vuln and disclosed event only
+	a := obj(deepCopy(t, f.noCVE))
+	for _, v := range a.Get("vulnerabilities").([]any) {
+		obj(v).Set("first_patched_version", nil)
+	}
+	if n, err := norm(t, a); err != nil || len(n.Vulns) != 1 || len(n.Events) != 1 || n.Events[0].Type != model.EventDisclosed {
+		t.Errorf("unpatched %+v %v", n, err)
 	}
 }
 
-func TestNormalizeWithdrawnAliasOnly(t *testing.T) {
+func TestNormalizeWithdrawn(t *testing.T) {
 	f := load(t)
+	// without a CVE: only the disclosed event, state REJECTED (written only
+	// when the GHSA-keyed vuln already exists; see the pipeline tests)
 	n0, err := norm(t, f.withdrawnNoCVE)
-	if err != nil || len(n0.Vulns)+len(n0.Aliases)+len(n0.Events) != 0 {
-		t.Errorf("%+v %v", n0, err)
+	if err != nil || len(n0.Vulns)+len(n0.Aliases)+len(n0.Affected) != 0 || len(n0.Events) != 1 {
+		t.Fatalf("%+v %v", n0, err)
 	}
+	if e := n0.Events[0]; e.Type != model.EventDisclosed || e.Detail["state"] != "REJECTED" ||
+		e.Detail["withdrawn_at"] != f.withdrawnNoCVE.Get("withdrawn_at") || e.CVEID != str(f.withdrawnNoCVE.Get("ghsa_id")) {
+		t.Errorf("%+v", e)
+	}
+	// with a CVE: alias only, as before
 	n, err := norm(t, f.wdr)
 	if err != nil || len(n.Aliases) != 1 ||
 		n.Aliases[0] != (model.Alias{CVEID: str(f.wdr.Get("cve_id")), Alias: str(f.wdr.Get("ghsa_id")), AliasType: "ghsa"}) ||
@@ -789,14 +830,19 @@ func TestFirstRunWindowPaginationAndHeaders(t *testing.T) {
 	if !st.IsBackfill || st.Fetched != len(f.sample) || st.RawNew != len(f.sample) || st.NormalizeErrors != 0 {
 		t.Errorf("stats %+v", st)
 	}
-	withCVE, patchedLive := 0, 0
+	withCVE, patchedLive, noCVELive := 0, 0, 0
 	for _, a := range f.sample {
 		if truthy(a.Get("cve_id")) {
 			withCVE++
-			if !truthy(a.Get("withdrawn_at")) && isPatched(a) {
-				patchedLive++
-			}
+		} else if !truthy(a.Get("withdrawn_at")) {
+			noCVELive++
 		}
+		if !truthy(a.Get("withdrawn_at")) && isPatched(a) {
+			patchedLive++
+		}
+	}
+	if noCVELive == 0 {
+		t.Fatal("the sample has no live advisory without a CVE")
 	}
 	if n := scalar(t, d, "SELECT count(*) FROM raw_record WHERE source='ghsa'"); n != int64(len(f.sample)) {
 		t.Errorf("raw %d", n)
@@ -804,11 +850,20 @@ func TestFirstRunWindowPaginationAndHeaders(t *testing.T) {
 	if n := scalar(t, d, "SELECT count(*) FROM vuln_alias"); n != int64(withCVE) {
 		t.Errorf("aliases %d", n)
 	}
-	var n int64
-	var bf, occNull bool
-	_ = d.Conn.QueryRow(context.Background(), "SELECT count(*), bool_and(is_backfill), bool_and(occurred_at IS NULL) FROM event").Scan(&n, &bf, &occNull)
-	if n != int64(patchedLive) || !bf || !occNull {
-		t.Errorf("events %d %v %v", n, bf, occNull)
+	// patch_released (no time) for every live patched advisory; a disclosed
+	// event (published_at) only for the live ones without a CVE, whose vuln
+	// is keyed by the GHSA id; the withdrawn one without a CVE stores nothing
+	var n, nPatch, nDisc int64
+	var bf bool
+	_ = d.Conn.QueryRow(context.Background(), `SELECT count(*),
+            count(*) FILTER (WHERE type = 'patch_released' AND occurred_at IS NULL),
+            count(*) FILTER (WHERE type = 'disclosed' AND occurred_at IS NOT NULL AND cve_id LIKE 'GHSA-%'),
+            bool_and(is_backfill) FROM event`).Scan(&n, &nPatch, &nDisc, &bf)
+	if nPatch != int64(patchedLive) || nDisc != int64(noCVELive) || n != nPatch+nDisc || !bf {
+		t.Errorf("events %d patch %d disclosed %d backfill %v", n, nPatch, nDisc, bf)
+	}
+	if n := scalar(t, d, "SELECT count(*) FROM vuln WHERE cve_id LIKE 'GHSA-%'"); n != int64(noCVELive) {
+		t.Errorf("GHSA-keyed vulns %d, want %d", n, noCVELive)
 	}
 	cur := cursorOf(t, d)
 	if cur.Get("since") != zfmt(f.newest) || cur.Get("pending") != nil || len(cur.Get("gaps").([]any)) != 0 ||

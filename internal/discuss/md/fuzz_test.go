@@ -7,7 +7,7 @@ import (
 )
 
 var fuzzSeeds = []string{
-	"", "a", "*a* **b** `c` [d](https://e.com) https://f.com CVE-2024-1234",
+	"", "a", "*a* **b** `c` [d](https://e.com) https://f.com CVE-2024-1234 GHSA-gpwc-27cw-rh9r",
 	"```\ncode\n```", "> q\n> r", "- a\n- b\n1. c", "[x](javascript:alert(1))", "[x](JAVASCRIPT:alert(1))",
 	"[x](java\tscript:x)", "[x](https://a@b)", "<script>", "\x00\u202e\xff", strings.Repeat("`", 300),
 	strings.Repeat("[", 300), strings.Repeat("*", 300), "http://a)))", "[a](http://b) [c](d)",
@@ -94,7 +94,8 @@ func FuzzRenderBlocks(f *testing.F) {
 	f.Add([]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, "x")
 	frags := []string{"\n", "\n\n", "```", "`", "> ", "- ", "* ", "1. ", "*", "**", "[", "]", "(", ")", "](",
 		"https://", "http://e.com", "CVE-2024-1234", "\\", "<", "&", "\"", "  ", "\t", "javascript:", "data:",
-		"\u202e", "\x00", "\r", "e.com/", "@", "a", "中", "\u200d", "\u200b", "\u0301", "\U000E0041", "\n \n"}
+		"\u202e", "\x00", "\r", "e.com/", "@", "a", "中", "\u200d", "\u200b", "\u0301", "\U000E0041", "\n \n",
+		"GHSA-gpwc-27cw-rh9r", "ghsa-"}
 	f.Fuzz(func(t *testing.T, picks []byte, filler string) {
 		var b strings.Builder
 		for _, p := range picks {

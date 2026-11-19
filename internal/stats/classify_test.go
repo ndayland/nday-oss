@@ -195,6 +195,9 @@ func TestNormalizeCVEAndPaths(t *testing.T) {
 		"CVE-2024-3094": "CVE-2024-3094", "cve-2024-3094": "CVE-2024-3094", "CVE-2026-124194": "CVE-2026-124194",
 		"CVE-2024-123": "", "CVE-2024-3094x": "", "CVE-२०२४-3094": "", "": "", "CVE%2D2024%2D3094": "CVE-2024-3094",
 		"CVE-2024-" + strings.Repeat("1", 25): "",
+		// GHSA ids (vulnerabilities without a CVE), canonical form
+		"GHSA-gpwc-27cw-rh9r": "GHSA-gpwc-27cw-rh9r", "ghsa-GPWC-27cw-rh9r": "GHSA-gpwc-27cw-rh9r",
+		"GHSA-aaaa-27cw-rh9r": "", "GHSA-gpwc-27cw": "", "GHSA-gpwc-27cw-rh9r-": "",
 	} {
 		if got := NormalizeCVE(in); got != want {
 			t.Errorf("NormalizeCVE(%q) = %q, want %q", in, got, want)

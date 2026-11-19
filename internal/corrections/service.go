@@ -387,9 +387,9 @@ type itemResponse struct {
 func (s *Service) submit(w http.ResponseWriter, r *http.Request) {
 	u := auth.CurrentUser(r)
 	seg := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")[2]
-	cve, ok := site.ParseCVEID(seg)
+	cve, ok := site.ParseVulnID(seg)
 	if !ok {
-		web.WriteError(w, http.StatusBadRequest, "bad_cve", "not a CVE id", "cve")
+		web.WriteError(w, http.StatusBadRequest, "bad_cve", "not a vulnerability id", "cve")
 		return
 	}
 	if s.writeRefused(w, u) {
@@ -440,9 +440,9 @@ func (s *Service) mine(w http.ResponseWriter, r *http.Request) {
 	}
 	cve := ""
 	if v := r.URL.Query().Get("cve"); v != "" {
-		id, ok := site.ParseCVEID(v)
+		id, ok := site.ParseVulnID(v)
 		if !ok {
-			web.WriteError(w, http.StatusBadRequest, "bad_cve", "not a CVE id", "cve")
+			web.WriteError(w, http.StatusBadRequest, "bad_cve", "not a vulnerability id", "cve")
 			return
 		}
 		cve = id

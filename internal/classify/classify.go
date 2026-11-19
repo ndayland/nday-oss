@@ -102,6 +102,9 @@ type Stats struct {
 	// vuln insert queues them again).
 	CVEs   int `json:"cves"`
 	NoVuln int `json:"no_vuln"`
+	// Busy: of those, whose vuln row another transaction held (a collector
+	// run, a merge); skipped and left queued for the next run.
+	Busy int `json:"busy"`
 	// Inputs: raw records derived (one per CVE and source, one per advisory
 	// for ghsa). Rejected: of those, marking the CVE rejected.
 	Inputs   int `json:"inputs"`
@@ -281,8 +284,12 @@ func BySource(ctx context.Context, conn *pgx.Conn, source string, o Options) (*S
 	}
 	return run(ctx, conn, "source:"+source, o, func(st *Stats) error {
 		if source == FamGHSA {
+			// every advisory's CVE, its GHSA id (the vuln's id while it has
+			// no CVE; skipped when there is no such vuln row), and every id
+			// that has ghsa rows
 			rows, err := conn.Query(ctx, `SELECT c FROM (
                 SELECT payload->>'cve_id' AS c FROM raw_record WHERE source = 'ghsa'
+                UNION SELECT source_key FROM raw_record WHERE source = 'ghsa'
                 UNION SELECT cve_id FROM vuln_classify_input WHERE source = 'ghsa') s
                 WHERE c IS NOT NULL ORDER BY c`)
 			if err != nil {
@@ -374,13 +381,15 @@ FROM raw_record WHERE source = $1 AND source_key = ANY($2)
 ORDER BY source_key, fetched_at DESC, id DESC`
 }
 
-// The latest version of every advisory that names one of the CVEs in any
-// version, or that fed one of them before.
+// The latest version of every advisory that names one of the ids in any
+// version, that is one of the ids (a GHSA-keyed vuln is its own advisory),
+// or that fed one of them before.
 var ghsaLatestSQL = `SELECT DISTINCT ON (r.source_key) r.source_key, r.content_hash, jsonb_typeof(r.payload), ` +
 	strings.ReplaceAll(ghsaProjection, "payload", "r.payload") + `::text
 FROM raw_record r
 WHERE r.source = 'ghsa' AND r.source_key IN (
     SELECT source_key FROM raw_record WHERE source = 'ghsa' AND payload->>'cve_id' = ANY($1)
+    UNION SELECT source_key FROM raw_record WHERE source = 'ghsa' AND source_key = ANY($1)
     UNION SELECT source_key FROM vuln_classify_input WHERE source = 'ghsa' AND cve_id = ANY($1))
 ORDER BY r.source_key, r.fetched_at DESC, r.id DESC`
 
@@ -426,13 +435,14 @@ func processBatch(ctx context.Context, conn *pgx.Conn, cves []string, families [
 	err := pgx.BeginFunc(ctx, conn, func(tx pgx.Tx) error {
 		bst = Stats{}
 		bst.CVEs = len(cves)
-		// 1. which CVEs have a vuln row (the FK target)
-		rows, err := tx.Query(ctx, `SELECT cve_id FROM vuln WHERE cve_id = ANY($1)`, cves)
+		// 1. which CVEs have a vuln row (the FK target), locked until
+		// commit; busy rows are skipped (LockVulns)
+		have, busy, err := LockVulns(ctx, tx, cves)
 		if err != nil {
 			return err
 		}
-		have, err := pgx.CollectRows(rows, pgx.RowTo[string])
-		if err != nil {
+		bst.Busy = len(busy)
+		if err := keepBusy(ctx, tx, "classify_queue", busy, queueIDs, o.DryRun); err != nil {
 			return err
 		}
 		inVuln := make(map[string]bool, len(have))
@@ -445,7 +455,7 @@ func processBatch(ctx context.Context, conn *pgx.Conn, cves []string, families [
 				ids = append(ids, c)
 			}
 		}
-		bst.NoVuln = len(cves) - len(ids)
+		bst.NoVuln = len(cves) - len(ids) - len(busy)
 		// 2. derive from the latest raw records
 		derived := map[pairKey][]input{}
 		failed := map[pairKey]bool{}
@@ -632,7 +642,9 @@ func processBatch(ctx context.Context, conn *pgx.Conn, cves []string, families [
 			}
 		}
 		if len(queueIDs) > 0 && !o.DryRun {
-			if _, err := tx.Exec(ctx, `DELETE FROM classify_queue WHERE id = ANY($1)`, queueIDs); err != nil {
+			// (a busy id's rows stay; the condition is checked on the
+			// version this statement sees, so it never waits for them)
+			if _, err := tx.Exec(ctx, `DELETE FROM classify_queue WHERE id = ANY($1) AND cve_id <> ALL(COALESCE($2::text[], '{}'))`, queueIDs, busy); err != nil {
 				return err
 			}
 		}
@@ -650,10 +662,63 @@ func processBatch(ctx context.Context, conn *pgx.Conn, cves []string, families [
 
 var errDryRun = errors.New("dry run: rolled back")
 
+// LockVulns locks the vuln rows of ids (sorted, distinct) FOR KEY SHARE
+// until the transaction ends and returns the ids that have one (have) and
+// those whose row another transaction holds (busy). The lock keeps a merge
+// of a GHSA-keyed vuln into its CVE (docs/ghsa.md), which deletes the
+// GHSA-keyed row, from running between the batch's read and its writes
+// (the writes' foreign keys need the row). A row another transaction holds
+// in a conflicting mode (a collector run's upsert FOR UPDATE, a merge, a
+// delete) is skipped, not waited for: waiting while holding the rows
+// already locked, and the rows the batch then rewrites, could close a cycle
+// with that transaction (deadlock_detected). The caller leaves the busy
+// ids queued for the next run. Used by internal/tags as well.
+func LockVulns(ctx context.Context, tx pgx.Tx, ids []string) (have, busy []string, err error) {
+	rows, err := tx.Query(ctx, `SELECT cve_id FROM vuln WHERE cve_id = ANY($1) ORDER BY cve_id FOR KEY SHARE SKIP LOCKED`, ids)
+	if err != nil {
+		return nil, nil, err
+	}
+	if have, err = pgx.CollectRows(rows, pgx.RowTo[string]); err != nil {
+		return nil, nil, err
+	}
+	got := make(map[string]bool, len(have))
+	for _, id := range have {
+		got[id] = true
+	}
+	var rest []string
+	for _, id := range ids {
+		if !got[id] {
+			rest = append(rest, id)
+		}
+	}
+	if len(rest) == 0 {
+		return have, nil, nil
+	}
+	// skipped: busy if the row is still there (or being deleted), else gone
+	rows, err = tx.Query(ctx, `SELECT cve_id FROM vuln WHERE cve_id = ANY($1) ORDER BY cve_id`, rest)
+	if err != nil {
+		return nil, nil, err
+	}
+	busy, err = pgx.CollectRows(rows, pgx.RowTo[string])
+	return have, busy, err
+}
+
+// keepBusy makes sure busy ids are recomputed later: a pass over the queue
+// (queueIDs != nil) keeps their rows; any other pass queues them in table
+// (classify_queue has no foreign key, so this takes no lock on vuln).
+func keepBusy(ctx context.Context, tx pgx.Tx, table string, busy []string, queueIDs []int64, dryRun bool) error {
+	if len(busy) == 0 || queueIDs != nil || dryRun {
+		return nil
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO `+table+` (cve_id) SELECT unnest($1::text[])`, busy)
+	return err
+}
+
 func (s *Stats) merge(b *Stats) {
 	s.Batches++
 	s.CVEs += b.CVEs
 	s.NoVuln += b.NoVuln
+	s.Busy += b.Busy
 	s.Inputs += b.Inputs
 	s.Rejected += b.Rejected
 	s.Changed += b.Changed

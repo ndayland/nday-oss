@@ -204,7 +204,7 @@ func TestVulnDetailAllSources(t *testing.T) {
 		t.Errorf("patch %+v", p)
 	}
 	// PoC panel.
-	if v.PocSources != 3 || len(v.Poc) != 3 || v.Poc[0].Source != "exploitdb" || v.Poc[1].Items[0].Key != "exploit/linux/http/gpustack_rce" ||
+	if v.PocSources != 3 || len(v.Poc) != 4 || v.Poc[0].Source != "exploitdb" || v.Poc[3].Source != "github" || v.Poc[3].Present || v.Poc[1].Items[0].Key != "exploit/linux/http/gpustack_rce" ||
 		*v.Poc[1].Items[0].Kind != "msf_module" || *v.Poc[0].Items[0].Title != "GPUStack 2.1 - Auth Bypass" || v.Poc[0].Items[0].Precision != "day" ||
 		*v.Poc[2].Items[0].Kind != "detection_template" {
 		t.Errorf("poc %+v", v.Poc)
@@ -261,7 +261,7 @@ func TestVulnDetailEdgeCases(t *testing.T) {
 	}
 	v, found, err := st.Vuln(ctx, "CVE-2026-1010") // no events
 	if err != nil || !found || v.State != nil || v.Stage != nil || v.Transition != nil || len(v.Events) != 0 ||
-		len(v.Slots) != 6 || v.Slots[0].State != "none" || v.CVSS != nil || len(v.Poc) != 3 {
+		len(v.Slots) != 6 || v.Slots[0].State != "none" || v.CVSS != nil || len(v.Poc) != 4 {
 		t.Errorf("no events %+v %v", v, err)
 	}
 	v, _, _ = st.Vuln(ctx, "CVE-2026-1005")

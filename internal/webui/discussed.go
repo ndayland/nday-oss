@@ -20,11 +20,8 @@ const discussedPageSize = 50
 
 // DiscussedView is the page's data.
 type DiscussedView struct {
-	Rows      []HotRowView
-	Curl      CmdLine
-	APIPath   string
-	NextHref  string
-	FirstHref string // set on a later page
+	Rows  []HotRowView
+	Pager *Pager // nil when the list fits on one page
 }
 
 // BuildDiscussedRow converts one row: the hot-list row where the CVE has a
@@ -40,12 +37,51 @@ func BuildDiscussedRow(l *i18n.Locale, d site.DiscussedRow) HotRowView {
 			Time: Stamp{Text: l.Text("value.no_record")}, Strip: BuildStrip(l, d.Slots), TPlus: FormatTPlus(nil),
 			TPlusTitle: TPlusTitle(l, nil), Poc: strconv.Itoa(d.PocSources) + "/" + strconv.Itoa(len(site.PocSourceNames)),
 			PocZero: d.PocSources == 0}
-		v.Title, v.TitleMissing, v.TitleLang = rowTitle(l, d.TitleZh, d.Title, slotsRecord(d.Slots))
+		v.Title, v.TitleMissing, v.TitleLang, v.Mark = rowTitle(l, d.TitleZh, d.Title, d.TitleInfo, slotsRecord(d.Slots))
 		v.Vendor, _ = ProductLine(l, d.Products, d.ProductCount, 2)
 		v.Rsch = rschBadge(l, d.Researchers)
 	}
 	v.DateHeader = "" // ranked, not dated
 	return v
+}
+
+// discussedPager is the pager of the ranking at offset off (a multiple of
+// the page size): offset paging, so the page number, the rows' positions
+// and the previous page are exact; total is the ranking's length (0 = not
+// known).
+func discussedPager(l *i18n.Locale, off int, page *site.DiscussedPage, n int) *Pager {
+	href := func(o int) string {
+		if o <= 0 {
+			return l.Path("/discussed")
+		}
+		return l.Path("/discussed") + "?offset=" + strconv.Itoa(o)
+	}
+	var first, prev, next string
+	if off > 0 {
+		first, prev = href(0), href(off-discussedPageSize)
+	}
+	if page.NextOffset != nil {
+		next = href(*page.NextOffset)
+	}
+	pg := newPager(first, prev, next)
+	total := int64(-1)
+	if n > 0 {
+		total = int64(n)
+	}
+	cur, pages := clampPage(off/discussedPageSize+1, pagesOf(total, discussedPageSize), off == 0, next != "")
+	pg.position(l, cur, pages, off+1, len(page.Rows), total)
+	return pg
+}
+
+// discussedPage is one page of the ranking for normalized p, cached.
+func (u *UI) discussedPage(ctx context.Context, p site.DiscussedParams) (*site.DiscussedPage, error) {
+	v, err := u.cached(ctx, "discussed|"+p.CacheKey(), func(ctx context.Context) (any, error) {
+		return u.srv.Store.Discussed(ctx, p)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*site.DiscussedPage), nil
 }
 
 func (u *UI) discussed(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
@@ -58,28 +94,33 @@ func (u *UI) discussed(w http.ResponseWriter, r *http.Request, loc *i18n.Locale)
 		u.fail(w, r, loc, err)
 		return
 	}
-	v, err := u.cached(r.Context(), "discussed|"+p.CacheKey(), func(ctx context.Context) (any, error) {
-		return u.srv.Store.Discussed(ctx, p)
-	})
+	page, err := u.discussedPage(r.Context(), p)
 	if err != nil {
 		u.fail(w, r, loc, err)
 		return
 	}
-	page := v.(*site.DiscussedPage)
+	total := page.Total
+	if total == 0 && off > 0 {
+		// a page past the end has no rows to carry the ranking's length:
+		// the first page's (cached) has it
+		first, err := u.discussedPage(r.Context(), site.DiscussedParams{Limit: p.Limit})
+		if err != nil {
+			u.fail(w, r, loc, err)
+			return
+		}
+		total = first.Total
+	}
 	src, err := u.sourcesReport(r.Context())
 	if err != nil {
 		u.fail(w, r, loc, err)
 		return
 	}
-	dv := DiscussedView{Curl: CurlCmd(u.api.URL("/discussed"), ".rows"), APIPath: u.api.Href("/discussed")}
+	dv := DiscussedView{}
 	for _, row := range page.Rows {
 		dv.Rows = append(dv.Rows, BuildDiscussedRow(loc, row))
 	}
-	if page.NextOffset != nil {
-		dv.NextHref = loc.Path("/discussed") + "?offset=" + strconv.Itoa(*page.NextOffset)
-	}
+	dv.Pager = discussedPager(loc, off, page, total)
 	if off > 0 {
-		dv.FirstHref = loc.Path("/discussed")
 		w.Header().Set("X-Robots-Tag", "noindex")
 	}
 	pos := "0/0"
@@ -88,6 +129,6 @@ func (u *UI) discussed(w http.ResponseWriter, r *http.Request, loc *i18n.Locale)
 	}
 	u.page(w, r, loc, http.StatusOK, "discussed", &Page{Title: loc.Text("discussed.title"),
 		Description: loc.Text("discussed.description"), Nav: "discussed", Path: "~/discussed", Pos: pos, PosID: true,
-		Hints: helpHints(loc), Status: BuildStatusLine(loc, src), AutoSelect: true, RawHref: dv.APIPath,
+		Hints: helpHints(loc), Status: BuildStatusLine(loc, src), AutoSelect: true,
 		Canonical: "/discussed", NoIndex: off > 0, Data: dv})
 }

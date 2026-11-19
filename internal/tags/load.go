@@ -21,12 +21,14 @@ WHERE cve_id = ANY($1)
   AND ((type = 'kev_added' AND source = 'kev')
        OR (type = 'poc_published' AND source IN ('exploitdb', 'metasploit', 'nuclei')))`
 
-// rejectedSQL: the CVE record's state as vuln_state reads it (the latest
-// cvelist disclosed event with a state; migration 0002, CTE rej).
+// rejectedSQL: the vuln's own record's state as vuln_state reads it (the
+// latest disclosed event with a state of the CVE record, or of the GitHub
+// advisory for a GHSA-keyed vuln; migrations 0002 and 0027, CTE rej).
 const rejectedSQL = `
 SELECT DISTINCT ON (cve_id) cve_id, (detail->>'state') = 'REJECTED'
 FROM event_effective
-WHERE cve_id = ANY($1) AND type = 'disclosed' AND source = 'cvelist' AND detail ? 'state'
+WHERE cve_id = ANY($1) AND type = 'disclosed' AND detail ? 'state'
+  AND (source = 'cvelist' OR (source = 'ghsa' AND cve_id LIKE 'GHSA-%'))
 ORDER BY cve_id, effective_at DESC NULLS LAST, observed_at DESC, id DESC`
 
 // packagesSQL: the packages of the advisory versions the classification

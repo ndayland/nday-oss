@@ -20,6 +20,7 @@ import (
 	"nday.land/nday/internal/site/sitetest"
 	"nday.land/nday/internal/testutil"
 	"nday.land/nday/internal/web"
+	"nday.land/nday/internal/web/webtest"
 )
 
 const (
@@ -128,6 +129,7 @@ func newTwoEnv(t *testing.T) *twoEnv {
 	single := web.New(web.Config{Store: store, Logger: log})
 	two := web.New(web.Config{Store: store, Logger: log, PublicURL: testPublic, APIURL: testAPI})
 	for _, s := range []*web.Server{single, two} {
+		s.SetAPIAuth(webtest.BearerAuth{})
 		registerFakeSite(s)
 	}
 	e := &twoEnv{single: httptest.NewServer(single.Handler()), two: httptest.NewServer(two.Handler())}
@@ -158,6 +160,12 @@ func registerFakeSite(s *web.Server) {
 	s.Handle("GET /about", fake("html"))
 }
 
+// gated installs the test authenticator (webtest.BearerAuth) on s.
+func gated(s *web.Server) *web.Server {
+	s.SetAPIAuth(webtest.BearerAuth{})
+	return s
+}
+
 func do(t *testing.T, ts *httptest.Server, method, host, path string, hdr ...string) (*http.Response, []byte) {
 	t.Helper()
 	req, err := http.NewRequest(method, ts.URL+path, nil)
@@ -167,8 +175,13 @@ func do(t *testing.T, ts *httptest.Server, method, host, path string, hdr ...str
 	if host != "" {
 		req.Host = host
 	}
+	// the test API token unless hdr sets Authorization (an empty value: none)
+	req.Header.Set("Authorization", "Bearer "+webtest.TestAPIToken)
 	for i := 0; i+1 < len(hdr); i += 2 {
 		req.Header.Set(hdr[i], hdr[i+1])
+		if hdr[i] == "Authorization" && hdr[i+1] == "" {
+			req.Header.Del("Authorization")
+		}
 	}
 	c := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	resp, err := c.Do(req)
@@ -186,7 +199,7 @@ func checkCORS(t *testing.T, what string, resp *http.Response) {
 	if h.Get("Access-Control-Allow-Origin") != "*" || h.Get("Access-Control-Allow-Credentials") != "" ||
 		h.Get("Cross-Origin-Resource-Policy") != "cross-origin" || h.Get("X-Content-Type-Options") != "nosniff" ||
 		h.Get("Content-Security-Policy") != "default-src 'none'; frame-ancestors 'none'" ||
-		h.Get("Access-Control-Expose-Headers") != "ETag" || len(h.Values("Set-Cookie")) != 0 {
+		h.Get("Access-Control-Expose-Headers") != "ETag, Retry-After, WWW-Authenticate" || len(h.Values("Set-Cookie")) != 0 {
 		t.Errorf("%s: headers %v", what, h)
 	}
 }
@@ -275,20 +288,21 @@ func TestAPIHostOnlyServesAPI(t *testing.T) {
 	}
 	// Index: JSON, not HTML.
 	for _, p := range []string{"/", "/v1"} {
-		resp, b := do(t, e.two, "GET", apiHost, p)
+		resp, b := do(t, e.two, "GET", apiHost, p, "Authorization", "") // public
 		var idx struct {
 			Name      string   `json:"name"`
 			Docs      string   `json:"docs"`
 			Endpoints []string `json:"endpoints"`
 		}
 		if resp.StatusCode != 200 || resp.Header.Get("Content-Type") != "application/json; charset=utf-8" ||
-			json.Unmarshal(b, &idx) != nil || idx.Docs != "https://www.nday.land/about#api" ||
+			json.Unmarshal(b, &idx) != nil || idx.Docs != "https://www.nday.land/account#api" ||
+			!strings.Contains(string(b), `"auth":{"scheme":"Bearer","header":"Authorization","token_url":"https://www.nday.land/account#api"}`) ||
 			strings.Join(idx.Endpoints, " ") != "/v1/hot /v1/vulns /v1/discussed /v1/vuln/{cve} /v1/search /v1/tags /v1/affected/suggest /v1/sources /v1/stats /v1/raw/{source}/{key}.json /healthz" {
 			t.Errorf("index %s: %d %s", p, resp.StatusCode, b)
 		}
 		checkCORS(t, p, resp)
 	}
-	resp, b := do(t, e.two, "GET", apiHost, "/robots.txt")
+	resp, b := do(t, e.two, "GET", apiHost, "/robots.txt", "Authorization", "")
 	if resp.StatusCode != 200 || string(b) != "User-agent: *\nDisallow: /\n" {
 		t.Errorf("robots: %d %q", resp.StatusCode, b)
 	}
@@ -298,10 +312,11 @@ func TestAPIHostOnlyServesAPI(t *testing.T) {
 		t.Errorf("POST: %d %v %s", resp.StatusCode, resp.Header, b)
 	}
 	checkCORS(t, "POST", resp)
-	resp, b = do(t, e.two, "OPTIONS", apiHost, "/v1/hot", "Origin", "https://example.org",
-		"Access-Control-Request-Method", "GET", "Access-Control-Request-Headers", "if-none-match")
+	// a preflight never carries credentials and needs none
+	resp, b = do(t, e.two, "OPTIONS", apiHost, "/v1/hot", "Origin", "https://example.org", "Authorization", "",
+		"Access-Control-Request-Method", "GET", "Access-Control-Request-Headers", "authorization, if-none-match")
 	if resp.StatusCode != 204 || len(b) != 0 || resp.Header.Get("Access-Control-Allow-Methods") != "GET, HEAD, OPTIONS" ||
-		resp.Header.Get("Access-Control-Allow-Headers") != "Accept, If-None-Match" ||
+		resp.Header.Get("Access-Control-Allow-Headers") != "Accept, Authorization, If-None-Match" ||
 		resp.Header.Get("Access-Control-Max-Age") != "86400" {
 		t.Errorf("preflight: %d %v", resp.StatusCode, resp.Header)
 	}
@@ -332,14 +347,12 @@ func TestSiteHostRedirectsToAPI(t *testing.T) {
 	cases := map[string]string{
 		"/api/hot?since=7d&min_stage=patch":                            testAPI + "/v1/hot?since=7d&min_stage=patch",
 		"/api/hot?min_stage=patch&since=7d&x=%2F%2F&y=a+b&z=%E4%B8%AD": testAPI + "/v1/hot?min_stage=patch&since=7d&x=%2F%2F&y=a+b&z=%E4%B8%AD",
-		"/api/hot":                      testAPI + "/v1/hot",
-		"/api/hot?":                     testAPI + "/v1/hot",
-		"/api/vuln/CVE-2026-102895":     testAPI + "/v1/vuln/CVE-2026-102895",
-		"/api/sources":                  testAPI + "/v1/sources",
-		"/api/stats":                    testAPI + "/v1/stats",
-		"/api/search?q=100%25_safe":     testAPI + "/v1/search?q=100%25_safe",
-		"/raw/kev/CVE-2026-102895.json": testAPI + "/v1/raw/kev/CVE-2026-102895.json",
-		"/raw/metasploit/exploit/linux/http/a%20b.json": testAPI + "/v1/raw/metasploit/exploit/linux/http/a%20b.json",
+		"/api/hot":                  testAPI + "/v1/hot",
+		"/api/hot?":                 testAPI + "/v1/hot",
+		"/api/vuln/CVE-2026-102895": testAPI + "/v1/vuln/CVE-2026-102895",
+		"/api/sources":              testAPI + "/v1/sources",
+		"/api/stats":                testAPI + "/v1/stats",
+		"/api/search?q=100%25_safe": testAPI + "/v1/search?q=100%25_safe",
 	}
 	// "" sends the test server's own loopback Host (served); "evil.example" is
 	// a foreign host, which the host gate sends to the public origin instead
@@ -352,6 +365,20 @@ func TestSiteHostRedirectsToAPI(t *testing.T) {
 				t.Errorf("%s%s: %d %q", host, in, resp.StatusCode, resp.Header.Get("Location"))
 			}
 		}
+	}
+	// /raw/... is served on the site host itself (signed-in readers open
+	// raw-record links from vulnerability pages), with credentials.
+	for _, p := range []string{"/raw/kev/CVE-2026-102895.json", "/raw/metasploit/exploit/linux/http/gpustack_rce.json"} {
+		if resp, b := do(t, e.two, "GET", "www.nday.land", p); resp.StatusCode != 200 || !json.Valid(b) {
+			t.Errorf("site %s: %d %s", p, resp.StatusCode, b)
+		}
+		if resp, _ := do(t, e.two, "GET", "www.nday.land", p, "Authorization", ""); resp.StatusCode != 401 {
+			t.Errorf("site %s without credentials: %d", p, resp.StatusCode)
+		}
+	}
+	// The redirects need no credentials.
+	if resp, _ := do(t, e.two, "GET", "www.nday.land", "/api/hot", "Authorization", ""); resp.StatusCode != http.StatusPermanentRedirect {
+		t.Errorf("redirect without token: %d", resp.StatusCode)
 	}
 	// Unknown /api/* stays a JSON 404; /healthz stays on the site host.
 	for _, p := range []string{"/api/nope", "/api/vuln/", "/raw/"} {

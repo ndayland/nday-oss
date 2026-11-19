@@ -25,14 +25,14 @@
 <button type="submit" class="btn">{{t "admin.audit.apply"}}</button>
 </div>
 </form>
+<div class="adm-region" id="r-audit" data-page-region="r-audit">
 {{- if .Rows}}
 {{template "auditrows" .Rows}}
 {{- else}}
 <p class="note">{{t "admin.audit.empty"}}</p>
 {{- end}}
-{{- if or .Next .First}}
-<p class="pager">{{with .First}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .Next}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
-{{- end}}
+{{template "pager" .Pager}}
+</div>
 {{- end}}
 </main>
 </div>

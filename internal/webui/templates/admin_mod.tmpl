@@ -9,6 +9,7 @@
 {{- with .Body}}
 <section class="sec" id="queue" aria-labelledby="h-queue">
 <h2 class="h2" id="h-queue"><span class="h" aria-hidden="true"># </span>{{t "admin.mod.queue_h2"}}</h2>
+<div class="adm-region" id="r-queue" data-page-region="r-queue">
 {{- if .Queue}}
 <div class="adm-list">
 {{- range .Queue}}
@@ -18,12 +19,12 @@
 {{- else}}
 <p class="note">{{t "admin.mod.queue_empty"}}</p>
 {{- end}}
-{{- if or .QueueNext .QueueFirst}}
-<p class="pager">{{with .QueueFirst}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .QueueNext}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
-{{- end}}
+{{template "pager" .QueuePager}}
+</div>
 </section>
 <section class="sec" id="recent" aria-labelledby="h-recent">
 <h2 class="h2" id="h-recent"><span class="h" aria-hidden="true"># </span>{{t "admin.mod.recent_h2"}}</h2>
+<div class="adm-region" id="r-recent" data-page-region="r-recent">
 <nav class="seg" aria-label="{{ts "admin.mod.filter_label"}}">
 {{- range .Filters}}
 <a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{if .Value}}{{t "admin.mod.status" "status" .Value}}{{else}}{{t "admin.mod.all"}}{{end}}</a>
@@ -38,9 +39,8 @@
 {{- else}}
 <p class="note">{{t "admin.mod.recent_empty"}}</p>
 {{- end}}
-{{- if or .RecentNext .RecentTop}}
-<p class="pager">{{with .RecentTop}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .RecentNext}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
-{{- end}}
+{{template "pager" .RecentPager}}
+</div>
 </section>
 {{- end}}
 </main>

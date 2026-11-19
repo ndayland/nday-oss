@@ -26,8 +26,10 @@ import (
 	"nday.land/nday/internal/posts"
 	"nday.land/nday/internal/site"
 	"nday.land/nday/internal/site/sitetest"
+	"nday.land/nday/internal/state"
 	"nday.land/nday/internal/testutil"
 	"nday.land/nday/internal/web"
+	"nday.land/nday/internal/web/webtest"
 	"nday.land/nday/internal/webui"
 )
 
@@ -77,7 +79,8 @@ const (
 var postMarkers = []string{postHandle, post2Handle, goneHandle, postAuthor, post2Author, goneAuthor, evilAuthor,
 	postID1, postID2, postID3, postID4, postID5, postID6, postID7, postID8, postID9, postIDEvil,
 	"QZMARKER", postURLPath, "QZEVILHANDLE", "QZCOMMENT", commenter, "QZDRAFT", draftPost, "x_draft", "intent/tweet",
-	"xposts", "social_post", "QZSHORT", "QZTITLE", "QZMEDIA", "qzgone.example", "QZPAGE", "QZFETCHED"}
+	"xposts", "social_post", "QZSHORT", "QZTITLE", "QZMEDIA", "qzgone.example", "QZPAGE", "QZFETCHED",
+	"QZREPODESC", "QZREPOTOPIC", "QZREPOLANG", "QZREPOOWNER"}
 
 // Links of researcher posts (x_post_link): the public resources section
 // shows resURL (posted by two researchers) and resEvil (escaped) with the
@@ -90,6 +93,8 @@ const (
 	resEvil  = `https://res.example/a?x=1&y="><script>alert(6)</script>`
 	resTitle = "QZTITLE link title"
 	resPage  = "QZPAGE <script>alert(7)</script> fetched"
+	// a fetched GitHub repository (github_repo 'ok', its name names the CVE)
+	resRepoURL = "https://github.com/PocOwner/poc-repo"
 )
 
 // seedPosts adds what the xposts collector stores (social_post events,
@@ -152,6 +157,25 @@ VALUES ($1, $2, $3, $4, $4, 'h.example', $5, 'QZTITLE link title', 'api', 'ok')`
 		{`UPDATE x_post_link SET title = NULL WHERE final_url = $1`, []any{resEvil}},
 		{`INSERT INTO web_page (url_key, url, first_source, status, title) VALUES ($1, $2, 'xposts', 'ok', $3), ($4, $5, 'xposts', 'ok', 'QZFETCHED loses')`,
 			[]any{evilKey, resEvil, resPage, resKey, resURL}},
+		// a GitHub repository link (internal/ghrepo): only the full name,
+		// stars and creation day are public; the rest of github_repo
+		// (markers QZREPO*) never shows
+		{`INSERT INTO x_post_link (post_id, pos, short_url, expanded_url, final_url, host, kind, origin, status)
+            VALUES ($1, 2, 'https://t.co/QZSHORT07', $2, $2, 'github.com', 'code', 'api', 'ok')`, []any{postID3, resRepoURL}},
+		{`INSERT INTO github_repo (github_id, queued_name, full_name, owner_login, owner_type, description, stars, language, topics,
+            repo_created_at, pushed_at, state, etag, first_source, status, status_by, status_at, seen_at) VALUES (77, 'pocowner/poc-repo', 'PocOwner/poc-repo', 'QZREPOOWNERX',
+            'Organization', 'QZREPODESC <script>alert(8)</script>', 4321, 'QZREPOLANG', '{qzrepotopic}', '2026-11-05 05:06:07+00',
+            '2026-03-05', 'ok', '"QZREPOETAG"', 'xposts', 'trusted', 'rule', now(), now())`, nil},
+		// found by search (internal/ghrepo Discover): listed under PoC with
+		// the same three fields and the unverified mark, nothing else
+		{`INSERT INTO github_repo (github_id, queued_name, full_name, owner_login, owner_type, description, stars, language, topics,
+            repo_created_at, pushed_at, state, first_source, status, seen_at) VALUES (78, 'searchowner/found-poc', 'SearchOwner/found-poc', 'QZREPOOWNERY',
+            'User', 'QZREPODESC found', 12, 'QZREPOLANG', '{qzrepotopic}', '2026-04-05 06:07:08+00', '2026-04-06', 'ok', 'search', 'unverified', '2026-11-12')`, nil},
+		{`INSERT INTO github_repo_name (name_key, repo_id) SELECT queued_name, id FROM github_repo`, nil},
+		// the post link was checked and stamped with repository 77 (the fetch pass)
+		{`UPDATE x_post_link SET repo_root_key = 'pocowner/poc-repo', repo_github_id = 77, repo_checked_at = now() WHERE final_url = $1`,
+			[]any{resRepoURL}},
+		{`INSERT INTO github_repo_cve (repo_id, cve_id, basis) SELECT id, $1, 'name' FROM github_repo`, []any{sitetest.GPU}},
 	} {
 		if _, err := conn.Exec(ctx, q.sql, q.args...); err != nil {
 			t.Fatal(err)
@@ -206,6 +230,7 @@ func newEnvSeeded(t *testing.T, extra func(*testing.T, *pgx.Conn)) *tenv {
 	t.Cleanup(pool.Close)
 	now := func() time.Time { return sitetest.Now }
 	srv := web.New(web.Config{Store: site.New(pool).WithClock(now), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	srv.SetAPIAuth(webtest.BearerAuth{})
 	ui, err := webui.New(srv, webui.Options{Now: now})
 	if err != nil {
 		t.Fatal(err)
@@ -224,6 +249,23 @@ type memberEnv struct {
 	idp *fakeidp.IDP
 	as  *auth.Store
 	ds  *discuss.Service
+	// token is an API token of a separate account (apiReader); fetch sends
+	// it, as the data API and /raw/... need one
+	token string
+}
+
+// apiReader creates an account with one API token and returns the token.
+func apiReader(t *testing.T, conn *pgx.Conn, svc *auth.Service) string {
+	t.Helper()
+	var id string
+	if err := conn.QueryRow(context.Background(), `INSERT INTO users DEFAULT VALUES RETURNING id::text`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	tok, err := svc.IssueAPIToken(context.Background(), id, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tok
 }
 
 const (
@@ -243,9 +285,11 @@ func newMemberEnv(t *testing.T, withPosts bool) (*memberEnv, *pgx.Conn) {
 	for _, cve := range []string{postCVE, stubA, stubB} {
 		sitetest.Seeder{T: t, Conn: d.Conn}.Vuln(cve, nil)
 	}
+	sitetest.SeedGHSA(t, d.Conn) // a vulnerability keyed by a GHSA id is crawled like the others
 	if withPosts {
 		seedPosts(t, d.Conn)
 	}
+	pinGitHubPoC(t, d.Conn, withPosts)
 	// wall-clock columns that public responses show (the sitemap's lastmod,
 	// the state refresh time) are pinned so the two databases compare equal;
 	// the posts keep their insertion time, later than everything else
@@ -273,7 +317,8 @@ func newMemberEnv(t *testing.T, withPosts bool) (*memberEnv, *pgx.Conn) {
 	as := &auth.Store{DB: pool}
 	big := func() *auth.RateLimiter { return auth.NewRateLimiter(100000, time.Millisecond) }
 	asvc, err := auth.New(acfg, auth.Options{Store: as, Logger: log, Client: idp.Server.Client(), Endpoints: idp.Endpoints(),
-		StartLimit: big(), CallbackLimit: big(), PasskeyLimit: big(), AccountLimit: big(), TokenLimit: big(), SessionLookups: 4})
+		StartLimit: big(), CallbackLimit: big(), PasskeyLimit: big(), AccountLimit: big(), TokenLimit: big(), SessionLookups: 4,
+		APITokenLimit: big(), APIClientLimit: big()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +339,7 @@ func newMemberEnv(t *testing.T, withPosts bool) (*memberEnv, *pgx.Conn) {
 		t.Fatal(err)
 	}
 	srv := web.New(web.Config{Store: store, Logger: log, PublicURL: wwwOrigin, APIURL: "https://" + apiHost})
-	asvc.Register(srv)
+	asvc.Register(srv) // the real authenticator of the data API and the feed
 	ds.Register(srv)
 	posts.New(posts.Options{Auth: asvc, Store: store, Logger: log, ReadBurst: 100000, ReadEvery: time.Millisecond}).Register(srv)
 	ui, err := webui.New(srv, webui.Options{Now: now, Accounts: webui.AccountsOf(asvc), Discussions: webui.DiscussionsOf(ds)})
@@ -303,7 +348,43 @@ func newMemberEnv(t *testing.T, withPosts bool) (*memberEnv, *pgx.Conn) {
 	}
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
-	return &memberEnv{ts: ts, ui: ui, idp: idp, as: as, ds: ds}, d.Conn
+	return &memberEnv{ts: ts, ui: ui, idp: idp, as: as, ds: ds, token: apiReader(t, d.Conn, asvc)}, d.Conn
+}
+
+// pinGitHubPoC: since migration 0032 a post can make a repository a PoC
+// source (the post rule trusts repository 77, whose name names GPU, so the
+// triggers give GPU an event of source github). Both databases get that
+// same event with the same id, so the comparison still isolates what the
+// posts add, and the crawl checks that the event says nothing about the
+// post. With posts, the event the triggers wrote is checked first.
+func pinGitHubPoC(t *testing.T, conn *pgx.Conn, withPosts bool) {
+	t.Helper()
+	ctx := context.Background()
+	if withPosts {
+		var got string
+		if err := conn.QueryRow(ctx, `SELECT string_agg(concat_ws(' ', cve_id, dedupe_key, to_char(occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI'),
+                url, detail::text), ', ') FROM event WHERE source = 'github'`).Scan(&got); err != nil {
+			t.Fatal(err)
+		}
+		if want := sitetest.GPU + ` 77 2026-11-05 05:06 ` + resRepoURL + ` {"url": "` + resRepoURL + `", "title": "PocOwner/poc-repo", "precision": "day"}`; got != want {
+			t.Fatalf("github event of the post-trusted repository:\n got %s\nwant %s", got, want)
+		}
+	}
+	for _, q := range []string{`DELETE FROM event WHERE source = 'github'`,
+		`INSERT INTO event (id, cve_id, type, occurred_at, observed_at, source, url, detail, dedupe_key)
+            VALUES (900001, '` + sitetest.GPU + `', 'poc_published', '2026-11-05T05:06:07Z', $1, 'github', '` + resRepoURL + `',
+                    '{"precision": "day", "title": "PocOwner/poc-repo", "url": "` + resRepoURL + `"}', '77')`} {
+		var args []any
+		if strings.Contains(q, "$1") {
+			args = []any{sitetest.Now.Add(-time.Hour)}
+		}
+		if _, err := conn.Exec(ctx, q, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := state.Refresh(ctx, conn, state.RefreshOptions{Wait: true}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // fetch is a GET with a Host and optional cookies; redirects are not followed.
@@ -315,6 +396,7 @@ func (e *memberEnv) fetch(t *testing.T, host, path string, cookies []*http.Cooki
 	}
 	req.Host = host
 	req.Header.Set("CF-Connecting-IP", "198.51.100.9")
+	req.Header.Set("Authorization", "Bearer "+e.token)
 	for _, c := range cookies {
 		req.AddCookie(&http.Cookie{Name: c.Name, Value: c.Value})
 	}
@@ -439,8 +521,22 @@ var (
 	stripBadge     = regexp.MustCompile(` <span class="tag rsch-b" title="[^"]*"><span aria-hidden="true">@\d+</span><span class="sr">[^<]*</span></span>`)
 	stripSection   = regexp.MustCompile(`(?s)<section class="sec disc rsch" id="research".*?</section>`)
 	stripResources = regexp.MustCompile(`(?s)\n\n<section class="panel rsrc" id="resources".*?</section>\n`)
+	shareSecRe     = regexp.MustCompile(`(?s)<details class="share">.*?</details>`)
 	resourcesSecRe = regexp.MustCompile(`(?s)<section class="panel rsrc" id="resources".*?</section>`)
 	researchSecRe  = stripSection
+	// the lifecycle chart's dots of external items (chartdots.go) and their
+	// popovers: the resources' titles and URLs, the outline's names and
+	// days, and each link's first-mentioned day (owner's decision of
+	// 2026-11-17, site/public.go)
+	stripDots    = regexp.MustCompile(`(?s)<svg class="dots">.*?</foreignObject></svg></svg>`)
+	stripDotPops = regexp.MustCompile(`(?s)\n<div class="dpops">.*?\n</div>`)
+	// the line under each post triangle: only an x position (a posting day,
+	// public like the dots); the pattern admits nothing but that
+	stripPostLines = regexp.MustCompile(`\n<line class="postl" x1="[0-9.]+%" x2="[0-9.]+%" y1="0" y2="(?:36|64)"/>`)
+	// a row with dots is taller, with a lane for them (chartdots.go Lane):
+	// only its class and the height of its lines differ
+	laneRow        = regexp.MustCompile(`<div class="crow lane">`)
+	laneLines      = regexp.MustCompile(`(<line class="(?:grid|nowl)" x1="[0-9.]+%" x2="[0-9.]+%" y1="0" y2=")64("/>)`)
 	publicByDesign = regexp.MustCompile(`^(/[a-z-]+)?/discussed(\?|$)|^/v1/discussed|^/api/discussed|^/api/posts/`)
 )
 
@@ -460,12 +556,15 @@ var publicHandles = []string{postHandle, post2Handle}
 //     auth-class /api/posts and /api/discuss with real ?c=, thread= and
 //     cursor= values — is byte-identical between the two, except for the
 //     parts public by design (stripped narrowly: researchers_7d, the @N
-//     badge, the research section, /discussed and its JSON, the signed-out
-//     /api/posts body);
+//     badge, the research section, the resources panel, the lifecycle
+//     chart's dots and their popovers, /discussed and its JSON, the
+//     signed-out /api/posts body);
 //   - no signed-out response anywhere contains post text, post ids or URLs,
 //     author ids, a disabled account's handle, the hostile handle, comment
 //     bodies, hide reasons or commenter handles; enabled authors' handles
-//     appear only in the research section and the /api/posts outline;
+//     appear only in the research section, the chart's dot popovers and
+//     the /api/posts outline; link titles only in the resources panel and
+//     the chart's dot popovers;
 //   - a signed-in client gets the content.
 func TestPostsNotPublic(t *testing.T) {
 	e, conn := newMemberEnv(t, true)
@@ -561,6 +660,17 @@ func TestPostsNotPublic(t *testing.T) {
 				}
 			}
 		}
+		// the share control of a vulnerability page (vuln.tmpl "share",
+		// share.go) is a compose link by design, built from public data
+		// only: only its own compose prefix leaves the scan (its text is
+		// still scanned for every marker, and the differential comparison
+		// below keeps it: it is the same without posts)
+		if sh := shareSecRe.FindAllString(scan, -1); len(sh) > 0 {
+			if len(sh) != 1 || !strings.Contains(path, "/vuln/") {
+				t.Errorf("%s%s: %d share controls", r.host, r.path, len(sh))
+			}
+			scan = strings.Replace(scan, sh[0], strings.Replace(sh[0], `href="https://x.com/intent/tweet?text=`, `href="`, 1), 1)
+		}
 		allowed := func(m string) bool {
 			for _, h := range publicHandles {
 				if strings.EqualFold(m, h) {
@@ -598,6 +708,18 @@ func TestPostsNotPublic(t *testing.T) {
 				check(" (resources section)", shown, false)
 				rest = strings.Replace(rest, rsec, "", 1)
 			}
+			// the chart's dots: the names of the outline and the titles of
+			// the resources, nothing else
+			var dots []string
+			for _, re := range []*regexp.Regexp{stripDots, stripDotPops} {
+				dots = append(dots, re.FindAllString(rest, -1)...)
+				rest = re.ReplaceAllString(rest, "")
+			}
+			shown := strings.Join(dots, "\n")
+			for _, ti := range []string{resTitle, html.EscapeString(resPage)} {
+				shown = strings.ReplaceAll(shown, strings.ToLower(ti), "")
+			}
+			check(" (chart dots)", shown, true)
 			check("", rest, false)
 		case isPostsAPI:
 			check("", scan, true)
@@ -608,9 +730,11 @@ func TestPostsNotPublic(t *testing.T) {
 		// 2. the differential comparison, public-by-design parts stripped
 		if !publicByDesign.MatchString(r.path) {
 			a, b := body, bbody
-			for _, re := range []*regexp.Regexp{stripRsch, stripBadge, stripSection, stripResources} {
+			for _, re := range []*regexp.Regexp{stripRsch, stripBadge, stripSection, stripResources, stripDots, stripDotPops, stripPostLines} {
 				a, b = re.ReplaceAllString(a, ""), re.ReplaceAllString(b, "")
 			}
+			a, b = laneRow.ReplaceAllString(a, `<div class="crow">`), laneRow.ReplaceAllString(b, `<div class="crow">`)
+			a, b = laneLines.ReplaceAllString(a, "${1}36${2}"), laneLines.ReplaceAllString(b, "${1}36${2}")
 			if resp.StatusCode != bresp.StatusCode || a != b {
 				t.Errorf("%s%s: response differs with posts stored (status %d vs %d)\n--- with\n%s\n--- without\n%s",
 					r.host, r.path, resp.StatusCode, bresp.StatusCode, truncBody(diffAt(a, b)), truncBody(diffAt(b, a)))
@@ -677,8 +801,48 @@ func TestPostsNotPublic(t *testing.T) {
 	if out != in {
 		t.Error("the vulnerability page differs for a signed-in visitor")
 	}
+	// The chart's dots (chartdots.go): posts on the header (one per UTC
+	// day, @handle · day linking to the profile, the neutral name for an
+	// invalid handle), links at their first-mentioned day as rings with
+	// their titles; repositories created before the disclosure are not
+	// drawn; without script each dot is a link to the section listing it;
+	// the popovers' outbound links get the site icon like every other one.
+	dots := strings.Join(stripDots.FindAllString(out, -1), "\n")
+	pops := stripDotPops.FindString(out)
+	for _, w := range []string{
+		`<foreignObject x="-16" y="-7" width="32" height="36"><a class="dot d-post" href="#research" aria-label="Researcher discussion, 2026-11-11" data-pop="cd-2"></a></foreignObject>`,
+		`<a class="dot d-pat ring" href="#resources" aria-label="Patches, ≤ 2026-11-11" data-pop="cd-5"></a>`,
+		`<a class="dot d-art ring" href="#resources" aria-label="Articles and other links, ≤ 2026-11-11" data-pop="cd-6"></a>`} {
+		if !strings.Contains(dots, w) {
+			t.Errorf("chart dots lack %q:\n%s", w, dots)
+		}
+	}
+	for _, w := range []string{
+		`<div class="dpop" id="cd-2" hidden=""><ul>` + "\n" + `<li data-ri="2" data-day="2026-11-11"><a href="https://x.com/` + post2Handle +
+			`" target="_blank" rel="noopener noreferrer nofollow" data-fav=""><span class="fav" aria-hidden="true"></span>@` + post2Handle +
+			`</a> · <span class="dp-d">2026-11-11</span></li>` + "\n" + `</ul></div>`,
+		`<li data-ri="1" data-day="2026-11-12"><span class="weak">researcher</span> · <span class="dp-d">2026-11-12</span></li>`,
+		`<li><span class="dp-k">Patches</span> <a href="https://github.com/qzres/fix/commit/abc123" dir="auto" target="_blank" rel="noopener noreferrer nofollow ugc" data-fav=""><span class="fav" aria-hidden="true"></span>` +
+			resTitle + `</a> <span class="dp-d">≤ 2026-11-11</span></li>`,
+		`>QZPAGE &lt;script&gt;alert(7)&lt;/script&gt; fetched</a> <span class="dp-d">≤ 2026-11-11</span></li>`} {
+		if !strings.Contains(pops, w) {
+			t.Errorf("chart popovers lack %q:\n%s", w, pops)
+		}
+	}
+	// repository 77 is created after the disclosure (it is a PoC source,
+	// migration 0032; its time must not predate the CVE): its dot shows
+	// its public name and creation day, nothing else
+	if !strings.Contains(dots, `<a class="dot d-poc" href="#r-poc" aria-label="PoC / exploit code, 2026-11-05" data-pop="cd-7"></a>`) ||
+		!strings.Contains(pops, `<span class="fav" aria-hidden="true"></span>PocOwner/poc-repo</a> <span class="dp-d">2026-11-05</span></li>`) {
+		t.Errorf("chart dots lack repository 77:\n%s\n%s", dots, pops)
+	}
+	if strings.Count(dots, `class="dot `) != 7 || strings.Count(pops, `<div class="dpop" `) != 7 ||
+		strings.Contains(dots+pops, "found-poc") || strings.Contains(dots+pops, "<script>") || !strings.Contains(out, `id="resources"`) ||
+		!strings.Contains(out, `id="research"`) {
+		t.Errorf("chart dots:\n%s\n%s", dots, pops)
+	}
 	sec := researchSecRe.FindString(out)
-	for _, w := range []string{`<a class="rp-au" href="https://x.com/` + postHandle + `" rel="noopener noreferrer nofollow">@` + postHandle + `</a>`,
+	for _, w := range []string{`<a class="rp-au" href="https://x.com/` + postHandle + `" target="_blank" rel="noopener noreferrer nofollow" data-fav=""><span class="fav" aria-hidden="true"></span>@` + postHandle + `</a>`,
 		`@` + post2Handle + `</a>`, `<span class="rp-au weak">researcher</span>`, "Post by @" + postHandle + " on 2026-11-13. Sign in to read it.",
 		"Post by a researcher on 2026-11-12. Sign in to read it."} {
 		if !strings.Contains(sec, w) {
@@ -692,23 +856,50 @@ func TestPostsNotPublic(t *testing.T) {
 	// media link or a disabled author's link (the markers above are checked
 	// everywhere, titles everywhere outside this panel).
 	res := resourcesSecRe.FindString(out)
-	for _, w := range []string{`<a href="` + resURL + `" title="` + resURL + `" dir="auto" rel="noopener noreferrer nofollow ugc">` + resTitle +
+	for _, w := range []string{`<a href="` + resURL + `" title="` + resURL + `" dir="auto" target="_blank" rel="noopener noreferrer nofollow ugc" data-fav=""><span class="fav" aria-hidden="true"></span>` + resTitle +
 		`</a> <span class="rsrc-host">h.example</span> <span class="rsrc-n">2 researchers</span>`,
 		`href="https://res.example/a?x=1&amp;y=%22%3e%3cscript%3ealert%286%29%3c/script%3e"`,
 		`title="https://res.example/a?x=1&amp;y=&#34;&gt;&lt;script&gt;alert(6)&lt;/script&gt;"`,
 		`>QZPAGE &lt;script&gt;alert(7)&lt;/script&gt; fetched</a> <span class="rsrc-host">h.example</span>`,
-		`>Patches</h3>`, `>Articles and other links</h3>`} {
+		`>Patches</h3>`, `>Articles and other links</h3>`,
+		`<a href="` + resRepoURL + `" title="` + resRepoURL + `" dir="auto" target="_blank" rel="noopener noreferrer nofollow ugc" data-fav=""><span class="fav" aria-hidden="true"></span>PocOwner/poc-repo</a>` +
+			` <span class="rsrc-host">★ 4,321</span> <span class="rsrc-host"><time datetime="2026-11-05">2026-11-05</time></span></li>`,
+		`<a href="https://github.com/SearchOwner/found-poc" title="https://github.com/SearchOwner/found-poc" dir="auto" target="_blank" rel="noopener noreferrer nofollow ugc" data-fav=""><span class="fav" aria-hidden="true"></span>SearchOwner/found-poc</a>` +
+			` <span class="rsrc-host"><time datetime="2026-04-05">2026-04-05</time></span></li>`,
+		`<details class="rsrc-u">` + "\n" + `<summary class="rsrc-k">Unreviewed repositories (1)</summary>`} {
 		if !strings.Contains(res, w) {
 			t.Errorf("resources section lacks %q:\n%s", w, res)
 		}
 	}
+	// the repository names the CVE: it is listed under PoC, not code
+	if i, j, k := strings.Index(res, `>PoC / exploit code</h3>`), strings.Index(res, `>PocOwner/poc-repo</a>`), strings.Index(res, `>Patches</h3>`); i < 0 || j < i || j > k ||
+		strings.Contains(res, `>Code repositories</h3>`) {
+		t.Errorf("repository link not in the PoC group:\n%s", res)
+	}
 	if strings.Contains(res, "<script>") || strings.Contains(res, "javascript:") || strings.Contains(res, "@") || strings.Contains(res, "x.com") {
 		t.Errorf("resources section:\n%s", res)
 	}
-	// in the side column (below the raw records panel), outside the
-	// research section that names authors
-	if i := strings.Index(out, `id="resources"`); i > strings.Index(out, "</aside>") || i > strings.Index(out, `id="research"`) {
-		t.Error("the resources panel is not in the side column before the research section")
+	// the unverified repository found by search sits in the collapsed
+	// unreviewed group, after the PoC group; neither group says why a
+	// repository is trusted (nor that it is), nor anything of a post
+	if i, j, k := strings.Index(res, `<details class="rsrc-u">`), strings.Index(res, `>SearchOwner/found-poc</a>`), strings.Index(res, `</details>`); i < 0 || j < i || k < j ||
+		strings.Index(res, `>PocOwner/poc-repo</a>`) > i {
+		t.Errorf("found repository not in the unreviewed group:\n%s", res)
+	}
+	for _, w := range []string{"admin", "rule", "owner", "trusted", "QZREPO", ">unverified<"} {
+		if strings.Contains(strings.ToLower(res), strings.ToLower(w)) && w != "owner" || w == "owner" && strings.Contains(res, " owner") {
+			t.Errorf("resources section shows %q:\n%s", w, res)
+		}
+	}
+	// the resources panel in the side column, outside the research section
+	// that names authors; the research section in the main column, after
+	// the event log
+	if i, a, z := strings.Index(out, `id="resources"`), strings.Index(out, `<aside class="side"`), strings.Index(out, "</aside>"); a < 0 || i < a || i > z {
+		t.Error("the resources panel is not in the side column")
+	}
+	if m, e, r, a := strings.Index(out, `<div class="main">`), strings.Index(out, `<section class="evlog"`), strings.Index(out, `id="research"`),
+		strings.Index(out, `<aside class="side"`); m < 0 || e < m || r < e || r > a {
+		t.Error("the research section is not in the main column after the event log")
 	}
 	_, other := e.fetch(t, wwwHost, "/vuln/"+postCVE, nil)
 	if strings.Contains(other, `id="resources"`) {
@@ -876,7 +1067,7 @@ func TestResearcherCounts(t *testing.T) {
 	}
 	resp, body := e.fetch(t, apiHost, "/v1/discussed", nil)
 	t.Logf("GET /v1/discussed: %s", body)
-	if resp.StatusCode != 200 || resp.Header.Get("Cache-Control") != "public, max-age=60" {
+	if resp.StatusCode != 200 || resp.Header.Get("Cache-Control") != "private, max-age=60" {
 		t.Fatalf("/v1/discussed: %d %v", resp.StatusCode, resp.Header)
 	}
 	if err := json.Unmarshal([]byte(body), &page); err != nil {
@@ -943,6 +1134,9 @@ func TestResearcherCounts(t *testing.T) {
 			t.Errorf("%s: hot list changed with posts\n%s\n%s", p, truncBody(a), truncBody(b))
 		}
 		if strings.Contains(p, "limit=200") {
+			if !regexp.MustCompile(`"cve_id":"` + sitetest.GPU + `".*?"poc_sources":4`).MatchString(a) {
+				t.Errorf("hot GPU row: the trusted repository is not counted as a PoC source")
+			}
 			if !strings.Contains(a, `"cve_id":"`+sitetest.GPU+`"`) || !regexp.MustCompile(`"cve_id":"`+sitetest.GPU+`".*?"researchers_7d":3`).MatchString(a) {
 				t.Errorf("hot GPU row lacks researchers_7d 3")
 			}

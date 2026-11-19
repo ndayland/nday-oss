@@ -137,6 +137,11 @@ func refreshLocked(ctx context.Context, conn *pgx.Conn, res *RefreshResult, may 
 		if _, err := tx.Exec(ctx, `SET LOCAL work_mem = '64MB'`); err != nil {
 			return err
 		}
+		// A pool's statement_timeout (the admin's auth pool has 5 s) must
+		// not cut a refresh short: it takes seconds on the full table.
+		if _, err := tx.Exec(ctx, `SET LOCAL statement_timeout = 0`); err != nil {
+			return err
+		}
 		_, err := tx.Exec(ctx, `REFRESH MATERIALIZED VIEW CONCURRENTLY vuln_state_mat`)
 		return err
 	})

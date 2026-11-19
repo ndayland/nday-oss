@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -83,20 +84,38 @@ func AccessLog(log *slog.Logger) Middleware {
 
 // RedactQuery hides query values that must never reach a log: under
 // /auth/ (sign-in: authorization codes, state, CSRF tokens) every value
-// except return, intent and error is replaced by "REDACTED".
+// except return, intent and error is replaced by "REDACTED". On every path,
+// so are the values of credential-like names (key: the private feed key;
+// token, access_token, api_key, apikey: an API token put in the URL by
+// mistake; never accepted there) and any value that looks like an API token
+// (starts with "nday_"). A part that does not decode is redacted too.
 func RedactQuery(path, rawQuery string) string {
-	if !strings.HasPrefix(path, "/auth/") {
-		return rawQuery
-	}
+	auth := strings.HasPrefix(path, "/auth/")
 	parts := strings.Split(rawQuery, "&")
 	for i, kv := range parts {
-		k, _, hasVal := strings.Cut(kv, "=")
-		if hasVal && k != "return" && k != "intent" && k != "error" {
+		k, v, hasVal := strings.Cut(kv, "=")
+		if !hasVal {
+			continue
+		}
+		if auth && k != "return" && k != "intent" && k != "error" {
+			parts[i] = k + "=REDACTED"
+			continue
+		}
+		dk, err1 := url.QueryUnescape(k)
+		dv, err2 := url.QueryUnescape(v)
+		if err1 != nil || err2 != nil || credentialParam[strings.ToLower(dk)] ||
+			strings.HasPrefix(strings.ToLower(strings.TrimSpace(dv)), apiTokenPrefix) {
 			parts[i] = k + "=REDACTED"
 		}
 	}
 	return strings.Join(parts, "&")
 }
+
+// credentialParam: query parameter names whose values RedactQuery hides.
+var credentialParam = map[string]bool{"key": true, "token": true, "access_token": true, "api_key": true, "apikey": true}
+
+// apiTokenPrefix starts every API token (internal/auth.APITokenPrefix).
+const apiTokenPrefix = "nday_"
 
 // clientIP returns CF-Connecting-IP if it looks like an IP address.
 func clientIP(r *http.Request) string {

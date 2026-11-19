@@ -23,6 +23,7 @@ import (
 	"nday.land/nday/internal/site/sitetest"
 	"nday.land/nday/internal/testutil"
 	"nday.land/nday/internal/web"
+	"nday.land/nday/internal/web/webtest"
 	"nday.land/nday/internal/webui"
 	"nday.land/nday/internal/webui/i18n"
 )
@@ -88,6 +89,7 @@ func newDiscEnv(t *testing.T, opts webui.Options) *tenv {
 	t.Cleanup(pool.Close)
 	now := func() time.Time { return sitetest.Now }
 	srv := web.New(web.Config{Store: site.New(pool).WithClock(now), Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	srv.SetAPIAuth(webtest.BearerAuth{})
 	opts.Now = now
 	ui, err := webui.New(srv, opts)
 	if err != nil {
@@ -209,7 +211,8 @@ func TestDiscussionSection(t *testing.T) {
 			`href="/zh-hans/login?return=%2Fzh-hans%2Fvuln%2F` + sitetest.GPU + `%3Fdiscussion"`, `href="/zh-hans/rules"`,
 			`<option value="malicious_link">恶意链接</option>`, `data-k="disc.err.rate_limited"`, `data-k="disc.terms.needed"`,
 			`data-k="disc.comment.deleted_account"`, `data-k="rsch.view_on_x"`, `data-k="acct.role.badge#moderator"`,
-			`data-locale="zh-Hans"`, `data-cve="` + sitetest.GPU + `"`, `<details class="disc-md" id="disc-md" hidden="">`, `id="disc-list"`} {
+			`data-locale="zh-Hans"`, `data-cve="` + sitetest.GPU + `"`, `<details class="disc-md" id="disc-md" hidden="">`, `id="disc-list"`,
+			`<button type="button" class="btn sm" data-act="delete" data-confirm="确认" hidden="">`} {
 			if !strings.Contains(body, want) {
 				t.Errorf("missing %s", want)
 			}
@@ -397,7 +400,7 @@ func TestRulesPage(t *testing.T) {
 			t.Errorf("%s: about page does not link the rules", l.Path("/about"))
 		}
 		_, acct := e.get(t, l.Path("/account"))
-		if !strings.Contains(between(t, acct, `id="sec-terms"`, "</section>"), `<a href="`+p+`">`) {
+		if !strings.Contains(between(t, acct, `id="terms"`, "</section>"), `<a href="`+p+`">`) {
 			t.Errorf("%s: account terms block does not link the rules", l.Path("/account"))
 		}
 	}
@@ -435,6 +438,7 @@ func realDiscEnv(t *testing.T) (*tenv, *pgx.Conn) {
 	}
 	now := func() time.Time { return sitetest.Now }
 	srv := web.New(web.Config{Store: site.New(pool).WithClock(now), Logger: log})
+	srv.SetAPIAuth(webtest.BearerAuth{})
 	ui, err := webui.New(srv, webui.Options{Now: now, Discussions: webui.DiscussionsOf(ds)})
 	if err != nil {
 		t.Fatal(err)

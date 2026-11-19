@@ -400,7 +400,7 @@ func TestXHostileAndToken(t *testing.T) {
 	}
 	_, body := adm.do("GET", "/admin/x", "")
 	s := string(body)
-	for _, want := range []string{"&lt;script&gt;alert(1)&lt;/script&gt;", `href="https://x.com/alice_sec" rel="noopener noreferrer nofollow"`,
+	for _, want := range []string{"&lt;script&gt;alert(1)&lt;/script&gt;", `href="https://x.com/alice_sec" target="_blank" rel="noopener noreferrer nofollow"`,
 		`href="https://x.com/alice_sec/status/1850000000000000000"`, `href="/vuln/CVE-2026-0002"`, "max_requests"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("x page lacks %q", want)

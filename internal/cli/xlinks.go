@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"nday.land/nday/internal/jobrun"
 	"nday.land/nday/internal/pystr"
 	"nday.land/nday/internal/webpages"
 	"nday.land/nday/internal/xconfig"
@@ -64,27 +65,33 @@ func postRunXLinks(ctx context.Context, conn *pgx.Conn, env Env) {
 		"failed", res.Failed, "refused", res.Refused, "requests", res.Requests)
 	pctx, cancel := context.WithTimeout(ctx, postRunPagesTimeout)
 	defer cancel()
+	run := jobrun.Start(ctx, conn, jobrun.PagesFetch, env.Now)
 	eq, err := xlinks.EnqueuePages(pctx, conn, nil)
 	if err != nil {
 		if missingTable(err) {
 			slog.Warn("web page queue skipped: migration 0020 not applied (run `nday migrate`)")
+			run.Finish(ctx, errors.New("web page queue: migration 0020 not applied"), nil)
 			return
 		}
 		slog.Warn("x link enqueue failed (run result unaffected)", "err", err, "added", eq.Added)
+		run.Finish(ctx, err, eq)
 		return
 	}
 	slog.Info("x link enqueue", "candidates", eq.Candidates, "added", eq.Added, "refused", eq.Refused)
 	if env.Transport != nil {
 		slog.Info("web page fetch pass skipped: injected transport (tests, replay)")
+		run.Finish(ctx, nil, eq)
 		return
 	}
-	pr, err := webpages.FetchPending(pctx, conn, webpages.Options{Limit: postRunPagesLimit, Now: env.Now})
+	pr, err := webpages.FetchPending(pctx, conn, webpages.Options{Limit: postRunPagesLimit, Now: env.Now,
+		Backfill: webpages.DefaultBackfill})
+	run.Finish(ctx, err, pr)
 	if err != nil {
 		slog.Warn("web page fetch pass failed (run result unaffected)", "err", err, "ok", pr.OK)
 		return
 	}
 	slog.Info("web page fetch pass", "candidates", pr.Candidates, "ok", pr.OK, "none", pr.None, "retry", pr.Retry,
-		"failed", pr.Failed, "refused", pr.Refused, "requests", pr.Requests)
+		"failed", pr.Failed, "refused", pr.Refused, "requests", pr.Requests, "backfilled", pr.Backfilled, "published", pr.Published)
 }
 
 // Bounds of the page steps after `nday collect xposts`.
@@ -124,7 +131,9 @@ func runXLinksEnqueue(ctx context.Context, env Env, prog string, rest []string) 
 // One pass of the web page queue (webpages.FetchPending, docs/webpages.md):
 // fetches pending third-party pages through the SSRF-guarded client
 // (internal/pagefetch; never an injected transport) and stores their
-// titles. The same pass runs after every successful `nday collect xposts`.
+// titles and publication times, then re-fetches up to
+// webpages.DefaultBackfill older 'ok' pages once for their publication
+// time. The same pass runs after every successful `nday collect xposts`.
 // Output: the pass's counts as JSON.
 func runPagesFetch(ctx context.Context, env Env, prog string, rest []string) error {
 	limit, err := limitArg(prog, rest, webpages.DefaultLimit)
@@ -138,7 +147,9 @@ func runPagesFetch(ctx context.Context, env Env, prog string, rest []string) err
 		return err
 	}
 	defer conn.Close(context.WithoutCancel(ctx))
-	res, err := webpages.FetchPending(sctx, conn, webpages.Options{Limit: limit, Now: env.Now})
+	run := jobrun.Start(ctx, conn, jobrun.PagesFetch, env.Now)
+	res, err := webpages.FetchPending(sctx, conn, webpages.Options{Limit: limit, Now: env.Now, Backfill: webpages.DefaultBackfill})
+	run.Finish(ctx, err, res)
 	printJSON(env, res)
 	return err
 }

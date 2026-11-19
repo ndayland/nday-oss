@@ -6,21 +6,44 @@
 {{- with .Body}}
 <section class="sec" aria-labelledby="h-coll">
 <h2 class="h2" id="h-coll"><span class="h" aria-hidden="true"># </span>{{t "admin.sys.collectors_h2"}}</h2>
+<div class="adm-region" id="r-coll" data-page-region="r-coll">
 <div class="tbl-x">
 <table class="aff adm-tbl adm-wide">
 <thead><tr><th scope="col">{{t "admin.sys.col" "col" "collector"}}</th><th scope="col">{{t "admin.sys.col" "col" "status"}}</th><th scope="col">{{t "admin.sys.col" "col" "last_run"}}</th><th scope="col">{{t "admin.sys.col" "col" "last_success"}}</th><th scope="col">{{t "admin.sys.col" "col" "error"}}</th></tr></thead>
 <tbody>
-{{- range .Collectors}}
-<tr><td>{{.Name}}{{if not .Public}} <span class="adm-st hidden">{{t "admin.sys.not_public"}}</span>{{end}}</td><td><span class="{{.Class}}">{{.Status}}</span></td><td>{{.LastRun.HTML}}</td><td>{{.LastOK.HTML}}</td><td><bdi class="adm-err">{{.Error}}</bdi></td></tr>
+{{- range .Collectors}}{{$d := .Detail}}
+<tr><td>{{.Name}}{{if not .Public}} <span class="adm-st hidden">{{t "admin.sys.not_public"}}</span>{{end}}</td><td><span class="{{.Class}}">{{.Status}}</span></td><td>{{.LastRun.HTML}}</td><td>{{.LastOK.HTML}}</td><td>{{with .Error}}<div class="adm-rowacts"><span class="adm-clip adm-err" dir="auto">{{.}}</span><button type="button" class="btn sm" data-rowx="" aria-expanded="false" aria-controls="{{$d}}">{{t "admin.row.more"}}</button></div>{{end}}</td></tr>
+{{- with .Error}}
+<tr class="adm-detail" id="{{$d}}" hidden=""><td colspan="5"><div class="adm-dbox"><p><bdi class="adm-err">{{.}}</bdi></p>{{template "rowclose"}}</div></td></tr>
+{{- end}}
 {{- end}}
 </tbody>
 </table>
 </div>
+{{template "pager" .CollPager}}
+</div>
 <p class="note">{{if .StateAt}}{{t "admin.sys.state_at" "time" .StateAt}}{{else}}{{t "admin.sys.state_never"}}{{end}}{{with .StateError}} {{t "admin.sys.state_error" "error" .}}{{end}}</p>
+</section>
+<section class="sec" aria-labelledby="h-jobs">
+<h2 class="h2" id="h-jobs"><span class="h" aria-hidden="true"># </span>{{t "admin.sys.jobs_h2"}}</h2>
+<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+<thead><tr><th scope="col">{{t "admin.sys.col" "col" "job"}}</th><th scope="col">{{t "admin.sys.col" "col" "status"}}</th><th scope="col">{{t "admin.sys.col" "col" "last_run"}}</th><th scope="col">{{t "admin.sys.col" "col" "last_success"}}</th><th scope="col">{{t "admin.sys.col" "col" "backlog"}}</th><th scope="col">{{t "admin.sys.col" "col" "error"}}</th></tr></thead>
+<tbody>
+{{- range .Jobs}}{{$d := .Detail}}
+<tr><td class="adm-nw">{{.Name}}</td><td class="adm-nw"><span class="{{.Class}}">{{.Status}}</span></td><td>{{.LastRun.HTML}}</td><td>{{.LastOK.HTML}}</td><td class="adm-nw">{{with .Backlog}}{{.}}{{else}}—{{end}}</td><td>{{with .Error}}<div class="adm-rowacts"><span class="adm-clip adm-err" dir="auto">{{.}}</span><button type="button" class="btn sm" data-rowx="" aria-expanded="false" aria-controls="{{$d}}">{{t "admin.row.more"}}</button></div>{{end}}</td></tr>
+{{- with .Error}}
+<tr class="adm-detail" id="{{$d}}" hidden=""><td colspan="6"><div class="adm-dbox"><p><bdi class="adm-err">{{.}}</bdi></p>{{template "rowclose"}}</div></td></tr>
+{{- end}}
+{{- end}}
+</tbody>
+</table>
+</div>
 </section>
 <section class="sec" aria-labelledby="h-db">
 <h2 class="h2" id="h-db"><span class="h" aria-hidden="true"># </span>{{t "admin.sys.db_h2"}}</h2>
 <p class="note">{{t "admin.sys.db_size" "size" .DBSize}} {{t "admin.sys.rows_note"}}</p>
+<div class="adm-region" id="r-tables" data-page-region="r-tables">
 <div class="tbl-x">
 <table class="aff adm-tbl adm-wide">
 <thead><tr><th scope="col">{{t "admin.sys.col" "col" "table"}}</th><th scope="col" class="r">{{t "admin.sys.col" "col" "rows"}}</th><th scope="col" class="r">{{t "admin.sys.col" "col" "size"}}</th></tr></thead>
@@ -30,6 +53,8 @@
 {{- end}}
 </tbody>
 </table>
+</div>
+{{template "pager" .TablesPager}}
 </div>
 </section>
 <section class="sec" aria-labelledby="h-roll">
@@ -45,15 +70,19 @@
 {{- else}}
 <p class="note">{{if .LogFiles}}{{t "admin.sys.logs_files" "files" .LogFiles}}{{else}}{{t "admin.sys.logs_nofile"}}{{end}}{{if .LogsUnread}} {{t "admin.sys.logs_unreadable" "n" .LogsUnread}}{{end}}{{if .LogsCut}} {{t "admin.sys.logs_cut"}}{{end}}</p>
 {{- if .Logs}}
+<div class="adm-region" id="r-logs" data-page-region="r-logs">
 <div class="tbl-x">
 <table class="aff adm-tbl adm-wide adm-logs">
-<thead><tr><th scope="col">{{t "admin.sys.col" "col" "time"}}</th><th scope="col">{{t "admin.sys.col" "col" "level"}}</th><th scope="col">{{t "admin.sys.col" "col" "message"}}</th></tr></thead>
+<thead><tr><th scope="col">{{t "admin.sys.col" "col" "time"}}</th><th scope="col">{{t "admin.sys.col" "col" "level"}}</th><th scope="col">{{t "admin.sys.col" "col" "message"}}</th><th scope="col">{{t "admin.row.more"}}</th></tr></thead>
 <tbody>
 {{- range .Logs}}
-<tr><td><code dir="ltr">{{.Time}}</code></td><td><span class="{{if eq .Level "ERROR"}}bad{{else}}warn{{end}}">{{.Level}}</span></td><td><bdi>{{.Msg}}</bdi>{{with .Attrs}}<br/><code class="adm-det" dir="ltr">{{.}}</code>{{end}}</td></tr>
+<tr><td><code dir="ltr">{{.Time}}</code></td><td><span class="{{if eq .Level "ERROR"}}bad{{else}}warn{{end}}">{{.Level}}</span></td><td><span class="adm-clip" dir="auto">{{.Msg}}</span></td><td><div class="adm-rowacts"><button type="button" class="btn sm" data-rowx="" aria-expanded="false" aria-controls="{{.Detail}}">{{t "admin.row.more"}}</button></div></td></tr>
+<tr class="adm-detail" id="{{.Detail}}" hidden=""><td colspan="4"><div class="adm-dbox"><p><bdi>{{.Msg}}</bdi></p>{{with .Attrs}}<p><code class="adm-det" dir="ltr">{{.}}</code></p>{{end}}{{template "rowclose"}}</div></td></tr>
 {{- end}}
 </tbody>
 </table>
+</div>
+{{template "pager" .LogsPager}}
 </div>
 {{- else}}
 <p class="note">{{t "admin.sys.logs_none"}}</p>

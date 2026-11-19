@@ -4,83 +4,87 @@
 
 ### kev_t5_patch_0of3 (CVE-2026-102895 shape)
 keys: status.lead.after.kev + status.patch.fixed + status.poc.none
-Inscription au KEV 5 jours après la divulgation. Version corrigée : gpustack 2.2.0. Cette vulnérabilité ne figure dans aucune des trois sources de PoC.
+Inscription au KEV 5 jours après la divulgation. Version corrigée : gpustack 2.2.0. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC.
 
 ### stub_no_record_kev_no_patch
 keys: status.no_record + status.kev.at + status.patch.none + status.poc.none
-nday n’a pas encore récupéré la fiche CVE officielle de cet identifiant ; date de divulgation inconnue. Inscription au catalogue KEV de la CISA : 2026-11-09. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des trois sources de PoC.
+nday n’a pas encore récupéré la fiche CVE officielle de cet identifiant ; date de divulgation inconnue. Inscription au catalogue KEV de la CISA : 2026-11-09. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC.
 
 ### disclosed_only
 keys: status.disclosed_at + status.patch.none + status.poc.none + status.kev.not_listed
-Divulgation : 2026-11-04T21:16Z. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Divulgation : 2026-11-04T21:16Z. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### kev_same_day
 keys: status.lead.same_day + status.patch.none + status.poc.none
-Inscription au catalogue KEV de la CISA le jour même de la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des trois sources de PoC.
+Inscription au catalogue KEV de la CISA le jour même de la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC.
 
 ### kev_1_day_after
 keys: status.lead.after.kev + status.patch.none + status.poc.none
-Inscription au KEV 1 jour après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des trois sources de PoC.
+Inscription au KEV 1 jour après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC.
 
 ### kev_before_record_20d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-Inscription au KEV 20 jours avant la publication de la fiche CVE. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des trois sources de PoC.
+Inscription au KEV 20 jours avant la publication de la fiche CVE. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC.
 
 ### kev_before_record_1d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-Inscription au KEV 1 jour avant la publication de la fiche CVE. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des trois sources de PoC.
+Inscription au KEV 1 jour avant la publication de la fiche CVE. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC.
 
-### poc_t7_2of3
+### poc_t7_2of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-Preuve de concept publique parue 7 jours après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité figure dans 2 des 3 sources de PoC : exploitdb et nuclei. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Preuve de concept publique parue 7 jours après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité figure dans 2 des 4 sources de PoC : exploitdb et nuclei. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
-### poc_t1_1of3
+### poc_t1_1of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-Preuve de concept publique parue 1 jour après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité figure dans une seule des 3 sources de PoC : metasploit. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Preuve de concept publique parue 1 jour après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité figure dans une seule des 4 sources de PoC : metasploit. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
-### poc_time_unknown_3of3
+### poc_time_unknown_4of4
 keys: status.disclosed_at + status.patch.none + status.poc.all + status.kev.not_listed
-Divulgation : 2026-11-04T21:16Z. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité figure dans les trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Divulgation : 2026-11-04T21:16Z. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité figure dans les quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+
+### poc_t30_github_only
+keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
+Preuve de concept publique parue 30 jours après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité figure dans une seule des 4 sources de PoC : github. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### patch_t3_known
 keys: status.lead.after.pat + status.patch.fixed + status.poc.none + status.kev.not_listed
-Correctif recensé 3 jours après la divulgation. Versions corrigées : a 1.0.1 et b 2.0. Cette vulnérabilité ne figure dans aucune des trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Correctif recensé 3 jours après la divulgation. Versions corrigées : a 1.0.1 et b 2.0. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### patch_same_day
 keys: status.lead.same_day + status.patch.no_version + status.poc.none + status.kev.not_listed
-Correctif recensé le jour même de la divulgation. L’avis de correctif recensé n’indique aucune version corrigée. Cette vulnérabilité ne figure dans aucune des trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Correctif recensé le jour même de la divulgation. L’avis de correctif recensé n’indique aucune version corrigée. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### patch_before_record_2d
 keys: status.lead.before.pat + status.patch.no_version + status.poc.none + status.kev.not_listed
-Correctif recensé 2 jours avant la publication de la fiche CVE. L’avis de correctif recensé n’indique aucune version corrigée. Cette vulnérabilité ne figure dans aucune des trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Correctif recensé 2 jours avant la publication de la fiche CVE. L’avis de correctif recensé n’indique aucune version corrigée. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### analysis_t2
 keys: status.lead.after.ana + status.patch.none + status.poc.none + status.kev.not_listed
-Analyse technique publiée 2 jours après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Analyse technique publiée 2 jours après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### itw_t12
 keys: status.lead.after.itw + status.patch.none + status.poc.none + status.kev.not_listed
-Exploitation active signalée 12 jours après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Exploitation active signalée 12 jours après la divulgation. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### itw_before_record_3d
 keys: status.lead.before.itw + status.patch.none + status.poc.none + status.kev.not_listed
-Exploitation active signalée 3 jours avant la publication de la fiche CVE. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Exploitation active signalée 3 jours avant la publication de la fiche CVE. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### patch_without_fixed_version
 keys: status.disclosed_at + status.patch.no_version + status.poc.none + status.kev.not_listed
-Divulgation : 2026-11-04T21:16Z. L’avis de correctif recensé n’indique aucune version corrigée. Cette vulnérabilité ne figure dans aucune des trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Divulgation : 2026-11-04T21:16Z. L’avis de correctif recensé n’indique aucune version corrigée. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### two_fixed_versions
 keys: status.disclosed_at + status.patch.fixed + status.poc.none + status.kev.not_listed
-Divulgation : 2026-11-04T21:16Z. Versions corrigées : a 1 et b 2. Cette vulnérabilité ne figure dans aucune des trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Divulgation : 2026-11-04T21:16Z. Versions corrigées : a 1 et b 2. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### many_fixed_versions
 keys: status.disclosed_at + status.patch.fixed_many + status.poc.none + status.kev.not_listed
-Divulgation : 2026-11-04T21:16Z. Versions corrigées : a 1, b 2 et une autre. Cette vulnérabilité ne figure dans aucune des trois sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
+Divulgation : 2026-11-04T21:16Z. Versions corrigées : a 1, b 2 et une autre. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC. Aucune inscription au catalogue KEV de la CISA à ce jour.
 
 ### disclosure_unknown_kev_time_unknown
 keys: status.disclosure_unknown + status.kev.time_unknown + status.patch.none + status.poc.none
-Date de divulgation inconnue. Inscription au catalogue KEV de la CISA à une date inconnue. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des trois sources de PoC.
+Date de divulgation inconnue. Inscription au catalogue KEV de la CISA à une date inconnue. nday n’a encore aucune trace de correctif ; cela ne veut pas dire qu’il n’en existe pas. Cette vulnérabilité ne figure dans aucune des quatre sources de PoC.
 
 ### rejected
 keys: status.rejected + status.disclosed_at
@@ -207,6 +211,10 @@ Nuclei propose un modèle de détection : « <span lang="en">X - Auth Bypass</
 ### nuclei_bare
 keys: ev.nuclei.added + ev.nuclei.no_time
 Nuclei propose un modèle de détection pour cette vulnérabilité. La source n’indique pas la date de publication du modèle.
+
+### github_repo
+keys: ev.github.repo + ev.github.created
+Dépôt de PoC sur GitHub : acme/CVE-2026-1-poc. La date est celle de la création du dépôt.
 
 ### generic_itw
 keys: ev.generic

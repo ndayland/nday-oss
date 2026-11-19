@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"nday.land/nday/internal/model"
 )
 
 // Row sources (vuln_cwe.source / vuln_cvss.source), see migrations/0009_classify.sql.
@@ -334,7 +336,9 @@ func DeriveNVD(cveID string, payload []byte) (*Derived, error) {
 // --------------------------------------------------------------------- GHSA
 
 // DeriveGHSA derives the ghsa rows of a stored GitHub advisory (the REST
-// API object). It returns the advisory's CVE id ("" when it has none).
+// API object). It returns the id of the vuln the rows belong to: the
+// advisory's CVE id, or its GHSA id when it has no CVE (the vuln is then
+// keyed by the GHSA id, docs/ghsa.md); "" when it has neither.
 // Rules: withdrawn_at set -> no rows, Rejected; CWE from cwes[].cwe_id;
 // CVSS from cvss_severities.cvss_v3 / cvss_v4 and the legacy cvss object
 // (vector_string; score as delivered; GitHub gives no per-vector severity,
@@ -348,6 +352,9 @@ func DeriveGHSA(payload []byte) (cveID string, d *Derived, err error) {
 	}
 	cveID = strings.TrimSpace(str(p["cve_id"]))
 	org := str(p["ghsa_id"])
+	if cveID == "" && model.IsGHSAID(org) {
+		cveID = org
+	}
 	d = &Derived{CVEID: cveID}
 	if strOf(p["withdrawn_at"]) != nil {
 		d.Rejected = true

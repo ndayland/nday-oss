@@ -66,9 +66,12 @@ type Account struct {
 	Enabled   bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	// Name and Description are the display name and the profile
+	// description on X as last looked up (nil: not known).
+	Name, Description *string
 }
 
-const accountCols = `user_id, handle, note, enabled, created_at, updated_at`
+const accountCols = `user_id, handle, note, enabled, created_at, updated_at, name, description`
 
 // numeric order of decimal ids without leading zeros
 const accountOrder = ` ORDER BY char_length(user_id), user_id`
@@ -76,7 +79,7 @@ const accountOrder = ` ORDER BY char_length(user_id), user_id`
 func scanAccounts(rows pgx.Rows) ([]Account, error) {
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Account, error) {
 		var a Account
-		err := r.Scan(&a.UserID, &a.Handle, &a.Note, &a.Enabled, &a.CreatedAt, &a.UpdatedAt)
+		err := r.Scan(&a.UserID, &a.Handle, &a.Note, &a.Enabled, &a.CreatedAt, &a.UpdatedAt, &a.Name, &a.Description)
 		a.CreatedAt, a.UpdatedAt = a.CreatedAt.UTC(), a.UpdatedAt.UTC()
 		return a, err
 	})
@@ -223,6 +226,89 @@ type FileAccount struct {
 	UserID string
 	Handle string
 	Note   string
+	// Profile is set when the id was looked up on X (never parsed).
+	Profile *Profile
+}
+
+// Profile is an account's display name and profile description on X.
+type Profile struct {
+	Name, Description string
+}
+
+// Profile limits as stored (runes): X allows 50 and 160.
+const (
+	MaxProfileName = 200
+	MaxProfileDesc = 2000
+)
+
+// SetProfile stores the profile of a listed account (p nil: looked up, not
+// found under that id: the stored profile is kept) and marks it looked up
+// now. Text is cut to the stored limits. ErrNotFound if not listed. It
+// does not change updated_at (the account's own fields did not change).
+func SetProfile(ctx context.Context, db DB, userID string, p *Profile) error {
+	var tag pgconn.CommandTag
+	var err error
+	if p == nil {
+		tag, err = db.Exec(ctx, `UPDATE x_accounts SET profile_at = now() WHERE user_id = $1`, userID)
+	} else {
+		tag, err = db.Exec(ctx, `UPDATE x_accounts SET name = $2, description = $3, profile_at = now() WHERE user_id = $1`,
+			userID, cutRunes(p.Name, MaxProfileName), cutRunes(p.Description, MaxProfileDesc))
+	}
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ProfileMaxAge is how long a looked-up profile is left alone: only
+// accounts never looked up or looked up longer ago are due again.
+const ProfileMaxAge = 24 * time.Hour
+
+// ProfileTodo lists up to limit listed accounts due for a profile lookup
+// (never looked up, or longer ago than ProfileMaxAge): never looked up
+// first, then the oldest lookup, by id.
+func ProfileTodo(ctx context.Context, db DB, limit int) ([]Account, error) {
+	rows, err := db.Query(ctx, `SELECT `+accountCols+` FROM x_accounts
+		WHERE profile_at IS NULL OR profile_at < now() - $2::interval
+		ORDER BY profile_at NULLS FIRST, char_length(user_id), user_id LIMIT $1`, limit, ProfileMaxAge.String())
+	if err != nil {
+		return nil, err
+	}
+	return scanAccounts(rows)
+}
+
+// CountProfileMissing is the number of listed accounts never looked up for
+// their profile.
+func CountProfileMissing(ctx context.Context, db DB) (n int, err error) {
+	err = db.QueryRow(ctx, `SELECT count(*)::int FROM x_accounts WHERE profile_at IS NULL`).Scan(&n)
+	return n, err
+}
+
+// cutRunes is profile text as stored: valid UTF-8, without NUL and the
+// other C0 controls, DEL, C1 controls and the bidi embedding, override,
+// isolate and mark characters (tab and line breaks become spaces: the
+// pages show the text on one line or as one paragraph), then at most n
+// runes. PostgreSQL text cannot hold NUL, so one hostile profile would
+// otherwise fail every write of it.
+func cutRunes(s string, n int) string {
+	s = strings.Map(func(r rune) rune {
+		switch {
+		case r == '\t' || r == '\n' || r == '\r':
+			return ' '
+		case r < 0x20 || (r >= 0x7f && r <= 0x9f):
+			return -1
+		case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069, r == 0x200e, r == 0x200f, r == 0x061c:
+			return -1
+		}
+		return r
+	}, strings.ToValidUTF8(s, "\uFFFD"))
+	if r := []rune(s); len(r) > n {
+		return string(r[:n])
+	}
+	return s
 }
 
 // ParseAccountsFile reads the import format (deploy/x-accounts.example.txt):

@@ -30,7 +30,8 @@
   openEntry();
   window.addEventListener('hashchange', openEntry);
   if (!sec || !nday || !nday.me || !window.fetch) return;
-  const CVE = /^CVE-\d{4}-\d{4,19}$/;
+  // the page's vulnerability id: a CVE id, or the GHSA id of an advisory without one
+  const CVE = /^(CVE-\d{4}-\d{4,19}|GHSA(-[23456789cfghjmpqrvwx]{4}){3})$/;
   const cve = sec.dataset.cve || '';
   if (!CVE.test(cve)) return;
   const tpl = d.getElementById('acct-msgs');

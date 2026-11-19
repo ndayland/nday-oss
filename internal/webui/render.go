@@ -56,7 +56,6 @@ type Page struct {
 	Query       string // search box value
 	AutoSelect  bool   // select the first row on load (list pages)
 	CopyID      string // what "y" copies when no row is selected
-	RawHref     string // where "r" goes when there are no raw blocks
 	Up          string // where "u" goes when there is no same-site history
 	// Canonical: set by handlers as the locale-neutral path+query; page()
 	// replaces it with the absolute URL of the page's own locale.
@@ -78,11 +77,18 @@ type Page struct {
 	Personal    bool
 	AdminScript bool
 	Acct        *AcctView
-	// Tag filters (tagview.go): Feed/FeedTitle replace the site feed in the
-	// head's alternate link (a list filtered by tags links its own feed);
-	// SearchTags keep the search page's tag filter in the search box form.
-	Feed, FeedTitle string
-	SearchTags      []string
+	// Tag filters (tagview.go): SearchTags keep the search page's tag filter
+	// in the search box form.
+	SearchTags []string
+	// siteIcons: put the site icon in front of every link that leaves the
+	// site (the vulnerability page; siteicons.go).
+	siteIcons bool
+	// Landing: the search-only state of /vuln (catalogue.go isCatLanding).
+	// The body gets class "landing" (full-screen search, no status bar,
+	// app.css), the header menus sit in a disclosure (details.topm) that
+	// folds on phones, and the header search box is left out (the page's
+	// own box is the search). Every other page renders as before.
+	Landing bool
 }
 
 // renderer holds the parsed page templates, one set per locale (the
@@ -94,7 +100,7 @@ type renderer struct {
 
 var pageNames = []string{"hot", "discussed", "vuln", "search", "catalogue", "src", "stats", "about", "error", "login", "account", "welcome", "rules", "tags",
 	"admin_stats", "admin_mod", "admin_users", "admin_user", "admin_system", "admin_audit", "admin_x", "admin_xdrafts",
-	"admin_settings", "admin_corr"}
+	"admin_settings", "admin_corr", "admin_github", "admin_titles"}
 
 // localeFuncs are the template functions bound to a locale:
 //
@@ -129,6 +135,12 @@ func localeFuncs(l *i18n.Locale) template.FuncMap {
 }
 
 func newRenderer(assets *Assets, set *i18n.Set) (*renderer, error) {
+	return newRendererIcons(assets, set, TagIconMode)
+}
+
+// newRendererIcons is newRenderer with a tag icon rendering (TagIconUse or
+// TagIconMask; tests render both).
+func newRendererIcons(assets *Assets, set *i18n.Set, iconMode string) (*renderer, error) {
 	funcs := template.FuncMap{
 		"asset":   assets.URL,
 		"list3":   func(a, b, c string) []string { return []string{a, b, c} },
@@ -140,6 +152,10 @@ func newRenderer(assets *Assets, set *i18n.Set) (*renderer, error) {
 		"contact": contactHTML,
 		"path":    pathHTML,
 	}
+	// tagicon .Slug: the icon's symbol id, "" for none; tagiconmask: the mask
+	// rendering is on (parts.tmpl "tagicon", base.tmpl; tagicons.go)
+	funcs["tagicon"] = tagIcon
+	funcs["tagiconmask"] = func() bool { return iconMode == TagIconMask }
 	for k, v := range localeFuncs(set.Primary()) { // parse-time stand-ins
 		funcs[k] = v
 	}
@@ -241,7 +257,7 @@ func linkHTML(l Link) template.HTML {
 	}
 	rel := ""
 	if l.External {
-		rel = ` rel="noopener noreferrer"`
+		rel = ` target="_blank" rel="noopener noreferrer"`
 	}
 	return template.HTML(`<a href="` + template.HTMLEscapeString(l.Href) + `"` + rel + lang + `>` + template.HTMLEscapeString(l.Text) + `</a>`)
 }

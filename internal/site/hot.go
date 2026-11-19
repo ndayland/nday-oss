@@ -34,6 +34,11 @@ type HotParams struct {
 	Offset int
 	// Cursor continues after the last row of a previous page (HotPage.NextCursor).
 	Cursor string
+	// Before pages backwards: the Limit rows just before a position
+	// (HotPage.PrevCursor), in the usual order. When no row comes before
+	// those, the page is the first page exactly as without Before (pinned
+	// rows included). Not combined with Cursor; Offset is ignored.
+	Before string
 	// Tags: only CVEs that have every one of these tags (vocabulary slugs,
 	// at most tags.MaxFilterTags; see NormalizeTags).
 	Tags []string
@@ -64,6 +69,8 @@ type HotRow struct {
 	CVEID   string  `json:"cve_id"`
 	Title   *string `json:"title"`
 	TitleZh *string `json:"title_zh"`
+	// the effective title and its origin (titles.go)
+	TitleInfo
 	// Products: up to 2 vendor/product pairs (deduplicated case-insensitively,
 	// first reported first); ProductCount is the total number of pairs.
 	Products     []Product  `json:"products"`
@@ -78,7 +85,7 @@ type HotRow struct {
 	// DaysSinceDisclosure: calendar days (UTC) from disclosure to the
 	// transition; nil if either time is unknown.
 	DaysSinceDisclosure *int `json:"days_since_disclosure"`
-	// PocSources: how many of exploitdb, metasploit, nuclei have a PoC event.
+	// PocSources: how many of exploitdb, metasploit, nuclei, github have a PoC event.
 	PocSources int `json:"poc_sources"`
 	// Tags: the CVE's tags (slugs, vocabulary order; internal/tags).
 	Tags []string `json:"tags"`
@@ -107,8 +114,15 @@ type HotPage struct {
 	Tags            []string  `json:"tags"` // the tag filter (AND)
 	Rows            []HotRow  `json:"rows"`
 	// NextCursor is set when more rows follow; pass it as HotParams.Cursor.
-	NextCursor  *string   `json:"next_cursor"`
+	NextCursor *string `json:"next_cursor"`
+	// PrevCursor is set when rows come before this page (any page but the
+	// first); pass it as HotParams.Before.
+	PrevCursor  *string   `json:"prev_cursor"`
 	GeneratedAt time.Time `json:"generated_at"`
+	// Pins: how many CVEs are pinned (first page: the pinned rows it
+	// starts with; every page leaves them out of its ordinary rows). For
+	// the position of a page's rows in the list; not in the JSON.
+	Pins int `json:"-"`
 }
 
 // Normalize validates p and fills defaults; the result is canonical (two
@@ -143,6 +157,15 @@ func (p HotParams) Normalize() (HotParams, error) {
 		}
 		p.Offset = 0
 	}
+	if p.Before != "" {
+		if p.Cursor != "" {
+			return p, &InputError{Param: "before", Msg: "not combined with cursor"}
+		}
+		if _, err := decodeCursor(p.Before); err != nil {
+			return p, &InputError{Param: "before", Msg: "invalid cursor"}
+		}
+		p.Offset = 0
+	}
 	if p.Tags, err = NormalizeTags(p.Tags); err != nil {
 		return p, err
 	}
@@ -154,8 +177,12 @@ func (p HotParams) Normalize() (HotParams, error) {
 
 // CacheKey is a canonical string for normalized params.
 func (p HotParams) CacheKey() string {
-	return fmt.Sprintf("hot|%d|%s|%t|%d|%d|%s|%s|%t", p.Since, p.MinStage, p.IncludeRejected, p.Limit, p.Offset, p.Cursor,
+	k := fmt.Sprintf("hot|%d|%s|%t|%d|%d|%s|%s|%t", p.Since, p.MinStage, p.IncludeRejected, p.Limit, p.Offset, p.Cursor,
 		strings.Join(p.Tags, ","), p.NoPins)
+	if p.Before != "" {
+		k += "|before=" + p.Before
+	}
+	return k
 }
 
 type cursor struct {
@@ -184,7 +211,7 @@ func decodeCursor(s string) (cursor, error) {
 	}
 	us, err1 := strconv.ParseInt(parts[0], 10, 64)
 	rank, err2 := strconv.Atoi(parts[1])
-	cve, ok := ParseCVEID(parts[2])
+	cve, ok := ParseVulnID(parts[2])
 	if err1 != nil || err2 != nil || !ok || rank < 1 || rank > 6 {
 		return cursor{}, bad
 	}
@@ -199,26 +226,39 @@ SELECT s.cve_id, v.title, v.title_zh, s.stage, s.stage_rank, s.is_rejected,
        e.id, e.source, e.occurred_at, e.is_backfill, e.detail->>'precision',
        s.has_disclosed, s.disclosed_at, s.has_patch, s.patch_at, s.has_analysis, s.analysis_at,
        s.has_poc, s.poc_at, s.has_itw, s.itw_at, s.in_kev, s.kev_at, s.poc_sources,
-       COALESCE(af.n, 0), COALESCE(af.vendors, '{}'), COALESCE(af.products, '{}')`
+       COALESCE(af.n, 0), COALESCE(af.vendors, '{}'), COALESCE(af.products, '{}'), ` + titleCols
 
 const hotJoins = `
 JOIN vuln v USING (cve_id)
 LEFT JOIN event e ON e.id = s.last_transition_event_id
-LEFT JOIN LATERAL (` + productsLateral + `) af ON true`
+LEFT JOIN LATERAL (` + productsLateral + `) af ON true` + titleJoinS
 
-// hotSelect is shared by the first page and the keyset continuation. The
-// inner query walks vuln_state_mat_hot_idx backwards and stops after
-// LIMIT+1 rows; joins and the affected lateral run only for those rows.
+// hotSelect is shared by the first page, the keyset continuation and the
+// backward page. The inner query walks vuln_state_mat_hot_idx (backwards in
+// list order, hotDown; forwards from a Before position, hotUp) and stops
+// after LIMIT+1 rows; joins and the affected lateral run only for those
+// rows, which come out in list order either way. %s: extra filters, then
+// the inner order.
 const hotSelect = hotCols + `
 FROM (SELECT m.*
       FROM vuln_state_mat m
-      WHERE m.last_transition_at >= $1
-        AND m.last_transition_type = ANY($2)
-        AND ($3 OR NOT m.is_rejected)
+      WHERE ` + hotWhere + `
         %s
-      ORDER BY m.last_transition_at DESC, m.stage_rank DESC, m.cve_id DESC
+      ORDER BY %s
       LIMIT $4 OFFSET $5) s` + hotJoins + `
 ORDER BY s.last_transition_at DESC, s.stage_rank DESC, s.cve_id DESC`
+
+// hotWhere is the hot list's filter on the rows m of vuln_state_mat: $1
+// window start, $2 the transition types from the minimum stage on, $3
+// include rejected (shared by the list and its count, HotCount).
+const hotWhere = `m.last_transition_at >= $1
+        AND m.last_transition_type = ANY($2)
+        AND ($3 OR NOT m.is_rejected)`
+
+const (
+	hotDown = "m.last_transition_at DESC, m.stage_rank DESC, m.cve_id DESC"
+	hotUp   = "m.last_transition_at, m.stage_rank, m.cve_id"
+)
 
 // pinnedSelect fetches the pinned rows by id ($1). No list filter: the ids
 // come from pinnedIDs, which applied the filters each kind of pin needs (a
@@ -246,21 +286,33 @@ const productsLateral = `
 // PinConfig().Max pinned rows (Pinned and PinReason set; pin.go: the
 // rule's, then the fill from the discussed ranking) followed by up to
 // p.Limit ordinary rows, so it may hold p.Limit+Max rows. Every page
-// leaves the pinned CVEs out of its ordinary rows; NextCursor, Offset and
-// Limit concern the ordinary rows only.
+// leaves the pinned CVEs out of its ordinary rows; NextCursor, PrevCursor,
+// Offset and Limit concern the ordinary rows only.
+//
+// With p.Before, the page is the p.Limit ordinary rows just before that
+// position; when no ordinary row precedes them, it is the first page
+// itself (computed afresh, pinned rows included), so paging back always
+// ends on exactly the page a first visit shows.
 func (s *Store) Hot(ctx context.Context, p HotParams) (*HotPage, error) {
 	p, err := p.Normalize()
 	if err != nil {
 		return nil, err
 	}
+	page, atStart, err := s.hot(ctx, p)
+	if err == nil && atStart {
+		p.Before = ""
+		page, _, err = s.hot(ctx, p)
+	}
+	return page, err
+}
+
+// hot is Hot for normalized p; atStart reports a Before page that reached
+// the start of the list (Hot then returns the first page instead).
+func (s *Store) hot(ctx context.Context, p HotParams) (page *HotPage, atStart bool, err error) {
 	now := s.clock()
 	start := now.Add(-p.Since)
-	idx := stageIndex(p.MinStage)
-	types := make([]string, 0, 6)
-	for _, st := range StageInfos[idx:] {
-		types = append(types, st.Type)
-	}
-	page := &HotPage{
+	types := hotTypes(p.MinStage)
+	page = &HotPage{
 		Since: FormatSince(p.Since), SinceStart: start, MinStage: p.MinStage, MinStageCode: StageCode(p.MinStage),
 		IncludeRejected: p.IncludeRejected, Limit: p.Limit, Offset: p.Offset, Tags: p.Tags, Rows: []HotRow{}, GeneratedAt: now,
 	}
@@ -268,7 +320,8 @@ func (s *Store) Hot(ctx context.Context, p HotParams) (*HotPage, error) {
 	if p.NoPins {
 		pcfg.Max = 0
 	}
-	first := p.Cursor == "" && p.Offset == 0
+	back := p.Before != ""
+	first := p.Cursor == "" && p.Offset == 0 && !back
 	err = s.db.WithConn(ctx, func(conn *pgx.Conn) error {
 		var pinned []HotRow
 		pinIDs, err := pinnedIDs(ctx, conn, pcfg, now, start, types, p.IncludeRejected, p.Tags)
@@ -285,11 +338,18 @@ func (s *Store) Hot(ctx context.Context, p HotParams) (*HotPage, error) {
 				pins = append(pins, pi.ID)
 			}
 		}
+		page.Pins = len(pins)
 		args := []any{start, types, p.IncludeRejected, p.Limit + 1, p.Offset}
-		extra := ""
-		if p.Cursor != "" {
+		extra, order := "", hotDown
+		switch {
+		case p.Cursor != "":
 			c, _ := decodeCursor(p.Cursor)
 			extra = "AND (m.last_transition_at, m.stage_rank, m.cve_id) < ($6, $7, $8)"
+			args = append(args, c.at, c.rank, c.cve)
+		case back:
+			// the rows nearest before the position: walk up from it
+			c, _ := decodeCursor(p.Before)
+			extra, order = "AND (m.last_transition_at, m.stage_rank, m.cve_id) > ($6, $7, $8)", hotUp
 			args = append(args, c.at, c.rank, c.cve)
 		}
 		if len(pins) > 0 {
@@ -297,13 +357,25 @@ func (s *Store) Hot(ctx context.Context, p HotParams) (*HotPage, error) {
 			extra += fmt.Sprintf("\n        AND m.cve_id <> ALL($%d)", len(args))
 		}
 		tf, targs := tagFilterSQL("m.cve_id", p.Tags, len(args)+1)
-		rows, err := conn.Query(ctx, fmt.Sprintf(hotSelect, extra+tf), append(args, targs...)...)
+		rows, err := conn.Query(ctx, fmt.Sprintf(hotSelect, extra+tf, order), append(args, targs...)...)
 		if err != nil {
 			return err
 		}
 		page.Rows, err = pgx.CollectRows(rows, scanHotRow)
 		if err != nil {
 			return err
+		}
+		if back {
+			// in list order; the extra row, if any, is the farthest from the
+			// position (the first). Without it nothing precedes these rows:
+			// the caller shows the first page instead.
+			if len(page.Rows) <= p.Limit {
+				atStart = true
+				return nil
+			}
+			page.Rows = page.Rows[1:]
+			prev, next := hotCursor(page.Rows[0]), hotCursor(page.Rows[len(page.Rows)-1])
+			page.PrevCursor, page.NextCursor = &prev, &next
 		}
 		if first && len(pins) > 0 {
 			// The pinned rows themselves, in pin order.
@@ -326,15 +398,14 @@ func (s *Store) Hot(ctx context.Context, p HotParams) (*HotPage, error) {
 				}
 			}
 		}
-		if len(page.Rows) > p.Limit {
+		if !back && len(page.Rows) > p.Limit {
 			page.Rows = page.Rows[:p.Limit]
-			last := page.Rows[p.Limit-1]
-			// The keyset is (last_transition_at, stage_rank, cve_id), and
-			// stage_rank is the CURRENT stage's rank (last.Stage), which
-			// can exceed the last transition type's (a KEV listing older
-			// than a later patch).
-			c := encodeCursor(cursor{at: last.Transition.At, rank: stageIndex(last.Stage) + 1, cve: last.CVEID})
+			c := hotCursor(page.Rows[p.Limit-1])
 			page.NextCursor = &c
+		}
+		if !back && !first && len(page.Rows) > 0 {
+			c := hotCursor(page.Rows[0])
+			page.PrevCursor = &c
 		}
 		if len(pinned) > 0 {
 			page.Rows = append(pinned, page.Rows...)
@@ -357,9 +428,27 @@ func (s *Store) Hot(ctx context.Context, p HotParams) (*HotPage, error) {
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return page, nil
+	return page, atStart, nil
+}
+
+// hotTypes is the transition types the hot list shows for a minimum stage:
+// that stage's and every later one's.
+func hotTypes(minStage string) []string {
+	types := make([]string, 0, len(StageInfos))
+	for _, st := range StageInfos[stageIndex(minStage):] {
+		types = append(types, st.Type)
+	}
+	return types
+}
+
+// hotCursor is the keyset position of r: (last_transition_at, stage_rank,
+// cve_id), where stage_rank is the CURRENT stage's rank (r.Stage), which
+// can exceed the last transition type's (a KEV listing older than a later
+// patch).
+func hotCursor(r HotRow) string {
+	return encodeCursor(cursor{at: r.Transition.At, rank: stageIndex(r.Stage) + 1, cve: r.CVEID})
 }
 
 func scanHotRow(r pgx.CollectableRow) (HotRow, error) {
@@ -375,15 +464,17 @@ func scanHotRow(r pgx.CollectableRow) (HotRow, error) {
 	// have unknown times (catalogue.go); the hot list never selects one.
 	var trAt *time.Time
 	var trType *string
-	err := r.Scan(&h.CVEID, &h.Title, &h.TitleZh, &h.Stage, &rank, &h.IsRejected,
+	var ts titleScan
+	err := r.Scan(append([]any{&h.CVEID, &h.Title, &h.TitleZh, &h.Stage, &rank, &h.IsRejected,
 		&trAt, &trType,
 		&evID, &evSource, &occ, &backfill, &prec,
 		&in.Exists[0], &in.FirstAt[0], &in.Exists[1], &in.FirstAt[1], &in.Exists[2], &in.FirstAt[2],
 		&in.Exists[3], &in.FirstAt[3], &in.Exists[4], &in.FirstAt[4], &in.Exists[5], &in.FirstAt[5],
-		&h.PocSources, &h.ProductCount, &vendors, &products)
+		&h.PocSources, &h.ProductCount, &vendors, &products}, ts.dest()...)...)
 	if err != nil {
 		return h, err
 	}
+	h.TitleInfo = ts.info(h.Title)
 	h.StageCode = StageCode(h.Stage)
 	if trAt == nil || trType == nil {
 		return finishNoTransition(h, in, vendors, products), nil

@@ -5,7 +5,7 @@
 {{- with .Hot.Tag}}
 <div class="stack">
 <p class="note"><a href="{{.All}}">{{path "~/tags"}}</a> <span aria-hidden="true">/</span> {{t "tag.dim" "dim" .Dim}}</p>
-<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{tagname .Slug}}</h1>
+<h1 class="h1"><span class="h" aria-hidden="true"># </span>{{if tagicon .Slug}}<span class="tgh">{{template "tagicon" .Slug}}<span>{{tagname .Slug}}</span></span>{{else}}{{tagname .Slug}}{{end}}</h1>
 <p class="lede">{{tagdesc .Slug}}</p>
 <p class="note">{{t "tag.one.count" "n" .Count}}{{with .CountsAt}} {{t "tag.counts_at" "time" .}}{{end}}</p>
 {{- with .CWEs}}
@@ -20,10 +20,6 @@
 <p class="note"><a href="{{href "/about"}}#hot-rules">{{t "hot.rules_link"}}</a></p>
 </div>
 {{- end}}
-<details class="apid">
-<summary>{{t "hot.api.summary"}}</summary>
-{{template "cmd" .Hot.Curl}}
-</details>
 <details class="flt" open=""{{if .Hot.Custom}} data-keep=""{{end}}>
 <summary><span class="k">{{t "hot.filter.summary"}}</span>
 {{- range .Hot.Since}}{{if .Active}} <span class="sep" aria-hidden="true">·</span> {{.Label}}{{end}}{{end}}
@@ -53,6 +49,7 @@
 {{template "tagfilter" .Hot}}
 </div>
 </details>
+<div class="pgr" id="r-hot" data-page-region="r-hot">
 <div class="tbl">
 <div class="tbl-in" role="table"{{if $.Acct}} data-pin="{{ts "acct.follows.pinned"}}"{{with fallbacklang "acct.follows.pinned"}} data-pin-lang="{{.}}"{{end}}{{end}}>
 {{template "hothead"}}
@@ -73,18 +70,8 @@
 {{- end}}
 </div>
 </div>
-{{- if or .Hot.NextHref .Hot.OnCursor}}
-<nav class="pager" aria-label="{{ts "pager.label"}}">
-{{- if .Hot.OnCursor}}
-<a href="{{.Hot.FirstHref}}">{{t "pager.first"}}</a>
-{{- end}}
-{{- if .Hot.NextHref}}
-<a href="{{.Hot.NextHref}}" rel="next">{{t "pager.next"}}</a>
-{{- else}}
-<span>{{t "pager.end"}}</span>
-{{- end}}
-</nav>
-{{- end}}
+{{template "pager" .Hot.Pager}}
+</div>
 <div class="legend">
 {{template "legend"}}
 {{- if not $.L.IsPrimary}}

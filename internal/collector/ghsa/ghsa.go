@@ -12,9 +12,13 @@
 // stored), an incremental run keeps what it fetched and stores the
 // remaining next URL in cursor.pending.
 //
-// Normalize: no cve_id -> nothing; withdrawn -> alias only; otherwise alias,
-// stub vuln and, iff a package has a first_patched_version, one
+// Normalize, advisory with a cve_id: withdrawn -> alias only; otherwise
+// alias, stub vuln and, iff a package has a first_patched_version, one
 // patch_released event (dedupe_key = GHSA id, occurred_at nil).
+// Advisory without a cve_id: the vulnerability is keyed by the GHSA id; a
+// disclosed event (occurred_at = published_at, detail.state PUBLISHED or
+// REJECTED when withdrawn), and unless withdrawn an authoritative vuln and
+// the same patch_released event. See docs/ghsa.md.
 //
 // HTTP: this package has its own small GET loop instead of internal/httpc
 // because GHSA needs Python's exact policy, which httpc cannot express: no

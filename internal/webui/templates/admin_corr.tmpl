@@ -7,6 +7,7 @@
 <section class="sec" id="corrections" aria-labelledby="h-corr">
 <h2 class="h2" id="h-corr"><span class="h" aria-hidden="true"># </span>{{t "admin.corr.h2"}}</h2>
 <p class="note">{{t "admin.corr.lede"}}</p>
+<div class="adm-region" id="r-corr" data-page-region="r-corr">
 <nav class="seg" aria-label="{{ts "admin.corr.filter_label"}}">
 {{- range .Filters}}
 <a href="{{.Href}}"{{if .Current}} aria-current="true"{{end}}>{{if eq .Value "pending"}}{{t "admin.corr.pending" "n" $.Data.Body.Pending}}{{else}}{{t "admin.corr.decided"}}{{end}}</a>
@@ -40,12 +41,12 @@
 <label for="ca-{{.ID}}">{{t "admin.corr.accept_label" "max" $.Data.Body.MaxPublic}}</label>
 <textarea class="disc-ta" id="ca-{{.ID}}" rows="3" maxlength="{{$.Data.Body.MaxPublic}}"></textarea>
 <p class="note">{{t "admin.corr.accept_note"}}</p>
-<div class="acct-row"><button type="submit" class="btn">{{t "admin.corr.accept"}}</button></div>
+<div class="acct-row"><button type="submit" class="btn" data-confirm="{{ts "btn.confirm"}}">{{t "admin.corr.accept"}}</button></div>
 </form>
 <form class="acct-form adm-corr" data-act="reject" data-id="{{.ID}}" novalidate="">
 <div class="acct-row">
 <input class="acct-in" type="text" maxlength="{{$.Data.Body.MaxInternal}}" autocomplete="off" aria-label="{{ts "admin.corr.reject_label"}}" placeholder="{{ts "admin.corr.reject_label"}}"/>
-<button type="submit" class="btn">{{t "admin.corr.reject"}}</button>
+<button type="submit" class="btn" data-confirm="{{ts "btn.confirm"}}">{{t "admin.corr.reject"}}</button>
 </div>
 </form>
 {{- end}}
@@ -56,9 +57,8 @@
 {{- else}}
 <p class="note">{{if eq .State "pending"}}{{t "admin.corr.empty_pending"}}{{else}}{{t "admin.corr.empty_decided"}}{{end}}</p>
 {{- end}}
-{{- if or .Next .First}}
-<p class="pager">{{with .First}}<a href="{{.}}">{{t "admin.first"}}</a>{{end}}{{with .Next}}<a href="{{.}}">{{t "admin.next"}}</a>{{end}}</p>
-{{- end}}
+{{template "pager" .Pager}}
+</div>
 </section>
 {{- end}}
 </main>

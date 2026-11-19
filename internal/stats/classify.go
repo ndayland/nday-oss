@@ -52,8 +52,8 @@ type Class struct {
 	Locale   string // for pages and the feed: "en", "zh-hans", ...
 	// APIEndpoint for KindAPI.
 	APIEndpoint string
-	// CVE: normalised id of a vulnerability page or API vuln lookup (valid
-	// format only, else "").
+	// CVE: normalised id of a vulnerability page or API vuln lookup, a CVE
+	// id or a GHSA id (valid format only, else "").
 	CVE string
 	// Search: normalised search term of a successful GET search (page /vuln
 	// or API search), "" if none.
@@ -180,19 +180,28 @@ func apiEndpoint(p string) (endpoint, cve string) {
 }
 
 // cveRe is the ASCII form of model.IsValidCVEID's pattern, with an upper
-// bound on the sequence length.
-var cveRe = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,19}$`)
+// bound on the sequence length; ghsaRe a GHSA id (upper-cased), the id of a
+// vulnerability without a CVE.
+var (
+	cveRe  = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,19}$`)
+	ghsaRe = regexp.MustCompile(`^GHSA(-[23456789CFGHJMPQRVWX]{4}){3}$`)
+)
 
-// NormalizeCVE upper-cases an id from a path and validates it ("" if invalid).
+// NormalizeCVE canonicalises a vulnerability id from a path ("" if invalid):
+// a CVE id upper case, a GHSA id as the site writes it
+// ("GHSA-gpwc-27cw-rh9r").
 func NormalizeCVE(s string) string {
 	if u, err := url.PathUnescape(s); err == nil {
 		s = u
 	}
 	s = strings.ToUpper(s)
-	if !cveRe.MatchString(s) {
-		return ""
+	switch {
+	case cveRe.MatchString(s):
+		return s
+	case ghsaRe.MatchString(s):
+		return "GHSA" + strings.ToLower(s[4:])
 	}
-	return s
+	return ""
 }
 
 // SearchTerm extracts and normalises the q parameter of a raw query: first

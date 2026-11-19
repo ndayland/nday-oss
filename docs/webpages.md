@@ -5,7 +5,7 @@ It exists to get page titles for the links in the "related resources" panel on a
 ## Who does what
 
 - **Producers only enqueue**: `webpages.Enqueue(ctx, db, url, source)` is idempotent. The URL goes through `pagefetch.CheckURL` first, entries are deduplicated by `pagefetch.URLKey`, and `first_source` records the source that enqueued it first. The only producer right now is xposts (`xlinks.EnqueuePages`, `nday x-links-enqueue`).
-- **The web pages module fetches**: `webpages.FetchPending` (command `nday pages-fetch [--limit N]`, default 100, with no overall time limit of its own). It also runs one pass after every successful `nday collect xposts`; in that case enqueueing and fetching share a 2-minute limit and at most 25 URLs. A single URL can take up to 25 seconds, so on slow sites a pass handles fewer URLs and the rest wait for next time. When the limit expires, the status and attempt count of rows that weren't processed stay as they were. It doesn't know where URLs come from.
+- **The web pages module fetches**: `webpages.FetchPending` (command `nday pages-fetch [--limit N]`, default 100, with no overall time limit of its own). It also runs one pass after every successful `nday collect xposts`; in that case enqueueing and fetching share a 2-minute limit and at most 25 URLs. A single URL can take up to 25 seconds, so on slow sites a pass handles fewer URLs and the rest wait for next time. When the limit expires, the status and attempt count of rows that weren't processed stay as they were. It doesn't know where URLs come from. After it, the same collection runs the GitHub repository step, which has its own queue and limit and talks only to the GitHub API (`docs/github.md`).
 - **The safe fetcher** `internal/pagefetch`: a standalone package. It doesn't depend on the database, the collectors, or the site code, has no global state, and doesn't read environment variables.
 
 ## The `web_page` table
@@ -46,8 +46,32 @@ A panic while handling a page is caught: only the `url_key` and the panic value 
 - When `og:site_name` is present, a trailing "separator + site name" and a leading "site name + separator" are stripped from the title (separators ` - `, ` | `, ` – `, ` — `, ` · `, ` :: `, case-insensitive), never down to an empty string. Without `og:site_name` it doesn't guess.
 - Generic titles (CAPTCHA pages, error pages, login pages; the list is `genericTitles` in `meta.go`) count as no title. Finally the title is cut to 120 characters (ending in `…` if it was longer).
 
+## Publication time (`pagefetch.ExtractPublished`, migration `0029_web_page_published.sql`)
+
+- Read from the HTML already fetched (no extra request), from the whole document (JSON-LD and `<time>` usually sit in the body), in this order of trust; the first value that parses and is plausible wins, a bad one falls through to the next source:
+  1. JSON-LD (`<script type="application/ld+json">`): `datePublished` of the first object typed `Article`, `NewsArticle`, `BlogPosting`, `TechArticle`, `Report`, `ScholarlyArticle` or `AnalysisNewsArticle` (also inside arrays, `@graph` and `mainEntity`), else of the first object that has one;
+  2. `<meta property="article:published_time">`;
+  3. `<meta name>` `date`, `pubdate`, `publishdate`, `dc.date`, `dc.date.issued`, `citation_publication_date`, `parsely-pub-date`, `sailthru.date` (case-insensitive, in this order);
+  4. `<meta itemprop="datePublished">`;
+  5. `<time datetime>` with `pubdate` or `itemprop="datePublished"`.
+- Never used: `Last-Modified`, `article:modified_time`, `dateModified`.
+- Parsing is strict (`ParsePublished`): RFC 3339 and its common variants (offset without a colon, no seconds, a space instead of `T`) and RFC 1123 with a numeric offset or GMT/UTC give precision `exact` (stored in UTC); a date alone (`YYYY-MM-DD`, `YYYY/MM/DD`) or a date and time without a zone give precision `day` (the date as written). Anything else (a year alone, words, trailing text, zone names like `EST`) is not a time.
+- Plausible: not before 1995-01-01 and not more than one day after the fetch.
+- JSON-LD is bounded: at most 8 blocks of at most 64 KiB each, nesting at most 32 deep (deeper blocks are skipped), the walk goes at most 6 levels down; HTML comment and CDATA markers and a trailing `;` around the JSON are tolerated, anything else that doesn't parse is skipped.
+- Stored with the page (`published_at`, `published_precision` `exact`/`day`, `published_source` such as `json-ld` or `meta:article:published_time`, for operators). Every fetch also sets `published_checked_at`.
+- Backfill: pages fetched before this existed are `ok` without `published_checked_at`. `nday pages-fetch` and the pass after `nday collect xposts` re-fetch up to `webpages.DefaultBackfill` (20) of them per run after the pending pages, oldest first, one request each; whatever the outcome the page is marked and never re-fetched for this again, and only the publication time is written (status, attempts and title stay as they are). The pass after the collector stops the backfill early, without an error, when its 2-minute deadline is less than 30 seconds away. At the default rate (the hourly `nday-collect@xposts.timer`) that is up to 480 pages a day: a backfill of N pages takes about N / 480 days; `nday pages-fetch` run by hand adds 20 per run.
+- GitHub repositories keep their creation day (`github_repo.repo_created_at`); nothing is invented for a link whose page states no time.
+
+## Dots on the lifecycle chart (`internal/webui/chartdots.go`)
+
+- The vulnerability page draws its external items at their time on the existing rows of the lifecycle chart (no new rows): analysis articles, advisories and other links on ANA, the links of the "PoC / exploit code" group on POC (only what counts as a PoC source: no dot for the unreviewed repositories, nor for code links; since 2026-11-19), patch links on PAT, researcher posts on the lower edge of the date-axis header. One colour per type (`--dot-post`, `--dot-art`, `--dot-poc`, `--dot-pat`, both themes), no legend.
+- Time: the page's stated publication time (solid); else the day a researcher first posted the link (`site.Resource.FirstMentioned`, a ring: "not after"); a GitHub repository that counts at its creation day (one created before the disclosure is not drawn); a post at its UTC day. Items without a time are not drawn (they stay in the resources list). Items may start the axis at most 30 days before the earliest event; earlier ones are not drawn.
+- A row with dots is taller (36 → 64 px): its label, stage marks and "time unknown" cell keep the upper 36 px, the dots get a lane under them. In a lane the items of one UTC day are one mark; then, while two neighbouring marks are closer at the 620 px reference plot than their hit boxes allow (at least 24 px, and 4 px between the marks), the closest pair merges. A single item is a 12 px dot; several are a bubble with the count inside (2–9: 18 px, 10–99: 22 px, 100+: 26 px). Posts on the header keep one triangle per UTC day (or closer than 8 px) with the count beside it.
+- Each dot is a link to `#resources` (a mark holding a PoC link: the paged PoC list `#r-poc`; posts: `#research`) without script; `static/app.js` turns it into a button with a popover (hover, focus, tap; Escape, blur and a tap elsewhere close it; placed in the viewport, not clipped by the chart's scroller) listing at most 6 items — the kind's label, the title as a link (new tab, favicon) and the date (`≤` for a ring) — then one "show N more" link. A post's line is "@handle · day" linking to the profile; for a signed-in reader `static/discuss.js` adds a short excerpt and the post link from `GET /api/posts/{cve}`. The HTML is the same for every visitor.
+- Public data only (`internal/site/public.go`): the dots show what the resources panel and the researcher outline already show, plus each link's first-mentioned day (owner's decision of 2026-11-17).
+
 ## Not handled
 
 - `robots.txt` isn't read. Titles are third-party text: they're only cleaned and escaped, and their content isn't controlled.
-- Rows aren't refreshed after `ok`/`none`. Only the title and site name are extracted (no author, date or summary yet).
+- Rows aren't refreshed after `ok`/`none` (except the one-time publication-time backfill above). Only the title, site name and publication time are extracted (no author or summary).
 - The https fetch path has no local test (the tests only use an http httptest server).

@@ -5,6 +5,12 @@
 {{- end}}
 {{- end}}
 
+{{define "dots"}}
+{{- if .}}<svg class="dots">
+{{- range .}}<svg x="{{.X}}" overflow="visible"><foreignObject x="-16" y="{{.FY}}" width="32" height="36"><a class="dot d-{{.Type}}{{with .Size}} {{.}}{{end}}{{if .Ring}} ring{{end}}" href="{{.Href}}" aria-label="{{.Label}}" data-pop="{{.ID}}">{{if gt .N 1}}<span class="dn" aria-hidden="true">{{.N}}</span>{{end}}</a></foreignObject></svg>{{end -}}
+</svg>{{end}}
+{{- end}}
+
 {{define "content"}}{{with .Data}}
 <main class="page detail" id="main">
 <div class="wrap">
@@ -13,13 +19,22 @@
 <span class="weak" aria-hidden="true">~/vuln/</span>
 <span class="id">{{.ID}}</span>
 <button type="button" class="btn sm" data-copy="{{.ID}}" hidden="">{{t "btn.copy_id" "key" "y"}}</button>
+{{- with .Share}}
+<details class="share">
+<summary class="btn sm">{{t "share.label"}}</summary>
+<ul>
+<li><a href="{{.Compose}}" target="_blank" rel="noopener noreferrer">{{t "share.x"}}</a></li>
+<li><button type="button" data-copy="{{.Text}}" hidden="">{{t "share.copy"}}</button></li>
+</ul>
+</details>
+{{- end}}
 {{- range .Aliases}}
 {{template "link" .}}
 {{- end}}
 </div>
 {{- with .Rejected}}
 <div class="banner" role="note">
-<div class="t"><span class="badge">REJECTED</span><span>{{if .Date}}{{t "vuln.rejected.banner_at" "date" .Date}}{{else}}{{t "vuln.rejected.banner"}}{{end}}</span></div>
+<div class="t"><span class="badge">REJECTED</span><span>{{if .Withdrawn}}{{if .Date}}{{t "vuln.withdrawn.banner_at" "date" .Date}}{{else}}{{t "vuln.withdrawn.banner"}}{{end}}{{else if .Date}}{{t "vuln.rejected.banner_at" "date" .Date}}{{else}}{{t "vuln.rejected.banner"}}{{end}}</span></div>
 {{- range .Reasons}}
 <p class="note">{{t "vuln.rejected.reason" "reason" (upstream .)}}</p>
 {{- end}}
@@ -28,7 +43,7 @@
 {{- end}}
 </div>
 {{- end}}
-<h1 class="vt{{if .TitleMissing}} missing{{end}}"{{with .TitleLang}} lang="{{.}}"{{end}}>{{.Title}}</h1>
+<h1 class="vt{{if .TitleMissing}} missing{{end}}"{{with .TitleLang}} lang="{{.}}"{{end}}>{{.Title}}{{template "titlemark" .Mark}}</h1>
 {{- with .Original}}
 <p class="orig" lang="en">{{.}}</p>
 {{- end}}
@@ -61,10 +76,6 @@
 </details>
 </div>
 {{- end}}
-<details class="apid">
-<summary>{{t "vuln.api.summary"}}</summary>
-{{template "cmd" .Curl}}
-</details>
 </div>
 
 <dl class="facts">
@@ -82,30 +93,49 @@
 <div class="chart-in">
 <div class="crow chead">
 <div></div>
-<svg class="axis" aria-hidden="true">
+<div class="pc"><svg class="axis" aria-hidden="true">
 {{- range .Chart.Ticks}}{{if .Label}}<text x="{{.X}}" dx="3" y="21">{{.Label}}</text>{{end}}{{end -}}
 <text class="now" x="{{.Chart.NowX}}" dx="-6" y="21" text-anchor="end">{{t "chart.now"}}</text>
-</svg>
+</svg>{{template "dots" .Chart.PostDots}}</div>
 <div class="unk">{{t "chart.col.unknown"}}</div>
 </div>
 {{- $c := .Chart}}
 {{- range .Chart.Rows}}
-<div class="crow">
+{{- $h := "36"}}{{if .Lane}}{{$h = "64"}}{{end}}
+<div class="crow{{if .Lane}} lane{{end}}">
 <div class="lab"><b class="{{.Class}}">{{.Code}}</b><span>{{.Short}}</span></div>
-<svg class="plot" role="img" aria-label="{{.Aria}}">
-{{- range $c.Grid}}<line class="grid" x1="{{.}}" x2="{{.}}" y1="0" y2="36"/>{{end -}}
-<line class="nowl" x1="{{$c.NowX}}" x2="{{$c.NowX}}" y1="0" y2="36"/>
+<div class="pc"><svg class="plot" role="img" aria-label="{{.Aria}}">
+{{- range $c.Grid}}<line class="grid" x1="{{.}}" x2="{{.}}" y1="0" y2="{{$h}}"/>{{end -}}
+<line class="nowl" x1="{{$c.NowX}}" x2="{{$c.NowX}}" y1="0" y2="{{$h}}"/>
+{{- range $c.PostDots}}
+<line class="postl" x1="{{.X}}" x2="{{.X}}" y1="0" y2="{{$h}}"/>
+{{- end}}
 {{- if .Empty}}<text class="nolbl" x="18" y="22">{{t "value.no_record"}}</text>{{end}}
 <g class="{{.Class}}">
 {{- range .Marks}}{{template "mark" .}}{{end -}}
 {{- with .Label}}<svg x="{{.X}}" overflow="visible"><text class="lbl" x="{{.DX}}" y="22" text-anchor="{{.Anchor}}">{{.Text}}</text></svg>{{end -}}
 </g>
-</svg>
+</svg>{{template "dots" .Dots}}</div>
 <div class="unk">{{if .UnknownHollow}}{{template "chip" (list3 .Class "mk mk-hollow" "")}}<span title="{{.UnknownText}}">{{.UnknownText}}</span>{{end}}</div>
 </div>
 {{- end}}
 </div>
 </div>
+{{- with .Chart.Dots}}
+<div class="dpops">
+{{- range .}}
+<div class="dpop" id="{{.ID}}" hidden=""><ul>
+{{- range .Lines}}
+{{- if .Post}}
+<li data-ri="{{.RI}}" data-day="{{.Day}}">{{if .URL}}<a href="{{.URL}}" target="_blank" rel="noopener noreferrer nofollow">@{{.Text}}</a>{{else}}<span class="weak">{{.Text}}</span>{{end}} · <span class="dp-d">{{.Date}}</span></li>
+{{- else}}
+<li><span class="dp-k">{{.Kind}}</span> <a href="{{.URL}}" dir="auto" target="_blank" rel="noopener noreferrer nofollow ugc">{{.Text}}</a> <span class="dp-d">{{.Date}}</span></li>
+{{- end}}
+{{- end}}
+</ul>{{if .More}}<a class="dp-more" href="{{.Href}}">{{t "rsch.more" "n" .More}}</a>{{end}}</div>
+{{- end}}
+</div>
+{{- end}}
 </section>
 
 <div class="cols">
@@ -161,7 +191,7 @@
 <p class="src">{{.BasisHTML}}</p>
 {{- else}}
 <details class="raw">
-<summary class="src"><span class="sr">{{t "vuln.events.src"}} </span>{{if .Src.Href}}<a href="{{.Src.Href}}" rel="noopener noreferrer" data-src="">{{.Src.Text}}{{with .SrcKey}} {{.}}{{end}}</a>{{else}}<span>{{.Src.Text}}{{with .SrcKey}} {{.}}{{end}}</span>{{end}} · {{.Obs}} · <span class="rt">{{t "vuln.events.raw"}}</span></summary>
+<summary class="src"><span class="sr">{{t "vuln.events.src"}} </span>{{if .Src.Href}}<a href="{{.Src.Href}}" target="_blank" rel="noopener noreferrer" data-src="">{{.Src.Text}}{{with .SrcKey}} {{.}}{{end}}</a>{{else}}<span>{{.Src.Text}}{{with .SrcKey}} {{.}}{{end}}</span>{{end}} · {{.Obs}} · <span class="rt">{{t "vuln.events.raw"}}</span></summary>
 <pre>{{range .Raw}}{{if .Key}}<span class="k">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}</pre>
 </details>
 {{- end}}
@@ -171,6 +201,15 @@
 <p class="note">{{t "vuln.none"}}</p>
 {{- end}}
 </section>
+{{- with .Corrections}}
+{{template "corrections" .}}
+{{- end}}
+{{- with .Research}}
+{{template "research" .}}
+{{- end}}
+{{- with .Discussion}}
+{{template "discussion" .}}
+{{- end}}
 </div>
 
 <aside class="side" aria-label="{{ts "vuln.side.label"}}">
@@ -256,7 +295,7 @@
 </section>
 {{- end}}
 
-<section class="panel">
+<section class="panel" data-signed-in="" hidden="">
 <h2><span class="h" aria-hidden="true"># </span>{{t "vuln.raw.h2"}}</h2>
 {{- if .RawRecords}}
 <div class="links">
@@ -274,15 +313,6 @@
 {{- end}}
 </aside>
 </div>
-{{- with .Corrections}}
-{{template "corrections" .}}
-{{- end}}
-{{- with .Research}}
-{{template "research" .}}
-{{- end}}
-{{- with .Discussion}}
-{{template "discussion" .}}
-{{- end}}
 </div>
 </main>
 {{end}}{{end}}
@@ -301,7 +331,7 @@
 {{- else}}
 <ol class="rp-list veil" id="rsch-list">
 {{- range .Entries}}
-<li class="rp"><p class="rp-h">{{if .AuthorURL}}<a class="rp-au" href="{{.AuthorURL}}" rel="noopener noreferrer nofollow">@{{.Author}}</a>{{else}}<span class="rp-au weak">{{t "rsch.unknown_author"}}</span>{{end}}<span class="rp-t">{{.Day}}</span></p>{{if $.Accounts}}<a class="spk-go" href="{{$.Login}}" tabindex="-1" aria-hidden="true">{{end}}<span class="spk" data-size="{{.Size}}" aria-hidden="true"></span>{{if $.Accounts}}</a>{{end}}<span class="sr">{{if .AuthorURL}}{{t "rsch.entry_hidden" "author" (print "@" .Author) "day" .Day}}{{else}}{{t "rsch.entry_hidden_anon" "day" .Day}}{{end}}</span></li>
+<li class="rp"><p class="rp-h">{{if .AuthorURL}}<a class="rp-au" href="{{.AuthorURL}}" target="_blank" rel="noopener noreferrer nofollow">@{{.Author}}</a>{{else}}<span class="rp-au weak">{{t "rsch.unknown_author"}}</span>{{end}}<span class="rp-t">{{.Day}}</span></p>{{if $.Accounts}}<a class="spk-go" href="{{$.Login}}" tabindex="-1" aria-hidden="true">{{end}}<span class="spk" data-size="{{.Size}}" aria-hidden="true"></span>{{if $.Accounts}}</a>{{end}}<span class="sr">{{if .AuthorURL}}{{t "rsch.entry_hidden" "author" (print "@" .Author) "day" .Day}}{{else}}{{t "rsch.entry_hidden_anon" "day" .Day}}{{end}}</span></li>
 {{- end}}
 </ol>
 <div class="veil-cta" id="rsch-veil">
@@ -319,12 +349,29 @@
 <section class="panel rsrc" id="resources" aria-labelledby="rsrc-h">
 <h2 id="rsrc-h"><span class="h" aria-hidden="true"># </span>{{t "rsch.res.h2"}}</h2>
 {{- range .Groups}}
-<h3 class="rsrc-k">{{t .LabelKey}}</h3>
+{{- $u := .Unreviewed}}
+{{- if $u}}
+<details class="rsrc-u"{{if .Open}} open=""{{end}}>
+<summary class="rsrc-k">{{t .LabelKey "n" .Total}}</summary>
+{{- end}}
+{{- if .Region}}
+<div class="pgr" id="{{.Region}}" data-page-region="{{.Region}}">
+{{- end}}
+{{- if not $u}}
+<h3 class="rsrc-k{{if eq .Kind "poc"}} k-poc{{end}}">{{t .LabelKey}}</h3>
+{{- end}}
 <ul class="rsrc-list">
 {{- range .Links}}
-<li><a href="{{.URL}}" title="{{.URL}}" dir="auto" rel="noopener noreferrer nofollow ugc">{{if .Title}}{{.Title}}{{else}}{{.Text}}{{end}}</a>{{if .Title}} <span class="rsrc-host">{{.Host}}</span>{{end}}{{if gt .Researchers 1}} <span class="rsrc-n">{{t "rsch.res.researchers" "n" .Researchers}}</span>{{end}}</li>
+<li><a href="{{.URL}}" title="{{.URL}}" dir="auto" target="_blank" rel="noopener noreferrer nofollow ugc">{{if .Repo}}{{.Repo}}{{else if .Title}}{{.Title}}{{else}}{{.Text}}{{end}}</a>{{if .Repo}}{{if not .Unverified}} <span class="rsrc-host">★ {{num .Stars}}</span>{{end}}{{if .Created}} <span class="rsrc-host"><time datetime="{{.Created}}">{{.Created}}</time></span>{{end}}{{if and .Unverified (not $u)}} <span class="rsrc-n">{{t "rsch.res.unverified"}}</span>{{end}}{{else if .Title}} <span class="rsrc-host">{{.Host}}</span>{{end}}{{if gt .Researchers 1}} <span class="rsrc-n">{{t "rsch.res.researchers" "n" .Researchers}}</span>{{end}}</li>
 {{- end}}
 </ul>
+{{- if .Region}}
+{{template "pager" .Pager}}
+</div>
+{{- end}}
+{{- if $u}}
+</details>
+{{- end}}
 {{- end}}
 </section>
 {{end}}
@@ -458,13 +505,15 @@
 </div>
 <template id="disc-tpl-acts">
 <div class="cm-acts">
+<div class="row-acts">
 <button type="button" class="btn sm" data-act="reply" hidden="">{{t "disc.act.reply"}}</button>
 <button type="button" class="btn sm" data-act="edit" hidden="">{{t "disc.act.edit"}}</button>
-<button type="button" class="btn sm" data-act="delete" hidden="">{{t "disc.act.delete"}}</button>
 <button type="button" class="btn sm" data-act="report" hidden="">{{t "disc.act.report"}}</button>
 <span class="cm-flag" data-act="reported" hidden="">{{t "disc.reported"}}</span>
-<button type="button" class="btn sm" data-act="hide" hidden="">{{t "disc.act.hide"}}</button>
 <button type="button" class="btn sm" data-act="unhide" hidden="">{{t "disc.act.unhide"}}</button>
+<button type="button" class="btn sm" data-act="hide" hidden="">{{t "disc.act.hide"}}</button>
+<button type="button" class="btn sm" data-act="delete" data-confirm="{{ts "btn.confirm"}}" hidden="">{{t "disc.act.delete"}}</button>
+</div>
 <p class="acct-st" role="status" aria-live="polite"></p>
 </div>
 </template>
@@ -474,7 +523,7 @@
 <textarea class="disc-ta" data-f="body" rows="4" spellcheck="true"></textarea>
 {{- template "disclimit" .}}
 {{- template "discterms" .}}
-<div class="acct-row"><button type="submit" class="btn">{{t "disc.reply.submit"}}</button><button type="button" class="btn" data-act="cancel">{{t "disc.cancel"}}</button></div>
+<div class="acct-row"><button type="submit" class="btn">{{t "disc.reply.submit"}}</button><button type="button" class="btn" data-act="cancel" data-rowx-close="">{{t "disc.cancel"}}</button></div>
 <p class="acct-st" role="status" aria-live="polite"></p>
 </form>
 </template>
@@ -484,7 +533,7 @@
 <label data-for="body">{{t "disc.edit.label"}}</label>
 <textarea class="disc-ta" data-f="body" rows="6" spellcheck="true"></textarea>
 {{- template "disclimit" .}}
-<div class="acct-row"><button type="submit" class="btn">{{t "disc.edit.submit"}}</button><button type="button" class="btn" data-act="cancel">{{t "disc.cancel"}}</button></div>
+<div class="acct-row"><button type="submit" class="btn">{{t "disc.edit.submit"}}</button><button type="button" class="btn" data-act="cancel" data-rowx-close="">{{t "disc.cancel"}}</button></div>
 <p class="acct-st" role="status" aria-live="polite"></p>
 </form>
 </template>
@@ -498,7 +547,7 @@
 </select>
 <label data-for="note">{{t "disc.report.note_label" "max" .MaxNote}}</label>
 <input class="acct-in" type="text" data-f="note" maxlength="{{.MaxNote}}" autocomplete="off"/>
-<div class="acct-row"><button type="submit" class="btn">{{t "disc.report.submit"}}</button><button type="button" class="btn" data-act="cancel">{{t "disc.cancel"}}</button></div>
+<div class="acct-row"><button type="submit" class="btn">{{t "disc.report.submit"}}</button><button type="button" class="btn" data-act="cancel" data-rowx-close="">{{t "disc.cancel"}}</button></div>
 <p class="acct-st" role="status" aria-live="polite"></p>
 </form>
 </template>
@@ -506,7 +555,7 @@
 <form class="acct-form disc-sub" novalidate="">
 <label data-for="reason">{{t "disc.hide.reason_label" "max" .MaxHide}}</label>
 <input class="acct-in" type="text" data-f="reason" maxlength="{{.MaxHide}}" autocomplete="off"/>
-<div class="acct-row"><button type="submit" class="btn">{{t "disc.hide.submit"}}</button><button type="button" class="btn" data-act="cancel">{{t "disc.cancel"}}</button></div>
+<div class="acct-row"><button type="submit" class="btn">{{t "disc.hide.submit"}}</button><button type="button" class="btn" data-act="cancel" data-rowx-close="">{{t "disc.cancel"}}</button></div>
 <p class="acct-st" role="status" aria-live="polite"></p>
 </form>
 </template>

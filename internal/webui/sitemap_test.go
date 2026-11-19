@@ -54,9 +54,11 @@ func TestSitemap(t *testing.T) {
 	for _, s := range idx.Sitemaps {
 		shards = append(shards, s.Loc)
 	}
-	// Fixture: CVE-2026-1001..1010 (bucket 0), CVE-2026-6666 (bucket 1), GPU = CVE-2026-102895 (bucket 20).
+	// Fixture: CVE-2026-1001..1010 (bucket 0), CVE-2026-6666 (bucket 1), GPU = CVE-2026-102895 (bucket 20),
+	// GHSA-gpwc-27cw-rh9r (the GHSA shard "g", after every CVE shard).
 	if got := strings.Join(shards, " "); idx.XMLName.Local != "sitemapindex" || got != base+"/sitemap/pages.xml "+
-		base+"/sitemap/vuln-2026-0.xml "+base+"/sitemap/vuln-2026-1.xml "+base+"/sitemap/vuln-2026-20.xml" {
+		base+"/sitemap/vuln-2026-0.xml "+base+"/sitemap/vuln-2026-1.xml "+base+"/sitemap/vuln-2026-20.xml "+
+		base+"/sitemap/ghsa-g.xml" {
 		t.Errorf("index %s %s", idx.XMLName.Local, got)
 	}
 
@@ -111,6 +113,19 @@ func TestSitemap(t *testing.T) {
 		checkCanonical(u.Loc)
 	}
 
+	gh := e.sitemap(t, "/sitemap/ghsa-g.xml")
+	if len(gh.URLs) != len(enabled) {
+		t.Errorf("ghsa-g: %d urls", len(gh.URLs))
+	}
+	for i, l := range enabled {
+		if i < len(gh.URLs) {
+			if u := gh.URLs[i]; u.Loc != base+l.Path("/vuln/"+sitetest.GHSA) || !w3cTimeRe.MatchString(u.LastMod) {
+				t.Errorf("ghsa-g[%d]: %+v", i, u)
+			}
+			checkCanonical(gh.URLs[i].Loc)
+		}
+	}
+
 	b0 := e.sitemap(t, "/sitemap/vuln-2026-0.xml")
 	ids := map[string]int{}
 	for _, u := range b0.URLs {
@@ -129,7 +144,8 @@ func TestSitemap(t *testing.T) {
 	// sitemap is not under any locale prefix.
 	for _, p := range []string{"/sitemap/vuln-2026-3.xml", "/sitemap/vuln-2026-020.xml", "/sitemap/vuln-2026-0", "/sitemap/vuln-26-0.xml",
 		"/sitemap/vuln-2026--1.xml", "/sitemap/nope.xml", "/sitemap/", "/sitemap", "/zh-hans/sitemap.xml",
-		"/zh-hans/sitemap/pages.xml", "/sitemap/vuln-2026-99999999999999999999.xml"} {
+		"/zh-hans/sitemap/pages.xml", "/sitemap/vuln-2026-99999999999999999999.xml",
+		"/sitemap/ghsa-2.xml", "/sitemap/ghsa-a.xml", "/sitemap/ghsa-G.xml", "/sitemap/ghsa-gp.xml", "/sitemap/ghsa-.xml"} {
 		if resp, _ := e.get(t, p); resp.StatusCode != 404 {
 			t.Errorf("%s: %d", p, resp.StatusCode)
 		}

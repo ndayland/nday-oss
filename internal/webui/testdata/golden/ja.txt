@@ -4,83 +4,87 @@
 
 ### kev_t5_patch_0of3 (CVE-2026-102895 shape)
 keys: status.lead.after.kev + status.patch.fixed + status.poc.none
-公開から 5 日後に CISA KEV に追加されました。修正済みバージョンは gpustack 2.2.0 です。3 つの PoC ソースのいずれにも未掲載です。
+公開から 5 日後に CISA KEV に追加されました。修正済みバージョンは gpustack 2.2.0 です。4 つの PoC ソースのいずれにも未掲載です。
 
 ### stub_no_record_kev_no_patch
 keys: status.no_record + status.kev.at + status.patch.none + status.poc.none
-nday はこの ID の公式 CVE レコードをまだ取得していないため、公開日時は不明です。2026-11-09 に CISA KEV に追加されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースのいずれにも未掲載です。
+nday はこの ID の公式 CVE レコードをまだ取得していないため、公開日時は不明です。2026-11-09 に CISA KEV に追加されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースのいずれにも未掲載です。
 
 ### disclosed_only
 keys: status.disclosed_at + status.patch.none + status.poc.none + status.kev.not_listed
-2026-11-04T21:16Z に公開されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
+2026-11-04T21:16Z に公開されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
 
 ### kev_same_day
 keys: status.lead.same_day + status.patch.none + status.poc.none
-公開当日に CISA KEV に追加されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースのいずれにも未掲載です。
+公開当日に CISA KEV に追加されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースのいずれにも未掲載です。
 
 ### kev_1_day_after
 keys: status.lead.after.kev + status.patch.none + status.poc.none
-公開から 1 日後に CISA KEV に追加されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースのいずれにも未掲載です。
+公開から 1 日後に CISA KEV に追加されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースのいずれにも未掲載です。
 
 ### kev_before_record_20d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-CVE レコード公開の 20 日前に CISA KEV に追加されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースのいずれにも未掲載です。
+CVE レコード公開の 20 日前に CISA KEV に追加されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースのいずれにも未掲載です。
 
 ### kev_before_record_1d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-CVE レコード公開の 1 日前に CISA KEV に追加されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースのいずれにも未掲載です。
+CVE レコード公開の 1 日前に CISA KEV に追加されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースのいずれにも未掲載です。
 
-### poc_t7_2of3
+### poc_t7_2of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-公開から 7 日後に PoC が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。PoC ソース 3 件中 2 件（exploitdb、nuclei）に掲載されています。CISA KEV には現時点で未掲載です。
+公開から 7 日後に PoC が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。PoC ソース 4 件中 2 件（exploitdb、nuclei）に掲載されています。CISA KEV には現時点で未掲載です。
 
-### poc_t1_1of3
+### poc_t1_1of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-公開から 1 日後に PoC が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。PoC ソース 3 件中 1 件（metasploit）に掲載されています。CISA KEV には現時点で未掲載です。
+公開から 1 日後に PoC が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。PoC ソース 4 件中 1 件（metasploit）に掲載されています。CISA KEV には現時点で未掲載です。
 
-### poc_time_unknown_3of3
+### poc_time_unknown_4of4
 keys: status.disclosed_at + status.patch.none + status.poc.all + status.kev.not_listed
-2026-11-04T21:16Z に公開されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースすべてに掲載されています。CISA KEV には現時点で未掲載です。
+2026-11-04T21:16Z に公開されました。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースすべてに掲載されています。CISA KEV には現時点で未掲載です。
+
+### poc_t30_github_only
+keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
+公開から 30 日後に PoC が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。PoC ソース 4 件中 1 件（github）に掲載されています。CISA KEV には現時点で未掲載です。
 
 ### patch_t3_known
 keys: status.lead.after.pat + status.patch.fixed + status.poc.none + status.kev.not_listed
-公開から 3 日後に修正版が確認されています。修正済みバージョンは a 1.0.1、b 2.0 です。3 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
+公開から 3 日後に修正版が確認されています。修正済みバージョンは a 1.0.1、b 2.0 です。4 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
 
 ### patch_same_day
 keys: status.lead.same_day + status.patch.no_version + status.poc.none + status.kev.not_listed
-公開当日に修正版が確認されています。修正の記録はありますが、ソースに修正済みバージョンの記載はありません。3 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
+公開当日に修正版が確認されています。修正の記録はありますが、ソースに修正済みバージョンの記載はありません。4 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
 
 ### patch_before_record_2d
 keys: status.lead.before.pat + status.patch.no_version + status.poc.none + status.kev.not_listed
-CVE レコード公開の 2 日前に修正版が確認されています。修正の記録はありますが、ソースに修正済みバージョンの記載はありません。3 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
+CVE レコード公開の 2 日前に修正版が確認されています。修正の記録はありますが、ソースに修正済みバージョンの記載はありません。4 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
 
 ### analysis_t2
 keys: status.lead.after.ana + status.patch.none + status.poc.none + status.kev.not_listed
-公開から 2 日後に技術解析が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
+公開から 2 日後に技術解析が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
 
 ### itw_t12
 keys: status.lead.after.itw + status.patch.none + status.poc.none + status.kev.not_listed
-公開から 12 日後に悪用が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
+公開から 12 日後に悪用が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
 
 ### itw_before_record_3d
 keys: status.lead.before.itw + status.patch.none + status.poc.none + status.kev.not_listed
-CVE レコード公開の 3 日前に悪用が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
+CVE レコード公開の 3 日前に悪用が確認されています。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
 
 ### patch_without_fixed_version
 keys: status.disclosed_at + status.patch.no_version + status.poc.none + status.kev.not_listed
-2026-11-04T21:16Z に公開されました。修正の記録はありますが、ソースに修正済みバージョンの記載はありません。3 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
+2026-11-04T21:16Z に公開されました。修正の記録はありますが、ソースに修正済みバージョンの記載はありません。4 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
 
 ### two_fixed_versions
 keys: status.disclosed_at + status.patch.fixed + status.poc.none + status.kev.not_listed
-2026-11-04T21:16Z に公開されました。修正済みバージョンは a 1、b 2 です。3 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
+2026-11-04T21:16Z に公開されました。修正済みバージョンは a 1、b 2 です。4 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
 
 ### many_fixed_versions
 keys: status.disclosed_at + status.patch.fixed_many + status.poc.none + status.kev.not_listed
-2026-11-04T21:16Z に公開されました。修正済みバージョンは a 1、b 2 など計 3 件です。3 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
+2026-11-04T21:16Z に公開されました。修正済みバージョンは a 1、b 2 など計 3 件です。4 つの PoC ソースのいずれにも未掲載です。CISA KEV には現時点で未掲載です。
 
 ### disclosure_unknown_kev_time_unknown
 keys: status.disclosure_unknown + status.kev.time_unknown + status.patch.none + status.poc.none
-公開日時は不明です。CISA KEV に掲載されていますが、追加日は不明です。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。3 つの PoC ソースのいずれにも未掲載です。
+公開日時は不明です。CISA KEV に掲載されていますが、追加日は不明です。nday はまだ修正の根拠を取得していません。修正がないという意味ではありません。4 つの PoC ソースのいずれにも未掲載です。
 
 ### rejected
 keys: status.rejected + status.disclosed_at
@@ -207,6 +211,10 @@ nuclei-templates が検知テンプレート「<span lang="en">X - Auth Bypass</
 ### nuclei_bare
 keys: ev.nuclei.added + ev.nuclei.no_time
 nuclei-templates が対応する検知テンプレートを収録。テンプレートの公開日時はソースに記載なし。
+
+### github_repo
+keys: ev.github.repo + ev.github.created
+GitHub の PoC リポジトリ：acme/CVE-2026-1-poc。日付はリポジトリの作成日。
 
 ### generic_itw
 keys: ev.generic

@@ -48,7 +48,7 @@ func TestSuggest(t *testing.T) {
 		if got.String() != want {
 			t.Errorf("q=%s: %s, want %s (%s)", q, got, want, b)
 		}
-		if resp.Header.Get("Cache-Control") != "public, max-age=60" || resp.Header.Get("ETag") == "" {
+		if resp.Header.Get("Cache-Control") != "private, max-age=60" || resp.Header.Get("ETag") == "" {
 			t.Errorf("q=%s: headers %v", q, resp.Header)
 		}
 	}

@@ -184,11 +184,16 @@ type ChartRow struct {
 	Code, Short, Class string
 	Marks              []ChartMark
 	Label              *ChartLabel
-	Empty              bool     // no event of this stage at all: "no record yet"
-	Unknown            []string // events without a time (right-hand column)
-	UnknownHollow      bool     // draw the hollow marker in the unknown column
-	UnknownText        string   // Unknown as a list in the locale
-	Aria               string   // accessible label of the row
+	Empty              bool       // no event of this stage at all: "no record yet"
+	Unknown            []string   // events without a time (right-hand column)
+	UnknownHollow      bool       // draw the hollow marker in the unknown column
+	UnknownText        string     // Unknown as a list in the locale
+	Aria               string     // accessible label of the row
+	Dots               []ChartDot // external items on this row (chartdots.go)
+	// Lane: the row has dots, drawn in a lane of their own under the stage
+	// marks; the row is taller (app.css "lane"), its label, marks and
+	// "time unknown" cell stay in the upper part.
+	Lane bool
 }
 
 // Chart is the lifecycle chart view model.
@@ -198,6 +203,10 @@ type Chart struct {
 	NowX  string
 	Grid  []string // x of grid lines
 	Rows  []ChartRow
+	// PostDots: researcher posts on the header's lower edge; Dots: every
+	// dot (header and rows), for the popovers (chartdots.go).
+	PostDots []ChartDot
+	Dots     []ChartDot
 }
 
 // markSpec is an input mark for buildRow.

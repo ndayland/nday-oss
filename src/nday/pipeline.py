@@ -27,7 +27,7 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from nday.collectors.base import Collector, NormalizeError
-from nday.models import CollectorState, Normalized, RawRecord, VulnUpsert
+from nday.models import CollectorState, Normalized, RawRecord, VulnUpsert, is_ghsa_id
 
 log = logging.getLogger(__name__)
 
@@ -103,9 +103,11 @@ def _save_state(
 # Numeric-aware "newest CVE first": year, then sequence number (CVE-2026-100000
 # sorts before CVE-2026-99999). vuln.cve_id is CHECKed to '^CVE-[0-9]{4}-[0-9]{4,}$',
 # so the casts cannot fail; numeric (not bigint) because the sequence is unbounded.
+# GHSA-keyed vulns (docs/ghsa.md) are not CVEs and are left out.
 _MISSING_CVES_SQL = """
 SELECT v.cve_id FROM vuln v
-WHERE NOT EXISTS (SELECT 1 FROM raw_record r
+WHERE v.cve_id LIKE 'CVE-%%'
+  AND NOT EXISTS (SELECT 1 FROM raw_record r
                   WHERE r.source = %(source)s AND r.source_key = v.cve_id)
 ORDER BY split_part(v.cve_id, '-', 2)::int DESC,
          split_part(v.cve_id, '-', 3)::numeric DESC
@@ -222,13 +224,22 @@ def apply_normalized(
     for v in norm.vulns:
         _upsert_vuln(conn, v, observed_at, stats)
     # Any CVE referenced by other rows gets at least a stub vuln (FK target).
+    # A GHSA id never gets a stub: rows for a GHSA id without a vuln row are
+    # skipped (a withdrawn advisory never stored stores nothing; docs/ghsa.md).
     known = {v.cve_id for v in norm.vulns}
+    skip: set[str] = set()
     for cve_id in sorted(
         {r.cve_id for r in (*norm.aliases, *norm.affected, *norm.events)} - known
     ):
+        if is_ghsa_id(cve_id):
+            if conn.execute("SELECT 1 FROM vuln WHERE cve_id = %s", (cve_id,)).fetchone() is None:
+                skip.add(cve_id)
+            continue
         _ensure_stub(conn, cve_id, observed_at, stats)
 
     for a in norm.aliases:
+        if a.cve_id in skip:
+            continue
         cur = conn.execute(
             """INSERT INTO vuln_alias (cve_id, alias, alias_type) VALUES (%s, %s, %s)
                ON CONFLICT (alias_type, alias) DO NOTHING""",
@@ -237,6 +248,8 @@ def apply_normalized(
         stats.alias_inserted += cur.rowcount
 
     for af in norm.affected:
+        if af.cve_id in skip:
+            continue
         cur = conn.execute(
             """INSERT INTO affected (cve_id, vendor, product) VALUES (%s, %s, %s)
                ON CONFLICT (cve_id, vendor, product) DO NOTHING""",
@@ -245,6 +258,8 @@ def apply_normalized(
         stats.affected_inserted += cur.rowcount
 
     for e in norm.events:
+        if e.cve_id in skip:
+            continue
         row = conn.execute(
             """INSERT INTO event (cve_id, type, occurred_at, observed_at, source, url,
                                   detail, is_backfill, dedupe_key)

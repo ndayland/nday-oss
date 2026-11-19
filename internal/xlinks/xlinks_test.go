@@ -31,6 +31,13 @@ func TestClassify(t *testing.T) {
 		{"https://www.github.com/acme/widget", "github.com", "code"},
 		{"https://github.com/acme/widget-poc/blob/main/exploit.py", "github.com", "code"},
 		{"https://github.com/advisories/GHSA-aaaa-bbbb-cccc", "github.com", "advisory"},
+		// a repository's own security advisories are advisories, not code
+		{"https://github.com/acme/widget/security/advisories/GHSA-gpwc-27cw-rh9r", "github.com", "advisory"},
+		{"https://www.github.com/acme/widget/security/advisories", "github.com", "advisory"},
+		{"https://github.com/acme/widget/security/advisories/", "github.com", "advisory"},
+		{"https://github.com/acme/widget/security/policy", "github.com", "code"},
+		{"https://github.com/acme/widget/security/advisories-list", "github.com", "code"},
+		{"https://github.com/acme/security/advisories", "github.com", "code"}, // the repository "security" of acme
 		{"https://github.com/acme", "github.com", "other"},
 		{"https://gist.github.com/someone/0123abcd", "gist.github.com", "code"},
 		{"https://gitlab.com/acme/widget", "gitlab.com", "code"},

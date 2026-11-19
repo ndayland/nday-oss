@@ -28,7 +28,8 @@
   const d = document;
   const nday = window.nday;
   if (!nday || !nday.me || !window.fetch || !window.URLSearchParams) return;
-  const CVE = /^CVE-\d{4}-\d{4,19}$/;
+  // the page's vulnerability id: a CVE id, or the GHSA id of an advisory without one
+  const CVE = /^(CVE-\d{4}-\d{4,19}|GHSA(-[23456789cfghjmpqrvwx]{4}){3})$/;
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
   const tpl = d.getElementById('acct-msgs');
   const $ = (id) => d.getElementById(id);
@@ -350,32 +351,37 @@
     });
   }
 
-  // ---- controls of one comment
-  function openSub(art, acts, from, tplID, setup, submit) {
-    const open = art.querySelector(':scope > .disc-sub');
-    if (open) {
-      const same = open.dataset.kind === tplID;
-      open.remove();
-      if (same) return;
-    }
+  // ---- controls of one comment. Reply, edit, report and hide open their
+  // form in a detail right under the actions (app.js "row details": one
+  // open per thread, Escape or cancel closes it and gives the focus back to
+  // its button, which app.js also focuses into the form). A form is built
+  // on its first opening and kept, with what was typed, until the page
+  // reloads.
+  let subN = 0;
+  function subBox(acts, from) {
+    const box = el('div', 'row-detail');
+    box.id = 'disc-x' + (++subN);
+    box.hidden = true;
+    from.setAttribute('data-rowx', '');
+    from.setAttribute('aria-expanded', 'false');
+    from.setAttribute('aria-controls', box.id);
+    acts.parentNode.appendChild(box);
+    return box;
+  }
+  // openSub runs on the button's click, before app.js opens the detail
+  function openSub(box, tplID, setup, submit) {
+    if (box.firstChild) return;
     const form = wire(clone(tplID));
-    form.dataset.kind = tplID;
-    acts.after(form);
+    box.appendChild(form);
     if (setup) setup(form);
-    form.querySelector('[data-act=cancel]').addEventListener('click', () => {
-      form.remove();
-      from.focus();
-    });
     onSubmit(form, submit);
-    const first = form.querySelector('textarea, select, input:not([type=checkbox])');
-    if (first) first.focus();
   }
 
   function attach(c, v) {
     if (!c || typeof c.id !== 'string' || !UUID.test(c.id)) return;
     const art = $('c-' + c.id);
     if (!art) return; // not rendered (yet) on this page
-    art.querySelectorAll(':scope > .cm-acts, :scope > .disc-sub, :scope > .cm-note, :scope > .cm-src, :scope > .cm-revs').forEach((el) => el.remove());
+    art.querySelectorAll(':scope > .cm-acts, :scope > .row-detail, :scope > .cm-note, :scope > .cm-src, :scope > .cm-revs').forEach((el) => el.remove());
     // the author of a hidden comment sees why; moderators see the source of
     // hidden and deleted comments (as text)
     if (c.status === 'hidden' && c.moderation && typeof c.moderation.hidden_reason === 'string') {
@@ -414,15 +420,20 @@
     const unhide = btn('unhide', c.can_unhide);
     if (![reply, edit, del, report, reported, hide, unhide].some((b) => !b.hidden)) return;
     art.appendChild(acts);
+    const boxOf = (b) => (b.hidden ? null : subBox(acts, b));
+    const replyBox = boxOf(reply);
+    const editBox = boxOf(edit);
+    const reportBox = boxOf(report);
+    const hideBox = boxOf(hide);
 
-    reply.addEventListener('click', () => openSub(art, acts, reply, 'disc-tpl-reply', null, async (form) => {
+    if (replyBox) reply.addEventListener('click', () => openSub(replyBox, 'disc-tpl-reply', null, async (form) => {
       const body = bodyOf(form);
       await acceptTerms(form);
       const j = await post('/api/discuss/' + cve, { body, lang: locale, parent_id: c.id });
       reload(j.comment && j.comment.id);
     }));
     let editSel = null;
-    edit.addEventListener('click', () => openSub(art, acts, edit, 'disc-tpl-edit', (form) => {
+    if (editBox) edit.addEventListener('click', () => openSub(editBox, 'disc-tpl-edit', (form) => {
       const ta = form.querySelector('textarea');
       ta.value = c.body;
       ta.dispatchEvent(new Event('input'));
@@ -436,25 +447,26 @@
       reload(c.id);
     }));
     del.addEventListener('click', () => {
-      if (!window.confirm(msg('disc.delete_confirm'))) return;
+      if (!nday.confirmStep(del, msg('disc.delete_confirm'))) return; // first click arms, second click deletes
       run(del, st, async () => {
         await post(commentPath(c.id, 'delete'));
         reload(c.parent_id || c.id);
       });
     });
-    report.addEventListener('click', () => openSub(art, acts, report, 'disc-tpl-report', null, async (form) => {
+    if (reportBox) report.addEventListener('click', () => openSub(reportBox, 'disc-tpl-report', null, async (form) => {
       const reason = form.querySelector('[data-f=reason]').value;
       const note = form.querySelector('[data-f=note]').value.trim();
       if (chars(note) > limits.max_note_chars) throw { code: 'bad_note' };
       const j = await post(commentPath(c.id, 'report'), note ? { reason, note } : { reason });
-      form.remove();
+      nday.rowClose(report, false);
+      reportBox.remove();
       report.hidden = true;
       reported.hidden = false;
       reported.setAttribute('tabindex', '-1');
       reported.focus(); // the form (and the focused control) is gone
       say(st, j.already_reported ? 'disc.report.already' : 'disc.report.done', null, 'ok');
     }));
-    hide.addEventListener('click', () => openSub(art, acts, hide, 'disc-tpl-hide', null, async (form) => {
+    if (hideBox) hide.addEventListener('click', () => openSub(hideBox, 'disc-tpl-hide', null, async (form) => {
       const reason = form.querySelector('[data-f=reason]').value.trim();
       if (!reason) throw { code: 'bad_reason' };
       await post(commentPath(c.id, 'hide'), { reason });
@@ -550,6 +562,18 @@
   const BODY = new Set(['p', 'br', 'pre', 'code', 'blockquote', 'ul', 'ol', 'li', 'em', 'strong', 'a']);
   const LINK = /^(https?:\/\/[\x21-\x7e]+|\/[A-Za-z0-9._~\-\/]*)$/;
   const REL = 'nofollow ugc noopener noreferrer';
+  // away: a link off the site (not this host, the site's other hosts or a
+  // subdomain of it) opens in a new tab
+  const ROOT = window.location.hostname.replace(/^www\./, '');
+  function away(href) {
+    let h;
+    try {
+      h = new URL(href, window.location.origin).hostname;
+    } catch (_) {
+      return true;
+    }
+    return !(h === ROOT || h.endsWith('.' + ROOT));
+  }
   // build appends body_nodes: strings become text nodes, objects elements of
   // the allowlist (a link only with an http(s) URL or a site path); anything
   // else is dropped.
@@ -570,6 +594,7 @@
       if (n.e === 'a') {
         e.setAttribute('href', target);
         e.setAttribute('rel', REL);
+        if (away(target)) e.target = '_blank';
       }
       build(e, n.c, depth + 1);
       parent.appendChild(e);
@@ -682,6 +707,7 @@
     const top = article(c);
     if (!top) return;
     const li = el('li', 'cm-thread');
+    li.setAttribute('data-rows', ''); // one open form per thread (app.js "row details")
     li.appendChild(top);
     const ol = el('ol', 'cm-replies');
     ol.setAttribute('aria-label', msg('disc.replies_label'));
@@ -775,6 +801,7 @@
   function xlink(a, href) {
     a.setAttribute('href', href);
     a.setAttribute('rel', XREL);
+    if (away(href)) a.target = '_blank';
   }
   // t.co links of a post text shown as where they lead (the posts
   // document of docs/, section on display): linkParts splits the text
@@ -865,6 +892,28 @@
     }
     return li;
   }
+  // the posts' dots on the lifecycle chart (app.js; chartdots.go): each
+  // line of a popover names a post of the outline (data-ri, its index, and
+  // data-day, its UTC day); a signed-in visitor also gets a short excerpt
+  // and the link to the post, when the post at that index is of that day.
+  const EXCERPT = 90;
+  function enrichDots(list) {
+    d.querySelectorAll('.dpop [data-ri]').forEach((li) => {
+      const p = list[Number(li.dataset.ri)];
+      if (!p || typeof p.posted_at !== 'string' || p.posted_at.slice(0, 10) !== li.dataset.day || li.querySelector('.dp-tx')) return;
+      const text = Array.from(String(p.text || '').replace(/\s+/g, ' ').trim());
+      if (text.length) {
+        // the excerpt is the link to the post (no separate "view on X")
+        const linked = typeof p.url === 'string' && XPOST.test(p.url);
+        const tx = el(linked ? 'a' : 'span', 'dp-tx');
+        if (linked) xlink(tx, p.url);
+        tx.setAttribute('dir', 'auto');
+        if (typeof p.lang === 'string' && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(p.lang)) tx.setAttribute('lang', p.lang);
+        tx.textContent = text.length > EXCERPT ? text.slice(0, EXCERPT - 1).join('') + '\u2026' : text.join('');
+        li.appendChild(tx);
+      }
+    });
+  }
   async function researchers(me) {
     const box = $('research');
     const rcve = (box && box.dataset.cve) || '';
@@ -891,6 +940,7 @@
       list.id = 'rsch-list';
       box.appendChild(list);
     }
+    enrichDots(j.posts);
     list.classList.remove('veil');
     list.replaceChildren();
     j.posts.forEach((p, i) => {

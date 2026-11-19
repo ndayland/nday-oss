@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -80,6 +81,10 @@ type hopt struct {
 	loc       *time.Location
 	xlookup   *xlookup.Client
 	settings  settings.Runtime
+	// ghLookup is admin.Options.GitHubLookup; stmtTimeout, when set, is the
+	// write pool's statement_timeout (`nday serve`'s auth pool: "5000")
+	ghLookup    func(context.Context, string) (int64, string, error)
+	stmtTimeout string
 }
 
 func newHarness(t *testing.T, o hopt) *harness {
@@ -89,6 +94,9 @@ func newHarness(t *testing.T, o hopt) *harness {
 	pc, err := pgx.ParseConfig(d.URL)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if o.stmtTimeout != "" {
+		pc.RuntimeParams["statement_timeout"] = o.stmtTimeout
 	}
 	pool := dbpool.New(pc, dbpool.Options{Size: 3, Dial: testutil.Dial(pc)})
 	t.Cleanup(pool.Close)
@@ -140,11 +148,13 @@ func newHarness(t *testing.T, o hopt) *harness {
 	}
 	h.adm, err = admin.New(admin.Options{Auth: svc, AuthDB: pool, ReadDB: readPool, Site: site.New(readPool), Discussions: ds != nil,
 		LogDir: o.logDir, Location: loc, Logger: log, Now: ck.Now, ActionLimit: big(), PageLimit: big(),
-		Pools: []admin.Pool{{Name: "test", Size: 3, Stats: pool.Stats}}, XLookup: o.xlookup, Settings: o.settings})
+		Pools: []admin.Pool{{Name: "test", Size: 3, Stats: pool.Stats}}, XLookup: o.xlookup, Settings: o.settings,
+		GitHubLookup: o.ghLookup})
 	if err != nil {
 		t.Fatal(err)
 	}
 	h.adm.Register(h.srv)
+	t.Cleanup(h.adm.WaitStateRefresh) // before the pools close
 	var disc webui.Discussions
 	if ds != nil {
 		disc = ds
@@ -226,7 +236,30 @@ func (b *browser) do(method, path, body string, hdr ...string) (*http.Response, 
 	if isAdminPath(path) {
 		checkPersonalHeaders(b.h.t, method+" "+path, resp)
 	}
+	checkPagerCounts(b.h.t, method+" "+path, string(data))
 	return resp, data
+}
+
+var (
+	pagerPosRe = regexp.MustCompile(`(?s)<nav class="pager"[^>]*>\s*<p class="pg-pos">(.*?)</p>`)
+	firstSpan  = regexp.MustCompile(`^<span>([^<]*)</span>`)
+	digitsRe   = regexp.MustCompile(`[0-9][0-9,.]*`)
+)
+
+// checkPagerCounts: every pager a page renders says how many pages its list
+// has (pager.page_of: the page number and the number of pages), unless the
+// page number itself is not known (no position at all).
+func checkPagerCounts(t *testing.T, what, body string) {
+	t.Helper()
+	for _, m := range pagerPosRe.FindAllStringSubmatch(body, -1) {
+		if m[1] == "" {
+			continue
+		}
+		s := firstSpan.FindStringSubmatch(m[1])
+		if s == nil || len(digitsRe.FindAllString(s[1], -1)) < 2 {
+			t.Errorf("%s: a pager without the number of pages: %s", what, m[1])
+		}
+	}
 }
 
 // isAdminPath: the back office's own routes, in any locale.

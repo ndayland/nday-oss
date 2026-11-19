@@ -16,7 +16,11 @@
 {{- end}}
 </form>
 <p class="note cex">{{t "cat.search.examples" "links" .Examples}}</p>
+{{- if .Landing}}
+<p class="note cex cbrowse"><a href="{{.BrowseHref}}">{{ts "cat.browse"}}</a></p>
+{{- end}}
 </div>
+{{- if not .Landing}}
 <nav class="cstages" aria-label="{{ts "hot.side.stages"}}">
 <ul>
 {{- range .Stages}}
@@ -24,7 +28,9 @@
 {{- end}}
 </ul>
 </nav>
+{{- end}}
 </div>
+{{- if not .Landing}}
 <details class="flt" open=""{{if .Custom}} data-keep=""{{end}}>
 <summary><span class="k">{{t "hot.filter.summary"}}</span>
 {{- with .YearLabel}} <span class="sep" aria-hidden="true">·</span> {{.}}{{end}}
@@ -58,10 +64,7 @@
 {{template "tagfilter" .}}
 </div>
 </details>
-<details class="apid">
-<summary>{{t "hot.api.summary"}}</summary>
-{{template "cmd" .Curl}}
-</details>
+<div class="pgr" id="r-cat" data-page-region="r-cat">
 <div class="tbl">
 <div class="tbl-in" role="table">
 {{template "hothead"}}
@@ -83,24 +86,15 @@
 {{- end}}
 </div>
 </div>
-{{- if or .NextHref .OnCursor}}
-<nav class="pager" aria-label="{{ts "pager.label"}}">
-{{- if .OnCursor}}
-<a href="{{.FirstHref}}">{{t "pager.first"}}</a>
-{{- end}}
-{{- if .NextHref}}
-<a href="{{.NextHref}}" rel="next">{{t "pager.next"}}</a>
-{{- else}}
-<span>{{t "pager.end"}}</span>
-{{- end}}
-</nav>
-{{- end}}
+{{template "pager" .Pager}}
+</div>
 <div class="legend">
 {{template "legend"}}
 {{- if not $.L.IsPrimary}}
 {{template "upstreamnote"}}
 {{- end}}
 </div>
+{{- end}}
 </main>
 </div>
 </div>

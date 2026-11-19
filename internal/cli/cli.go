@@ -26,6 +26,11 @@
 //	nday [-v] x-links-resolve [--limit N]           (expand pending t.co links of X posts: docs/xposts.md)
 //	nday [-v] x-links-enqueue                       (queue X post links for their page titles: docs/xposts.md)
 //	nday [-v] pages-fetch [--limit N]               (fetch queued third-party pages' titles: docs/webpages.md)
+//	nday [-v] github-enqueue                        (queue GitHub repositories linked from X posts: docs/github.md)
+//	nday [-v] github-fetch [--limit N]              (fetch queued repositories from the GitHub API: docs/github.md)
+//	nday [-v] github-discover [--max-requests N]    (find PoC repositories with the GitHub search API: docs/github.md)
+//	nday [-v] github-poc [--dry-run]                (backfill/repair the PoC events of trusted repositories: docs/github.md)
+//	nday [-v] site-icons [--limit N]                (fetch the icons of linked third-party sites: docs/siteicons.md)
 //	nday [-v] x-candidates [--limit N]              (allowlist candidates from X posts: docs/xposts.md)
 //	nday [-v] settings                              (database settings; secrets only on the admin pages)
 //	nday [-v] settings-set KEY VALUE --yes
@@ -82,7 +87,7 @@ type Env struct {
 	Now func() time.Time
 }
 
-const usage = `usage: nday [-h] [-v] {migrate,collect,renormalize,hot,status,refresh-state,serve,auth-gc,auth-role,auth-suspend,auth-unsuspend,discuss-hide,discuss-unhide,x-accounts-import,x-accounts-list,x-accounts-enable,x-accounts-disable,x-settings,x-drafts,x-links-resolve,x-links-enqueue,pages-fetch,x-candidates,settings,settings-set,settings-unset} ...`
+const usage = `usage: nday [-h] [-v] {migrate,collect,renormalize,hot,status,refresh-state,serve,auth-gc,auth-role,auth-suspend,auth-unsuspend,discuss-hide,discuss-unhide,x-accounts-import,x-accounts-list,x-accounts-enable,x-accounts-disable,x-settings,x-drafts,x-links-resolve,x-links-enqueue,pages-fetch,github-enqueue,github-fetch,github-discover,site-icons,x-candidates,settings,settings-set,settings-unset} ...`
 
 // Main runs the CLI and returns the exit code.
 func Main(ctx context.Context, args []string, env Env) int {
@@ -228,6 +233,8 @@ func run(ctx context.Context, args []string, env Env) error {
 		return runClassify(ctx, env, prog, rest)
 	case "tags": // classification + public events -> vuln_tag (tags.go, docs/tags.md)
 		return runTags(ctx, env, prog, rest)
+	case "titles": // composed titles -> vuln_title (titles.go, docs/titles.md)
+		return runTitles(ctx, env, prog, rest)
 	case "x-drafts": // stage events -> x_draft (xdrafts.go, docs/xposts.md)
 		return runXDrafts(ctx, env, prog, rest)
 	case "x-links-resolve": // pending t.co links -> x_post_link (xlinks.go, docs/xposts.md)
@@ -236,6 +243,16 @@ func run(ctx context.Context, args []string, env Env) error {
 		return runXLinksEnqueue(ctx, env, prog, rest)
 	case "pages-fetch": // web_page queue -> titles (xlinks.go, docs/webpages.md)
 		return runPagesFetch(ctx, env, prog, rest)
+	case "github-enqueue": // x_post_link -> github_repo queue (github.go, docs/github.md)
+		return runGitHubEnqueue(ctx, env, prog, rest)
+	case "github-fetch": // github_repo queue -> repository metadata (github.go, docs/github.md)
+		return runGitHubFetch(ctx, env, prog, rest)
+	case "github-discover": // GitHub search API -> github_repo (github.go, docs/github.md)
+		return runGitHubDiscover(ctx, env, prog, rest)
+	case "github-poc": // trusted repositories -> github PoC events (github.go, docs/github.md)
+		return runGitHubPoC(ctx, env, prog, rest)
+	case "site-icons": // linked hosts -> site_icon (siteicons.go, docs/siteicons.md)
+		return runSiteIcons(ctx, env, prog, rest)
 	case "x-candidates": // x_account_candidate list (xlinks.go, docs/xposts.md)
 		return runXCandidates(ctx, env, prog, rest)
 	case "stats-rollup": // access logs -> stats_* tables (stats.go, docs/stats.md)
@@ -271,7 +288,7 @@ func run(ctx context.Context, args []string, env Env) error {
 		}
 		return cmdServe(ctx, env, listen, tlsOpts)
 	}
-	return &usageError{"nday", fmt.Sprintf("argument command: invalid choice: '%s' (choose from 'migrate', 'collect', 'renormalize', 'hot', 'status', 'refresh-state', 'serve', 'auth-gc', 'auth-role', 'auth-suspend', 'auth-unsuspend', 'discuss-hide', 'discuss-unhide', 'x-accounts-import', 'x-accounts-list', 'x-accounts-enable', 'x-accounts-disable', 'x-settings', 'x-drafts', 'x-links-resolve', 'x-links-enqueue', 'pages-fetch', 'x-candidates', 'settings', 'settings-set', 'settings-unset')", cmd)}
+	return &usageError{"nday", fmt.Sprintf("argument command: invalid choice: '%s' (choose from 'migrate', 'collect', 'renormalize', 'hot', 'status', 'refresh-state', 'serve', 'auth-gc', 'auth-role', 'auth-suspend', 'auth-unsuspend', 'discuss-hide', 'discuss-unhide', 'x-accounts-import', 'x-accounts-list', 'x-accounts-enable', 'x-accounts-disable', 'x-settings', 'x-drafts', 'x-links-resolve', 'x-links-enqueue', 'pages-fetch', 'github-enqueue', 'github-fetch', 'github-discover', 'site-icons', 'x-candidates', 'settings', 'settings-set', 'settings-unset')", cmd)}
 }
 
 func sortedCopy(s []string) []string {
@@ -378,6 +395,7 @@ func cmdCollect(ctx context.Context, env Env, source string, factory collector.F
 	postRunXDrafts(ctx, conn, env)
 	if source == xposts.Name {
 		postRunXLinks(ctx, conn, env)
+		postRunGitHub(ctx, conn, env, envSnap)
 	}
 	return nil
 }

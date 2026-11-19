@@ -27,16 +27,16 @@ func TestRowTitleStates(t *testing.T) {
 		{"DIS known", slotsRecord([]site.Slot{known}), "上游未提供标题"},
 		{"search row", recordUnknown, "无标题"},
 	} {
-		title, missing, _ := rowTitle(zh, nil, sp(" "), c.rec)
+		title, missing, _, _ := rowTitle(zh, nil, sp(" "), site.TitleInfo{}, c.rec)
 		if title != c.title || !missing {
 			t.Errorf("%s: %q %v, want %q", c.name, title, missing, c.title)
 		}
 	}
-	if title, missing, _ := rowTitle(zh, nil, sp("x"), recordMissing); title != "x" || missing {
+	if title, missing, _, _ := rowTitle(zh, nil, sp("x"), site.TitleInfo{}, recordMissing); title != "x" || missing {
 		t.Errorf("a title is shown whatever the record state: %q %v", title, missing)
 	}
 	en := loc(t, "en")
-	if title, _, _ := rowTitle(en, nil, nil, recordPresent); strings.Contains(title, "not fetched") {
+	if title, _, _, _ := rowTitle(en, nil, nil, site.TitleInfo{}, recordPresent); strings.Contains(title, "not fetched") {
 		t.Errorf("record present but untitled says the record is missing: %q", title)
 	}
 }

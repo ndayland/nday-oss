@@ -1,0 +1,147 @@
+{{define "content"}}{{with .Data}}
+<div class="page">
+<div class="wrap">
+<main class="main adm" id="main" data-page="admin">
+{{template "adminhead" .}}
+{{- with .Body}}
+<section class="sec adm-gh" id="repos" aria-labelledby="h-gh">
+<h2 class="h2" id="h-gh"><span class="h" aria-hidden="true"># </span>{{t "admin.gh.list" "s" "unverified" "n" .UnverifiedN}}</h2>
+{{- if .Unverified.Rows}}
+{{template "ghrepos" .Unverified}}
+{{- else}}
+<p class="note">{{t "admin.none"}}</p>
+{{- end}}
+{{- if .TrustedN}}
+<details class="adm-hist" id="trusted"{{if .TrustedOpen}} open=""{{end}}><summary>{{t "admin.gh.list" "s" "trusted" "n" .TrustedN}}</summary>
+{{template "ghrepos" .Trusted}}
+</details>
+{{- end}}
+{{- if .RejectedN}}
+<details class="adm-hist" id="rejected"{{if .RejectedOpen}} open=""{{end}}><summary>{{t "admin.gh.list" "s" "rejected" "n" .RejectedN}}</summary>
+{{template "ghrepos" .Rejected}}
+</details>
+{{- end}}
+</section>
+{{template "ghowners" .Owners}}
+{{template "reauthpanel" .}}
+{{- end}}
+</main>
+</div>
+</div>
+{{end}}{{end}}
+
+{{define "ghrepos"}}<div class="adm-region" id="{{.Region}}" data-page-region="{{.Region}}" data-bulk="{{.Bulk.Kind}}">
+{{template "bulkbar" .Bulk}}
+<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+<thead><tr><th scope="col" class="adm-pick">{{template "pickall"}}</th><th scope="col">{{t "admin.gh.col" "c" "repo"}}</th>{{template "ghsort" .Stars}}<th scope="col">{{t "admin.gh.col" "c" "created"}}</th><th scope="col">{{t "admin.gh.col" "c" "cves"}}</th>{{template "ghsort" .Flags}}{{template "ghsort" .Found}}<th scope="col">{{t "admin.gh.col" "c" "actions"}}</th></tr></thead>
+<tbody>
+{{- $st := .Status}}
+{{- range .Rows}}
+<tr data-repo="{{.ID}}">
+<td class="adm-pick"><input type="checkbox" data-pick="" data-id="{{.ID}}" data-state="{{$st}}" aria-labelledby="lb-gh-{{.ID}}"/></td>
+<td><span id="lb-gh-{{.ID}}">{{if .Href}}<a href="{{.Href}}" target="_blank" rel="noopener noreferrer nofollow" dir="ltr">{{.FullName}}</a>{{else}}<bdi>{{.FullName}}</bdi>{{end}}</span>{{with .Desc}}<br/><span class="adm-clip dim" dir="auto">{{.}}</span>{{end}}</td>
+<td class="r">{{.Stars}}</td>
+<td>{{with .Created}}{{.}}{{else}}—{{end}}</td>
+<td>{{range $i, $c := .CVEs}}{{if $i}} {{end}}{{if $c.Href}}<a href="{{$c.Href}}">{{$c.ID}}</a>{{else}}<code>{{$c.ID}}</code>{{end}}{{end}}{{if .More}} {{t "admin.gh.more" "n" .More}}{{end}}</td>
+<td class="adm-words">{{range $i, $f := .Flags}}{{if $i}} · {{end}}{{t "admin.gh.flag" "f" $f}}{{end}}</td>
+<td class="adm-nw">{{range $i, $s := .Sources}}{{if $i}} · {{end}}{{t "admin.gh.source" "s" $s}}{{end}}</td>
+<td>
+<div class="adm-rowacts">
+{{- if eq $st "rejected"}}
+<button type="button" class="btn sm" data-act="ghtrust" data-r="{{.ID}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.gh.act" "a" "trust"}}</button>
+<button type="button" class="btn sm" data-act="ghreset" data-r="{{.ID}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.gh.act" "a" "reset"}}</button>
+{{- else if eq $st "trusted"}}
+<button type="button" class="btn sm" data-act="ghreset" data-r="{{.ID}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.gh.act" "a" "reset"}}</button>
+<button type="button" class="btn sm acct-del" data-act="ghreject" data-r="{{.ID}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.gh.act" "a" "reject"}}</button>
+{{- else}}
+<button type="button" class="btn sm" data-act="ghtrust" data-r="{{.ID}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.gh.act" "a" "trust"}}</button>
+<button type="button" class="btn sm acct-del" data-act="ghreject" data-r="{{.ID}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.gh.act" "a" "reject"}}</button>
+{{- end}}
+{{- if .Owner}}
+<span class="adm-st">{{t "admin.gh.owner" "s" .Owner}}</span>
+{{- else if .AddOwner}}
+<button type="button" class="btn sm" data-act="ghowner" data-r="{{.ID}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.gh.act" "a" "owner"}}</button>
+{{- end}}
+{{- if .Desc}}
+<button type="button" class="btn sm" data-rowx="" aria-expanded="false" aria-controls="{{.Detail}}">{{t "admin.row.more"}}</button>
+{{- end}}
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</td>
+</tr>
+{{- if .Desc}}
+<tr class="adm-detail" id="{{.Detail}}" hidden=""><td colspan="8"><div class="adm-dbox"><p dir="auto">{{.Desc}}</p>{{template "rowclose"}}</div></td></tr>
+{{- end}}
+{{- end}}
+</tbody>
+</table>
+</div>
+{{template "pager" .Pager}}
+</div>
+{{- end}}
+
+{{/* a sortable column's header (AdminGHSort): a link to the list in the column's next order, its state in aria-sort */}}
+{{define "ghsort"}}<th scope="col" class="adm-sort{{if .Right}} r{{end}}" aria-sort="{{.Aria}}"><a href="{{.Href}}">{{t "admin.gh.col" "c" .Col}}{{if eq .Aria "ascending"}}<span class="adm-sg" aria-hidden="true">▲</span>{{else if eq .Aria "descending"}}<span class="adm-sg" aria-hidden="true">▼</span>{{end}}</a></th>{{end}}
+
+{{/* the trusted accounts (AdminGHOwners): the X allowlist's row pattern; accounts are disabled, never deleted */}}
+{{define "ghowners"}}<section class="sec adm-gho" id="owners" aria-labelledby="h-gho">
+<h2 class="h2" id="h-gho"><span class="h" aria-hidden="true"># </span>{{t "admin.gho.h2" "n" .Total}}</h2>
+<div class="adm-region" id="r-gh-owners" data-page-region="r-gh-owners">
+{{- if .Rows}}
+<div class="tbl-x">
+<table class="aff adm-tbl adm-wide">
+<thead><tr><th scope="col">{{t "admin.gho.col" "c" "login"}}</th><th scope="col">{{t "admin.gho.col" "c" "note"}}</th><th scope="col">{{t "admin.gho.col" "c" "x"}}</th><th scope="col" class="r">{{t "admin.gho.col" "c" "repos"}}</th><th scope="col">{{t "admin.gho.col" "c" "state"}}</th><th scope="col">{{t "admin.gho.col" "c" "added"}}</th><th scope="col">{{t "admin.gho.col" "c" "actions"}}</th></tr></thead>
+<tbody>
+{{- $max := .MaxNote}}
+{{- range .Rows}}
+<tr data-gho="{{.ID}}">
+<td>{{if .Href}}<a href="{{.Href}}" target="_blank" rel="noopener noreferrer nofollow" dir="ltr">{{.Login}}</a>{{else}}<bdi>{{.Login}}</bdi>{{end}}</td>
+<td><span class="adm-clip" dir="auto">{{.Note}}</span></td>
+<td>{{if .XHandle}}<a href="{{.XHref}}">@{{.XHandle}}</a>{{else}}—{{end}}</td>
+<td class="r">{{.Trusted}} / {{.Repos}}</td>
+<td class="adm-nw"><span class="adm-st {{if .Enabled}}active{{else}}suspended{{end}}">{{t "admin.x.state" "s" .State}}</span>{{if .Pending}} <span class="adm-st">{{t "admin.gho.pending"}}</span>{{end}}</td>
+<td>{{.Created.HTML}}</td>
+<td>
+<div class="adm-rowacts">
+<button type="button" class="btn sm" data-rowx="" aria-expanded="false" aria-controls="{{.Detail}}">{{t "admin.x.edit"}}</button>
+{{- if .Enabled}}
+<button type="button" class="btn sm acct-del" data-act="ghodisable" data-o="{{.ID}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.x.disable"}}</button>
+{{- else}}
+<button type="button" class="btn sm" data-act="ghoenable" data-o="{{.ID}}" data-confirm="{{ts "btn.confirm"}}">{{t "admin.x.enable"}}</button>
+{{- end}}
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</td>
+</tr>
+<tr class="adm-detail" id="{{.Detail}}" hidden=""><td colspan="7"><div class="adm-dbox">
+<form class="acct-form adm-ghoedit" data-o="{{.ID}}" novalidate="">
+<div class="acct-row">
+<input class="acct-in" type="text" name="note" value="{{.Note}}" maxlength="{{$max}}" autocomplete="off" aria-label="{{ts "admin.gho.col" "c" "note"}}" placeholder="{{ts "admin.gho.col" "c" "note"}}"/>
+<input class="acct-in" type="text" name="x_handle" value="{{.XHandle}}" maxlength="16" autocomplete="off" spellcheck="false" autocapitalize="none" aria-label="{{ts "admin.gho.col" "c" "x"}}" placeholder="{{ts "admin.gho.col" "c" "x"}}"/>
+<button type="submit" class="btn sm">{{t "admin.x.save"}}</button>
+<button type="button" class="btn sm" data-rowx-close="">{{t "acct.cancel"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</div></td></tr>
+{{- end}}
+</tbody>
+</table>
+</div>
+{{template "pager" .Pager}}
+{{- else}}
+<p class="note">{{t "admin.none"}}</p>
+{{- end}}
+</div>
+<form class="acct-form" id="f-ghoadd" novalidate="">
+<div class="acct-row">
+<input class="acct-in" id="gho-add-login" type="text" maxlength="39" autocomplete="off" spellcheck="false" autocapitalize="none" aria-label="{{ts "admin.gho.col" "c" "login"}}" placeholder="{{ts "admin.gho.col" "c" "login"}}"/>
+<input class="acct-in" id="gho-add-note" type="text" maxlength="{{.MaxNote}}" autocomplete="off" aria-label="{{ts "admin.gho.col" "c" "note"}}" placeholder="{{ts "admin.gho.col" "c" "note"}}"/>
+<input class="acct-in" id="gho-add-x" type="text" maxlength="16" autocomplete="off" spellcheck="false" autocapitalize="none" aria-label="{{ts "admin.gho.col" "c" "x"}}" placeholder="{{ts "admin.gho.col" "c" "x"}}"/>
+<button type="submit" class="btn" data-confirm="{{ts "btn.confirm"}}">{{t "admin.x.add"}}</button>
+</div>
+<p class="acct-st" role="status" aria-live="polite"></p>
+</form>
+</section>
+{{- end}}

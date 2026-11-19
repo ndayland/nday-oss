@@ -90,6 +90,11 @@ func TestRenderCases(t *testing.T) {
 		{"cve", "see cve-2024-12345, CVE-2024-1", `<p>see <a href="/zh-hans/vuln/CVE-2024-12345"` + rel + `>cve-2024-12345</a>, CVE-2024-1</p>` + "\n", nil},
 		{"cve glued", "xCVE-2024-1234 CVE-2024-1234x /CVE-2024-1234 CVE-2024-1234_", "<p>xCVE-2024-1234 CVE-2024-1234x /CVE-2024-1234 CVE-2024-1234_</p>\n", nil},
 		{"cve in url", "https://nvd.nist.gov/vuln/detail/CVE-2024-1234", `<p><a href="https://nvd.nist.gov/vuln/detail/CVE-2024-1234"` + rel + `>https://nvd.nist.gov/vuln/detail/CVE-2024-1234</a></p>` + "\n", nil},
+		{"ghsa", "see ghsa-GPWC-27cw-rh9r, GHSA-gpwc-27cw-rh9", `<p>see <a href="/zh-hans/vuln/GHSA-gpwc-27cw-rh9r"` + rel + `>ghsa-GPWC-27cw-rh9r</a>, GHSA-gpwc-27cw-rh9</p>` + "\n", nil},
+		{"ghsa glued", "xGHSA-gpwc-27cw-rh9r GHSA-gpwc-27cw-rh9rx /GHSA-gpwc-27cw-rh9r GHSA-gpwc-27cw-rh9r_ GHSA-aaaa-27cw-rh9r GHSAgpwc-27cw-rh9r", "<p>xGHSA-gpwc-27cw-rh9r GHSA-gpwc-27cw-rh9rx /GHSA-gpwc-27cw-rh9r GHSA-gpwc-27cw-rh9r_ GHSA-aaaa-27cw-rh9r GHSAgpwc-27cw-rh9r</p>\n", nil},
+		{"ghsa in url", "https://github.com/advisories/GHSA-gpwc-27cw-rh9r", `<p><a href="https://github.com/advisories/GHSA-gpwc-27cw-rh9r"` + rel + `>https://github.com/advisories/GHSA-gpwc-27cw-rh9r</a></p>` + "\n", nil},
+		{"ghsa cjk links off", "参见GHSA-gpwc-27cw-rh9r。", `<p>参见<a href="/zh-hans/vuln/GHSA-gpwc-27cw-rh9r"` + rel + `>GHSA-gpwc-27cw-rh9r</a>。</p>` + "\n", &off},
+		{"ghsa end of text", "GHSA-gpwc-27cw-rh9", "<p>GHSA-gpwc-27cw-rh9</p>\n", nil},
 		{"cve cjk", "参见CVE-2024-1234。", `<p>参见<a href="/zh-hans/vuln/CVE-2024-1234"` + rel + `>CVE-2024-1234</a>。</p>` + "\n", nil},
 		{"links off link", "[x](https://e.com) https://e.com/y CVE-2024-1234", `<p>[x](https://e.com) https://e.com/y <a href="/zh-hans/vuln/CVE-2024-1234"` + rel + `>CVE-2024-1234</a></p>` + "\n", &off},
 		{"links off emphasis kept", "*a* [**b**](http://e.com)", "<p><em>a</em> [<strong>b</strong>](http://e.com)</p>\n", &off},
@@ -313,6 +318,8 @@ func pathological(n int) map[string]string {
 		"urls":            strings.Repeat("http://a ", n/9),
 		"cves":            strings.Repeat("CVE-2024-1234 ", n/14),
 		"cve digits":      "CVE-2024-" + strings.Repeat("1", n),
+		"ghsas":           strings.Repeat("GHSA-gpwc-27cw-rh9r ", n/20),
+		"ghsa prefixes":   strings.Repeat("GHSA-gpwc-27cw-", n/15),
 		"quotes":          strings.Repeat("> a\n", n/4),
 		"nested quotes":   strings.Repeat(">", n),
 		"lists":           strings.Repeat("- a\n", n/4),
@@ -386,11 +393,33 @@ func BenchmarkRender10kPathological(b *testing.B) {
 }
 
 // The number of CVE links per document is capped.
+// TestNewTab: Options.NewTab adds target="_blank" to the absolute links it
+// accepts, never to site paths; without it there is no target.
+func TestNewTab(t *testing.T) {
+	o := on
+	o.NewTab = func(href string) bool { return !strings.HasPrefix(href, "https://www.nday.land/") }
+	in := "[a](https://e.com/x) https://f.com/y https://www.nday.land/about CVE-2026-1234"
+	want := `<p><a href="https://e.com/x"` + rel + ` target="_blank">a</a> <a href="https://f.com/y"` + rel +
+		` target="_blank">https://f.com/y</a> <a href="https://www.nday.land/about"` + rel + `>https://www.nday.land/about</a> <a href="/zh-hans/vuln/CVE-2026-1234"` +
+		rel + `>CVE-2026-1234</a></p>` + "\n"
+	if got := Render(in, o); got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
+	}
+	if got := Render(in, on); strings.Contains(got, "target") {
+		t.Errorf("target without NewTab: %q", got)
+	}
+}
+
 func TestCVELinkCap(t *testing.T) {
 	in := strings.Repeat("CVE-0000-0000 ", 714)
 	out := Render(in, on)
 	if n := strings.Count(out, "<a "); n != MaxCVELinks {
 		t.Errorf("%d CVE links, want %d", n, MaxCVELinks)
+	}
+	// CVE and GHSA ids share the cap
+	mixed := Render(strings.Repeat("CVE-0000-0000 GHSA-gpwc-27cw-rh9r ", 40), on)
+	if n := strings.Count(mixed, "<a "); n != MaxCVELinks || !strings.Contains(mixed, "/vuln/GHSA-gpwc-27cw-rh9r") {
+		t.Errorf("mixed: %d links, want %d", n, MaxCVELinks)
 	}
 	if len(out) > 20000 {
 		t.Errorf("%d bytes for %d", len(out), len(in))

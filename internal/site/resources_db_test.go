@@ -101,6 +101,47 @@ func TestResources(t *testing.T) {
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("resources:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
+	// first mentioned: the UTC day of the earliest (enabled) post per link;
+	// no publication time without migration data
+	got = nil
+	for _, r := range rs {
+		got = append(got, r.URL+"|"+r.FirstMentioned)
+		if r.Published != nil || r.PublishedPrecision != "" {
+			t.Errorf("%s: published %v %q before any was stored", r.URL, r.Published, r.PublishedPrecision)
+		}
+	}
+	want = []string{"https://www.exploit-db.com/exploits/1|2026-11-11", "https://exploit-db.com/exploits/2|2026-11-12",
+		"https://github.com/o/r/commit/abc|2026-11-10", "https://msrc.microsoft.com/update-guide/x|2026-11-12",
+		"https://github.com/o/r|2026-11-12", "https://example.com/post#frag|2026-11-10", "https://example.com/a|2026-11-12"}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("first mentioned:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	// publication times of 'ok' pages only (also for a link with an API title)
+	for _, q := range []string{
+		`UPDATE web_page SET published_at = '2026-11-01 10:00:00+02', published_precision = 'exact', published_source = 'json-ld'
+			WHERE url_key = 'https://exploit-db.com/exploits/2'`,
+		`UPDATE web_page SET published_at = '2026-10-30', published_precision = 'day', published_source = 'meta:date'
+			WHERE url_key IN ('https://github.com/o/r/commit/abc', 'https://msrc.microsoft.com/update-guide/x')`,
+	} {
+		if _, err := d.Conn.Exec(ctx, q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rs, err = st.Resources(ctx, sitetest.GPU)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub := map[string]string{}
+	for _, r := range rs {
+		if r.Published != nil {
+			pub[r.URL] = r.Published.Format(time.RFC3339) + " " + r.PublishedPrecision
+		}
+	}
+	if len(pub) != 2 || pub["https://exploit-db.com/exploits/2"] != "2026-11-01T08:00:00Z exact" ||
+		pub["https://github.com/o/r/commit/abc"] != "2026-10-30T00:00:00Z day" || rs[1].Title != "Fetched EDB &amp; co" || rs[2].Title != "QZTITLE" {
+		t.Errorf("published: %v", pub)
+	}
+
 	// none for a CVE without links; [] not nil
 	rs, err = st.Resources(ctx, "CVE-2026-1003")
 	if err != nil || rs == nil || len(rs) != 0 {
@@ -173,5 +214,19 @@ func TestResourcesFor(t *testing.T) {
 	}
 	if got := site.ResourcesFor(nil); got == nil || len(got) != 0 {
 		t.Errorf("empty: %v", got)
+	}
+}
+
+// TestResourcesFirstMentioned: the earliest day of a key's rows, whatever
+// the spelling of the URL; "" when no row has a day.
+func TestResourcesFirstMentioned(t *testing.T) {
+	rs := site.ResourcesFor([]site.ResourceLink{
+		{URL: "https://a.example/x", Kind: "other", Author: "1", Day: "2026-11-05"},
+		{URL: "https://A.example/x/", Kind: "other", Author: "2", Day: "2026-11-03"},
+		{URL: "https://a.example/x#f", Kind: "other", Author: "3", Day: "2026-11-09"},
+		{URL: "https://b.example/", Kind: "patch", Author: "1"},
+	})
+	if len(rs) != 2 || rs[0].FirstMentioned != "" || rs[1].FirstMentioned != "2026-11-03" {
+		t.Errorf("%+v", rs)
 	}
 }

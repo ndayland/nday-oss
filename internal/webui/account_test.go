@@ -297,6 +297,134 @@ func TestAccountPagesNotPersonal(t *testing.T) {
 	}
 }
 
+// TestAccountAPIPane: the account page's Developer section (#developer; its
+// tokens block keeps the id #api the section had) holds the token and feed controls, empty in
+// the HTML (account.js fills them; the secret is never in the markup), and
+// the data API reference, each example sending the token header; healthz is
+// not listed. With an API host, the reference names NDAY_API_URL/v1.
+func TestAccountAPIPane(t *testing.T) {
+	e := newEnvFull(t, web.Config{PublicURL: "https://www.nday.land", APIURL: "https://api.nday.land"},
+		webui.Options{Accounts: allAccounts})
+	curl := "curl -s -H &#34;Authorization: Bearer $NDAY_TOKEN&#34; "
+	resp, body := e.get(t, "/account")
+	if resp.StatusCode != 200 {
+		t.Fatalf("/account %d", resp.StatusCode)
+	}
+	for _, want := range []string{
+		"<li><a href=\"#security\">Security</a></li>\n<li><a href=\"#developer\">Developer</a></li>\n<li><a href=\"#account\">Account</a></li>\n</ul>",
+		`<section class="acct-sec" id="developer" data-pane="developer" aria-labelledby="h-developer">`,
+		`<section class="acct-sec acct-sub" id="api" aria-labelledby="h-tok">`,
+		`<table class="aff acct-pk" id="tok-table" aria-labelledby="h-tok" hidden="">`, `<tbody id="tok-rows"></tbody>`,
+		`<div class="acct-secret" id="tok-new" hidden="">`, `<code id="tok-secret"></code><button type="button" class="btn sm" data-copy="" hidden="">copy</button>`,
+		`<input class="acct-in" id="in-tok-name" type="text" maxlength="64" required=""`, `<p class="note" id="tok-full" hidden="">`,
+		`<div class="cmd sm" id="feed-box" hidden=""><code id="feed-url"></code>`, `<button type="button" class="btn" id="b-feed-reset" data-confirm="confirm" title="The old address stops working.">`,
+		"GET /v1/hot", "GET /v1/vuln/{cve}", "GET /v1/search", "GET /v1/tags", "GET /v1/sources", "GET /v1/stats",
+		"GET /v1/raw/{source}/{key}.json", "GET /feed.xml",
+		`<div class="ep-n">GET /v1/hot</div>`,
+		curl + "&#39;https://api.nday.land/v1/hot?since=7d&amp;min_stage=patch&#39;",
+		curl + "https://api.nday.land/v1/raw/kev/CVE-2026-102895.json", curl + "https://www.nday.land/feed.xml",
+		"For a feed reader, use the private address above.",
+		`<span data-k="btn.confirm">confirm</span>`, `<span data-k="acct.err.token_limit">`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("/account missing %q", want)
+		}
+	}
+	// nothing personal or retired in the markup
+	// (an endpoint's name is text, not a link: a browser cannot send the token)
+	for _, bad := range []string{"nday_", "?key=", "healthz", "about#api", `data-copy="nday`, `href="https://api.nday.land/v1/`} {
+		if strings.Contains(body, bad) {
+			t.Errorf("/account contains %q", bad)
+		}
+	}
+	_, body = e.get(t, "/ja/account")
+	for _, want := range []string{"GET /v1/hot", curl + "https://api.nday.land/v1/stats", curl + "https://www.nday.land/ja/feed.xml",
+		`<a href="#developer">`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("/ja/account missing %q", want)
+		}
+	}
+	// account.js never keeps the secret: no storage, no URL
+	b, err := os.ReadFile("static/account.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{"localStorage", "sessionStorage", "history.replaceState", "location.hash ="} {
+		if strings.Contains(string(b), bad) {
+			t.Errorf("account.js contains %q", bad)
+		}
+	}
+}
+
+// TestAccountSections: the account page has five sections in menu order;
+// the blocks inside keep the ids of the sections they were before the
+// grouping (old links and ?pane= values select their section through them),
+// and every page has the words of the header account menu.
+func TestAccountSections(t *testing.T) {
+	e := newAccountsEnv(t, allAccounts)
+	_, body := e.get(t, "/account")
+	last := -1
+	for _, s := range []string{"profile", "follows", "security", "developer", "account"} {
+		tag := `<section class="acct-sec" id="` + s + `" data-pane="` + s + `" aria-labelledby="h-` + s + `">`
+		i := strings.Index(body, tag)
+		if i < 0 || i < last {
+			t.Errorf("/account: section %s missing or out of order", s)
+		}
+		last = i
+		if !strings.Contains(body, `<h2 class="h2" id="h-`+s+`">`) || !strings.Contains(body, `<li><a href="#`+s+`">`) {
+			t.Errorf("/account: section %s has no h2 or menu item", s)
+		}
+	}
+	if n := strings.Count(body, `data-pane="`); n != 5 {
+		t.Errorf("/account: %d sections, want 5", n)
+	}
+	for old, sec := range map[string]string{"methods": "security", "passkeys": "security", "sessions": "security",
+		"api": "developer", "terms": "account", "delete": "account"} {
+		i := strings.Index(body, ` id="`+old+`"`)
+		open := `id="` + sec + `" data-pane=`
+		j := strings.Index(body, open)
+		if i < 0 || j < 0 || i < j || strings.Contains(body[j+len(open):i], "data-pane=") {
+			t.Errorf("/account: block #%s not inside section #%s", old, sec)
+		}
+	}
+	for _, bad := range []string{"acct-mdel", "sec-terms", `data-pane="api"`, `data-pane="delete"`} {
+		if strings.Contains(body, bad) {
+			t.Errorf("/account contains %q", bad)
+		}
+	}
+	for _, p := range []string{"/", "/account", "/zh-hans/vuln"} {
+		_, b := e.get(t, p)
+		for _, k := range []string{"acct.profile.h2", "acct.follows.h2", "acct.security.h2", "acct.developer.h2",
+			"admin.slot", "acct.menu.signout"} {
+			if !strings.Contains(b, `<span data-k="`+k+`"`) {
+				t.Errorf("%s: no message %s for the account menu", p, k)
+			}
+		}
+	}
+	_, zh := e.get(t, "/zh-hans/account")
+	for _, want := range []string{`<a href="#security">安全</a>`, `<a href="#developer">开发者</a>`, `<a href="#account">账号</a>`} {
+		if !strings.Contains(zh, want) {
+			t.Errorf("/zh-hans/account missing %q", want)
+		}
+	}
+	// the header menu: built by app.js, its items link to the sections
+	b, err := os.ReadFile("static/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := string(b)
+	for _, want := range []string{"sum.setAttribute('aria-haspopup', 'menu');", "ul.setAttribute('role', 'menu');",
+		"accountPath + '#profile'", "accountPath + '#follows'", "accountPath + '#security'", "accountPath + '#developer'",
+		"var path = '/auth/signout';", "'X-CSRF-Token': csrf"} {
+		if !strings.Contains(app, want) {
+			t.Errorf("app.js: missing %q", want)
+		}
+	}
+	if strings.Contains(app, "acct-admin") {
+		t.Error("app.js: the separate admin link is back")
+	}
+}
+
 func TestAccountRobots(t *testing.T) {
 	e := newAccountsEnv(t, allAccounts)
 	_, body := e.get(t, "/robots.txt")
@@ -305,6 +433,59 @@ func TestAccountRobots(t *testing.T) {
 		"Disallow: /zh-hans/welcome\n"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("robots.txt missing %q:\n%s", want, body)
+		}
+	}
+}
+
+// TestReauthDialog: the account page has the shared re-verification dialog
+// (parts.tmpl "reauthpanel": one button per provider and the passkey one,
+// no explanatory paragraph), and its controller lives once, in app.js; the
+// page scripts only pass their request callbacks (the CSRF token stays
+// with them) and no longer move or show a panel themselves.
+func TestReauthDialog(t *testing.T) {
+	e := newAccountsEnv(t, allAccounts)
+	resp, body := e.get(t, "/account")
+	if resp.StatusCode != 200 {
+		t.Fatalf("/account %d", resp.StatusCode)
+	}
+	for _, want := range []string{`<dialog class="dlg" id="reauth" aria-labelledby="reauth-h">`,
+		`<h2 class="h2" id="reauth-h">`, `data-reauth="google"`, `data-reauth="x"`, `data-reauth="passkey"`,
+		`id="reauth-none"`, `id="reauth-close"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("/account missing %q", want)
+		}
+	}
+	for _, bad := range []string{"acct-panel", "acct.reauth.lede", "you will come back to this page"} {
+		if strings.Contains(body, bad) {
+			t.Errorf("/account contains %q", bad)
+		}
+	}
+	if n := strings.Count(body, `id="reauth"`); n != 1 {
+		t.Errorf("/account: %d re-verification dialogs, want 1", n)
+	}
+	read := func(name string) string {
+		b, err := os.ReadFile("static/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	app := read("app.js")
+	for _, want := range []string{"nday.reauthDialog = function (o) {", "dlg.showModal()"} {
+		if strings.Count(app, want) != 1 {
+			t.Errorf("app.js: %q %d times, want once", want, strings.Count(app, want))
+		}
+	}
+	for _, name := range []string{"account.js", "admin.js"} {
+		src := read(name)
+		if !strings.Contains(src, "nday.reauthDialog({") {
+			t.Errorf("%s does not use nday.reauthDialog", name)
+		}
+		for _, bad := range []string{"showModal", "acct-panel", "reauthFrom", "panel.hidden", "appendChild(panel", "$('reauth')",
+			"getElementById('reauth')"} {
+			if strings.Contains(src, bad) {
+				t.Errorf("%s contains %q (the dialog is app.js's)", name, bad)
+			}
 		}
 	}
 }
@@ -357,13 +538,30 @@ func TestScriptsAreSafe(t *testing.T) {
 		}
 	}
 	app := read("app.js")
-	// app.js never navigates on its own (the ?auth= result only shows a banner).
-	for _, bad := range []string{"location.replace", "location.assign", "data-bounce"} {
+	// app.js never navigates on its own (the ?auth= result only shows a
+	// banner), except paging in place: a page link it could not follow in
+	// place (docs/pagination.md) is followed normally, once, by its own URL.
+	for _, bad := range []string{"location.replace", "data-bounce"} {
 		if strings.Contains(app, bad) {
 			t.Errorf("app.js contains %q", bad)
 		}
 	}
+	if n := strings.Count(app, "location.assign("); n != 1 || !strings.Contains(app, "if (url !== null && !pushed) window.location.assign(url);") {
+		t.Errorf("app.js: %d location.assign calls, want the one fallback of paging", n)
+	}
+	// The one parser of app.js: paging reads a page of the same path (a
+	// same-origin GET, checked to be 200 text/html) into an inert document
+	// and only imports its region nodes; no markup string reaches the page.
+	pagingParse := "var doc = new window.DOMParser().parseFromString(text, 'text/html');"
+	if strings.Count(app, "DOMParser") != 2 || strings.Count(app, "parseFromString") != 1 || !strings.Contains(app, pagingParse) ||
+		!strings.Contains(app, "if (pathOf(a) !== window.location.pathname) return;") ||
+		!strings.Contains(app, "if (r.status !== 200 || r.redirected || type !== 'text/html') throw new Error(String(r.status));") {
+		t.Error("app.js: DOMParser used other than by paging (same path, 200 text/html)")
+	}
 	for _, bad := range append(sinks, "document.cookie", "http://", "https://") {
+		if bad == "DOMParser" || bad == "parseFromString" {
+			continue // checked above
+		}
 		if strings.Contains(app, bad) {
 			t.Errorf("app.js contains %q", bad)
 		}
@@ -440,7 +638,7 @@ func TestScriptsAreSafe(t *testing.T) {
 		seen = append(seen, p[1])
 	}
 	sort.Strings(seen)
-	allowed := regexp.MustCompile(`^/(api/me|api/affected/suggest|api/posts/|api/discuss/|api/discuss/comment/|api/mod/comment/|auth/(signout|signout-all|passkey/(login|signup|register)/(begin|finish))|auth/|account/|account/(handle|locale|delete|accept-terms|passkeys/|follows|follows/match))$`)
+	allowed := regexp.MustCompile(`^/(api/me|api/affected/suggest|api/posts/|api/discuss/|api/discuss/comment/|api/mod/comment/|auth/(signout|signout-all|passkey/(login|signup|register)/(begin|finish))|auth/|account/|account/(handle|locale|delete|accept-terms|passkeys/|follows|follows/match|tokens|tokens/|feed|feed/rotate))$`)
 	for _, p := range seen {
 		if !allowed.MatchString(p) {
 			t.Errorf("script uses undocumented path %s", p)

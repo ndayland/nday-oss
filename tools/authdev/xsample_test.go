@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"nday.land/nday/internal/ghrepo"
 	"nday.land/nday/internal/testutil"
 	"nday.land/nday/internal/xconfig"
 )
@@ -50,5 +51,11 @@ func TestXSampleCandidates(t *testing.T) {
 	}
 	if got := ids("pending"); !slices.Equal(got, []string{"4001 ivan_re", "4003 -"}) {
 		t.Errorf("after a re-run: %v", got)
+	}
+	// sample repositories found by search, one per review status
+	for st, want := range map[string]int{"unverified": 2, "trusted": 3, "rejected": 1} {
+		if n, err := ghrepo.CountReview(ctx, d.Conn, st); err != nil || n != want {
+			t.Errorf("review %s: %d %v", st, n, err)
+		}
 	}
 }

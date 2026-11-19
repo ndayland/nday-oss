@@ -82,7 +82,7 @@ func BuildFeed(l *i18n.Locale, page *site.HotPage, baseURL string, now time.Time
 		if at.After(updated) {
 			updated = at
 		}
-		title, _, _ := rowTitle(l, r.TitleZh, r.Title, slotsRecord(r.Slots))
+		title, _, _, _ := rowTitle(l, r.TitleZh, r.Title, r.TitleInfo, slotsRecord(r.Slots))
 		vendor, _ := ProductLine(l, r.Products, r.ProductCount, 2)
 		stage := r.Transition.Code
 		if !knownStage(stage) {
@@ -140,7 +140,10 @@ func (u *UI) feed(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 	body := v.([]byte)
 	h := w.Header()
 	h.Set("Content-Type", "application/atom+xml; charset=utf-8")
-	h.Set("Cache-Control", "public, max-age=300")
+	// personal: reached only through web.Gate (session, API token or the
+	// private feed key), so no shared cache may keep it. The body itself is
+	// the same for everyone (the in-process cache key has no credential).
+	h.Set("Cache-Control", "private, no-store")
 	h.Set("Content-Length", strconv.Itoa(len(body)))
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(body)

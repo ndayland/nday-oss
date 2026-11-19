@@ -1,4 +1,4 @@
-// Package xposts collects posts on X (Twitter) that mention CVE ids, from a
+// Package xposts collects posts on X (Twitter) that mention CVE or GHSA ids, from a
 // hand-maintained allowlist of accounts, through the official X API v2
 // recent search endpoint with an app-only Bearer token. Nothing else: no
 // scraping, no other endpoints, no browser automation. Go only (there is no
@@ -22,7 +22,7 @@
 // Fetch: the enabled accounts, ordered by numeric id, are packed into as few
 // queries as fit in max_query_length characters:
 //
-//	(from:handle1 OR from:handle2 ...) CVE -is:retweet
+//	(from:handle1 OR from:handle2 ...) (CVE OR GHSA) -is:retweet
 //
 // The docs only show from:<username> (see docs/xposts.md), so the query uses
 // the handle; the numeric id stays the key: posts whose author_id is not an
@@ -39,14 +39,20 @@
 // storage; every other returned post is stored as a raw record, whether or
 // not it names a CVE id (the search already returned and billed it).
 //
-// Normalize: one social_post event per (post, CVE id in the text):
+// Normalize: one social_post event per (post, CVE id in the text) and per
+// (post, GHSA id in the text; the event is keyed by the GHSA id, which the
+// pipeline redirects to the CVE it is an alias of, docs/ghsa.md):
 // occurred_at = post created_at, url = https://x.com/<handle>/status/<id>,
 // dedupe_key = post id, detail = post id, author id and handle, text, lang,
-// all CVE ids of the post. social_post is not a lifecycle stage; vuln_state
+// all CVE ids of the post (and "ghsas": its GHSA ids, only when it has
+// any). social_post is not a lifecycle stage; vuln_state
 // ignores it (migrations/0008_xposts.sql), so a post can never move a
-// vulnerability's stage. A post without a CVE id gives no event but one
-// model.PostNoCVE (table x_post_no_cve, migrations/0015_xposts_no_cve.sql),
-// kept for linking to a CVE later; nothing displays it yet. CVE ids are read
+// vulnerability's stage. A post without a CVE id gives one model.PostNoCVE
+// (table x_post_no_cve, migrations/0015_xposts_no_cve.sql), kept for linking
+// to a CVE later; nothing displays it yet. That includes a post that has
+// only a GHSA id: Normalize cannot tell whether the id resolves (the
+// pipeline skips rows of a GHSA id with no vuln row), so such a post gives
+// both its GHSA-keyed event and the no-CVE row. CVE and GHSA ids are read
 // from note_tweet.text of a long post, else text (never from referenced
 // posts). Every stored post also gives its links (model.PostLink, table
 // x_post_link, classified by internal/xlinks) and the users it quotes,
@@ -122,6 +128,27 @@ var cveRe = regexp.MustCompile(`(?i)\bCVE-([0-9]{4})-([0-9]{4,19})\b`)
 
 var postIDRe = regexp.MustCompile(`^[0-9]{1,19}$`)
 
+// ghsaRe finds GHSA ids in free text (also inside github.com/advisories/...
+// URLs): ASCII, case-insensitive, word-bounded; ExtractGHSAs validates.
+var ghsaRe = regexp.MustCompile(`(?i)\bGHSA-([a-z0-9]{4})-([a-z0-9]{4})-([a-z0-9]{4})\b`)
+
+// ExtractGHSAs returns the GHSA ids in text in canonical form ("GHSA-" in
+// upper case, the groups in lower case; model.IsGHSAID), deduplicated, in
+// order of first appearance. Ids with letters outside GitHub's alphabet are
+// not ids and are left out.
+func ExtractGHSAs(text string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, m := range ghsaRe.FindAllStringSubmatch(text, -1) {
+		id := "GHSA-" + strings.ToLower(m[1]+"-"+m[2]+"-"+m[3])
+		if !seen[id] && model.IsGHSAID(id) {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 // ExtractCVEs returns the CVE ids in text, upper-cased, deduplicated, in
 // order of first appearance.
 func ExtractCVEs(text string) []string {
@@ -140,7 +167,7 @@ func ExtractCVEs(text string) []string {
 // Query suffix and per-account term.
 const (
 	queryHead = "("
-	queryTail = ") CVE -is:retweet"
+	queryTail = ") (CVE OR GHSA) -is:retweet"
 	orSep     = " OR "
 )
 
@@ -606,14 +633,21 @@ batches:
 	// kept = stored posts that name a CVE id (event rows; same meaning as
 	// before 0015), kept_no_cve = stored posts that name none (x_post_no_cve;
 	// these were "dropped_no_cve" before). kept + kept_no_cve = records.
-	keptNoCVE := 0
+	// kept_ghsa_only (a subset of kept_no_cve) = those that name a GHSA id:
+	// they also give a GHSA-keyed event.
+	keptNoCVE, keptGHSAOnly := 0, 0
 	for _, r := range records {
-		if len(ExtractCVEs(cveText(r.Get("post").(*pyjson.Object)))) == 0 {
+		t := cveText(r.Get("post").(*pyjson.Object))
+		if len(ExtractCVEs(t)) == 0 {
 			keptNoCVE++
+			if len(ExtractGHSAs(t)) > 0 {
+				keptGHSAOnly++
+			}
 		}
 	}
 	lr.Set("kept", len(records)-keptNoCVE)
 	lr.Set("kept_no_cve", keptNoCVE)
+	lr.Set("kept_ghsa_only", keptGHSAOnly)
 	lr.Set("dropped_author", droppedAuthor)
 	if stop != nil {
 		lr.Set("stopped", stop.reason)
@@ -722,11 +756,14 @@ func (c *Collector) Normalize(rec model.RawRecord) (*model.Normalized, error) {
 			handle, h = u, u
 		}
 	}
-	cves := ExtractCVEs(cveText(post))
+	ptext := cveText(post)
+	cves, ghsas := ExtractCVEs(ptext), ExtractGHSAs(ptext)
 	n := &model.Normalized{PostLinks: postLinks(id, post), CandidateRefs: candidateRefs(p, post, id, aid, created)}
 	link := PostURL(h, id)
 	if len(cves) == 0 {
-		// no CVE id: one x_post_no_cve row, no event, no vuln
+		// no CVE id: one x_post_no_cve row (and, below, one event per GHSA id
+		// the post names, if any: the pipeline writes it only when the GHSA id
+		// resolves to a vuln, so the row keeps the post either way)
 		pn := model.PostNoCVE{PostID: id, AuthorID: aid, Text: text, PostedAt: created, URL: link}
 		if handle != nil {
 			pn.AuthorHandle = model.Ptr(h)
@@ -735,13 +772,31 @@ func (c *Collector) Normalize(rec model.RawRecord) (*model.Normalized, error) {
 			pn.Lang = model.Ptr(l)
 		}
 		n.PostsNoCVE = []model.PostNoCVE{pn}
-		return n, nil
 	}
 	all := make([]any, len(cves))
 	for i, cve := range cves {
 		all[i] = cve
 	}
-	for _, cve := range cves {
+	// Every event of the post has the same detail, so a CVE and a GHSA id of
+	// one vulnerability (both rows end on the same CVE after the pipeline's
+	// redirect, with the same dedupe key) are one event: the second insert is
+	// a no-op conflict.
+	var allGHSA []any
+	for _, g := range ghsas {
+		allGHSA = append(allGHSA, g)
+	}
+	for _, cve := range append(append([]string(nil), cves...), ghsas...) {
+		detail := map[string]any{
+			"post_id":       id,
+			"author_id":     aid,
+			"author_handle": handle,
+			"text":          text,
+			"lang":          post.Get("lang"),
+			"cves":          all,
+		}
+		if len(allGHSA) > 0 {
+			detail["ghsas"] = allGHSA
+		}
 		n.Events = append(n.Events, model.Event{
 			CVEID:      cve,
 			Type:       model.EventSocialPost,
@@ -749,20 +804,13 @@ func (c *Collector) Normalize(rec model.RawRecord) (*model.Normalized, error) {
 			OccurredAt: model.Ptr(created),
 			URL:        model.Ptr(link),
 			DedupeKey:  id,
-			Detail: map[string]any{
-				"post_id":       id,
-				"author_id":     aid,
-				"author_handle": handle,
-				"text":          text,
-				"lang":          post.Get("lang"),
-				"cves":          all,
-			},
+			Detail:     detail,
 		})
 	}
 	return n, nil
 }
 
-// cveText is the text CVE ids are read from: note_tweet.text of a long post
+// cveText is the text CVE and GHSA ids are read from: note_tweet.text of a long post
 // (the full text; "text" is cut short), else text. Referenced posts are never
 // read.
 func cveText(post *pyjson.Object) string {

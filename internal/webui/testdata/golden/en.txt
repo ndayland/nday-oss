@@ -4,83 +4,87 @@
 
 ### kev_t5_patch_0of3 (CVE-2026-102895 shape)
 keys: status.lead.after.kev + status.patch.fixed + status.poc.none
-Added to KEV 5 days after disclosure. Patched: fixed in gpustack 2.2.0. None of the three PoC sources lists it.
+Added to KEV 5 days after disclosure. Patched: fixed in gpustack 2.2.0. None of the four PoC sources lists it.
 
 ### stub_no_record_kev_no_patch
 keys: status.no_record + status.kev.at + status.patch.none + status.poc.none
-nday has not fetched an official CVE record for this ID yet; disclosure time unknown. Added to CISA KEV on 2026-11-09. nday has no fix record for it yet; that does not mean no patch exists. None of the three PoC sources lists it.
+nday has not fetched an official CVE record for this ID yet; disclosure time unknown. Added to CISA KEV on 2026-11-09. nday has no fix record for it yet; that does not mean no patch exists. None of the four PoC sources lists it.
 
 ### disclosed_only
 keys: status.disclosed_at + status.patch.none + status.poc.none + status.kev.not_listed
-Disclosed 2026-11-04T21:16Z. nday has no fix record for it yet; that does not mean no patch exists. None of the three PoC sources lists it. Not in CISA KEV.
+Disclosed 2026-11-04T21:16Z. nday has no fix record for it yet; that does not mean no patch exists. None of the four PoC sources lists it. Not in CISA KEV.
 
 ### kev_same_day
 keys: status.lead.same_day + status.patch.none + status.poc.none
-Added to CISA KEV on the day of disclosure. nday has no fix record for it yet; that does not mean no patch exists. None of the three PoC sources lists it.
+Added to CISA KEV on the day of disclosure. nday has no fix record for it yet; that does not mean no patch exists. None of the four PoC sources lists it.
 
 ### kev_1_day_after
 keys: status.lead.after.kev + status.patch.none + status.poc.none
-Added to KEV 1 day after disclosure. nday has no fix record for it yet; that does not mean no patch exists. None of the three PoC sources lists it.
+Added to KEV 1 day after disclosure. nday has no fix record for it yet; that does not mean no patch exists. None of the four PoC sources lists it.
 
 ### kev_before_record_20d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-Added to KEV 20 days before the CVE record was published. nday has no fix record for it yet; that does not mean no patch exists. None of the three PoC sources lists it.
+Added to KEV 20 days before the CVE record was published. nday has no fix record for it yet; that does not mean no patch exists. None of the four PoC sources lists it.
 
 ### kev_before_record_1d
 keys: status.lead.before.kev + status.patch.none + status.poc.none
-Added to KEV 1 day before the CVE record was published. nday has no fix record for it yet; that does not mean no patch exists. None of the three PoC sources lists it.
+Added to KEV 1 day before the CVE record was published. nday has no fix record for it yet; that does not mean no patch exists. None of the four PoC sources lists it.
 
-### poc_t7_2of3
+### poc_t7_2of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-A public PoC appeared 7 days after disclosure. nday has no fix record for it yet; that does not mean no patch exists. Listed by 2 of 3 PoC sources: exploitdb and nuclei. Not in CISA KEV.
+A public PoC appeared 7 days after disclosure. nday has no fix record for it yet; that does not mean no patch exists. Listed by 2 of 4 PoC sources: exploitdb and nuclei. Not in CISA KEV.
 
-### poc_t1_1of3
+### poc_t1_1of4
 keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
-A public PoC appeared 1 day after disclosure. nday has no fix record for it yet; that does not mean no patch exists. Listed by 1 of 3 PoC sources: metasploit. Not in CISA KEV.
+A public PoC appeared 1 day after disclosure. nday has no fix record for it yet; that does not mean no patch exists. Listed by 1 of 4 PoC sources: metasploit. Not in CISA KEV.
 
-### poc_time_unknown_3of3
+### poc_time_unknown_4of4
 keys: status.disclosed_at + status.patch.none + status.poc.all + status.kev.not_listed
-Disclosed 2026-11-04T21:16Z. nday has no fix record for it yet; that does not mean no patch exists. All three PoC sources list it. Not in CISA KEV.
+Disclosed 2026-11-04T21:16Z. nday has no fix record for it yet; that does not mean no patch exists. All four PoC sources list it. Not in CISA KEV.
+
+### poc_t30_github_only
+keys: status.lead.after.poc + status.patch.none + status.poc.some + status.kev.not_listed
+A public PoC appeared 30 days after disclosure. nday has no fix record for it yet; that does not mean no patch exists. Listed by 1 of 4 PoC sources: github. Not in CISA KEV.
 
 ### patch_t3_known
 keys: status.lead.after.pat + status.patch.fixed + status.poc.none + status.kev.not_listed
-Patch on record 3 days after disclosure. Patched: fixed in a 1.0.1 and b 2.0. None of the three PoC sources lists it. Not in CISA KEV.
+Patch on record 3 days after disclosure. Patched: fixed in a 1.0.1 and b 2.0. None of the four PoC sources lists it. Not in CISA KEV.
 
 ### patch_same_day
 keys: status.lead.same_day + status.patch.no_version + status.poc.none + status.kev.not_listed
-Patched on the day of disclosure. A patch is on record, but the source gives no fixed version. None of the three PoC sources lists it. Not in CISA KEV.
+Patched on the day of disclosure. A patch is on record, but the source gives no fixed version. None of the four PoC sources lists it. Not in CISA KEV.
 
 ### patch_before_record_2d
 keys: status.lead.before.pat + status.patch.no_version + status.poc.none + status.kev.not_listed
-Patch on record 2 days before the CVE record was published. A patch is on record, but the source gives no fixed version. None of the three PoC sources lists it. Not in CISA KEV.
+Patch on record 2 days before the CVE record was published. A patch is on record, but the source gives no fixed version. None of the four PoC sources lists it. Not in CISA KEV.
 
 ### analysis_t2
 keys: status.lead.after.ana + status.patch.none + status.poc.none + status.kev.not_listed
-Technical analysis appeared 2 days after disclosure. nday has no fix record for it yet; that does not mean no patch exists. None of the three PoC sources lists it. Not in CISA KEV.
+Technical analysis appeared 2 days after disclosure. nday has no fix record for it yet; that does not mean no patch exists. None of the four PoC sources lists it. Not in CISA KEV.
 
 ### itw_t12
 keys: status.lead.after.itw + status.patch.none + status.poc.none + status.kev.not_listed
-Exploitation in the wild recorded 12 days after disclosure. nday has no fix record for it yet; that does not mean no patch exists. None of the three PoC sources lists it. Not in CISA KEV.
+Exploitation in the wild recorded 12 days after disclosure. nday has no fix record for it yet; that does not mean no patch exists. None of the four PoC sources lists it. Not in CISA KEV.
 
 ### itw_before_record_3d
 keys: status.lead.before.itw + status.patch.none + status.poc.none + status.kev.not_listed
-Exploitation in the wild recorded 3 days before the CVE record was published. nday has no fix record for it yet; that does not mean no patch exists. None of the three PoC sources lists it. Not in CISA KEV.
+Exploitation in the wild recorded 3 days before the CVE record was published. nday has no fix record for it yet; that does not mean no patch exists. None of the four PoC sources lists it. Not in CISA KEV.
 
 ### patch_without_fixed_version
 keys: status.disclosed_at + status.patch.no_version + status.poc.none + status.kev.not_listed
-Disclosed 2026-11-04T21:16Z. A patch is on record, but the source gives no fixed version. None of the three PoC sources lists it. Not in CISA KEV.
+Disclosed 2026-11-04T21:16Z. A patch is on record, but the source gives no fixed version. None of the four PoC sources lists it. Not in CISA KEV.
 
 ### two_fixed_versions
 keys: status.disclosed_at + status.patch.fixed + status.poc.none + status.kev.not_listed
-Disclosed 2026-11-04T21:16Z. Patched: fixed in a 1 and b 2. None of the three PoC sources lists it. Not in CISA KEV.
+Disclosed 2026-11-04T21:16Z. Patched: fixed in a 1 and b 2. None of the four PoC sources lists it. Not in CISA KEV.
 
 ### many_fixed_versions
 keys: status.disclosed_at + status.patch.fixed_many + status.poc.none + status.kev.not_listed
-Disclosed 2026-11-04T21:16Z. Patched: fixed in a 1, b 2 and 1 more. None of the three PoC sources lists it. Not in CISA KEV.
+Disclosed 2026-11-04T21:16Z. Patched: fixed in a 1, b 2 and 1 more. None of the four PoC sources lists it. Not in CISA KEV.
 
 ### disclosure_unknown_kev_time_unknown
 keys: status.disclosure_unknown + status.kev.time_unknown + status.patch.none + status.poc.none
-Disclosure time unknown. Listed in CISA KEV; listing date unknown. nday has no fix record for it yet; that does not mean no patch exists. None of the three PoC sources lists it.
+Disclosure time unknown. Listed in CISA KEV; listing date unknown. nday has no fix record for it yet; that does not mean no patch exists. None of the four PoC sources lists it.
 
 ### rejected
 keys: status.rejected + status.disclosed_at
@@ -207,6 +211,10 @@ Nuclei has a detection template: X - Auth Bypass. The source gives no release ti
 ### nuclei_bare
 keys: ev.nuclei.added + ev.nuclei.no_time
 Nuclei has a detection template for it. The source gives no release time for the template.
+
+### github_repo
+keys: ev.github.repo + ev.github.created
+PoC repository on GitHub: acme/CVE-2026-1-poc. The date is the repository's creation day.
 
 ### generic_itw
 keys: ev.generic

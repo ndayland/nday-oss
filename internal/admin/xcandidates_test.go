@@ -52,7 +52,7 @@ func TestXCandidatesPage(t *testing.T) {
 	if !ok {
 		t.Fatalf("no dismissed toggle:\n%s", sec)
 	}
-	for _, w := range []string{`data-cand="3001"`, `<a href="https://x.com/carol" rel="noopener noreferrer nofollow">@carol</a>`,
+	for _, w := range []string{`data-cand="3001"`, `<a href="https://x.com/carol" target="_blank" rel="noopener noreferrer nofollow">@carol</a>`,
 		`data-act="xcadd" data-x="3001"`, `data-act="xcdismiss" data-x="3001"`, "mentioned · quoted",
 		`data-cand="3002"`, `data-act="xcdismiss" data-x="3002"`, `data-cand="3003"`, `data-act="xcadd" data-x="3005"`} {
 		if !strings.Contains(open, w) {

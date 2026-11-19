@@ -13,7 +13,7 @@ import (
 // are the endpoints of internal/corrections.
 
 // CorrectionsPage is the page size of both lists.
-const CorrectionsPage = 30
+const CorrectionsPage = ListPage
 
 // Correction is a correction as the staff page shows it. Body, EvidenceURL
 // and the notes are user or staff input: show them as text (and the link
@@ -53,33 +53,25 @@ func scanCorrection(row pgx.Row) (*Correction, error) {
 	return x, nil
 }
 
-// Corrections lists pending corrections oldest first (decided=false) or
-// decided ones most recently decided first, after cursor, plus the number
-// of pending ones.
-func (s *Service) Corrections(ctx context.Context, decided bool, after *Cursor) ([]*Correction, *Cursor, int, error) {
+// Corrections lists one page of the pending corrections oldest first
+// (decided=false) or of the decided ones most recently decided first
+// (numbered: the table is small), plus the number of pending ones.
+func (s *Service) Corrections(ctx context.Context, decided bool, page int) ([]*Correction, Window, int, error) {
 	var out []*Correction
+	var w Window
 	pending := 0
 	err := s.o.ReadDB.WithConn(ctx, func(c *pgx.Conn) error {
-		if err := c.QueryRow(ctx, `SELECT count(*)::int FROM vuln_corrections WHERE status = 'pending'`).Scan(&pending); err != nil {
+		var all int
+		if err := c.QueryRow(ctx, `SELECT count(*) FILTER (WHERE status = 'pending')::int, count(*)::int FROM vuln_corrections`).
+			Scan(&pending, &all); err != nil {
 			return err
 		}
-		var rows pgx.Rows
-		var err error
+		cond, order, total := `c.status = 'pending'`, `c.created_at, c.id`, pending
 		if decided {
-			cur := Cursor{At: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), ID: "ffffffff-ffff-ffff-ffff-ffffffffffff"}
-			if after != nil {
-				cur = *after
-			}
-			rows, err = c.Query(ctx, `SELECT `+corrCols+`WHERE c.status <> 'pending' AND (c.decided_at, c.id) < ($1, $2::uuid)
-				ORDER BY c.decided_at DESC, c.id DESC LIMIT $3`, cur.At, cur.ID, CorrectionsPage+1)
-		} else {
-			cur := Cursor{At: time.Unix(0, 0).UTC(), ID: "00000000-0000-0000-0000-000000000000"}
-			if after != nil {
-				cur = *after
-			}
-			rows, err = c.Query(ctx, `SELECT `+corrCols+`WHERE c.status = 'pending' AND (c.created_at, c.id) > ($1, $2::uuid)
-				ORDER BY c.created_at, c.id LIMIT $3`, cur.At, cur.ID, CorrectionsPage+1)
+			cond, order, total = `c.status <> 'pending'`, `c.decided_at DESC, c.id DESC`, all-pending
 		}
+		w = window(total, page)
+		rows, err := c.Query(ctx, `SELECT `+corrCols+`WHERE `+cond+` ORDER BY `+order+` LIMIT $1 OFFSET $2`, CorrectionsPage, w.Offset())
 		if err != nil {
 			return err
 		}
@@ -94,16 +86,7 @@ func (s *Service) Corrections(ctx context.Context, decided bool, after *Cursor) 
 		return rows.Err()
 	})
 	if err != nil {
-		return nil, nil, 0, err
+		return nil, Window{}, 0, err
 	}
-	var next *Cursor
-	if len(out) > CorrectionsPage {
-		out = out[:CorrectionsPage]
-		last := out[len(out)-1]
-		next = &Cursor{At: last.CreatedAt, ID: last.ID}
-		if decided && last.DecidedAt != nil {
-			next.At = *last.DecidedAt
-		}
-	}
-	return out, next, pending, nil
+	return out, w, pending, nil
 }

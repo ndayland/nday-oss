@@ -25,9 +25,9 @@ const DefaultPublicURL = "https://nday.land"
 const APICSP = "default-src 'none'; frame-ancestors 'none'"
 
 // apiAllowHeaders are the request headers a cross-origin preflight may ask
-// for. Accept is CORS-safelisted anyway; If-None-Match is what makes the
-// ETags useful from a browser.
-const apiAllowHeaders = "Accept, If-None-Match"
+// for. Accept is CORS-safelisted anyway; Authorization carries the API
+// token; If-None-Match is what makes the ETags useful from a browser.
+const apiAllowHeaders = "Accept, Authorization, If-None-Match"
 
 // ParseOrigin returns v as an origin ("scheme://host[:port]") when it is an
 // absolute http(s) URL without credentials, path, query or fragment and its
@@ -98,10 +98,12 @@ func (s *Server) IsAPIHost(host string) bool {
 	return s.apiHost != "" && canonicalHost(s.apiScheme, strings.ToLower(host)) == s.apiHost
 }
 
-// apiRoute is one public data endpoint: its path on the site host in
-// single-host mode and on the API host. page: the site's own page scripts
-// call it, so the site host keeps answering it in two-host mode too (CSP
-// connect-src 'self' forbids following a redirect to the API host).
+// apiRoute is one data endpoint: its path on the site host in single-host
+// mode and on the API host. Every one needs an API token (Gate). page: the
+// site's own pages use it (page scripts, whose CSP connect-src 'self'
+// forbids following a redirect to the API host, or links a signed-in reader
+// opens), so the site host keeps answering it in two-host mode too and
+// there also accepts the session cookie.
 type apiRoute struct {
 	site, api string
 	h         http.HandlerFunc
@@ -119,7 +121,7 @@ func (s *Server) apiRoutes() []apiRoute {
 		{"/api/search", "/v1/search", s.search, false},
 		{"/api/tags", "/v1/tags", s.tags, false},
 		{"/api/affected/suggest", "/v1/affected/suggest", s.suggest, true},
-		{"/raw/{source}/{key...}", "/v1/raw/{source}/{key...}", s.raw, false},
+		{"/raw/{source}/{key...}", "/v1/raw/{source}/{key...}", s.raw, true},
 	}
 }
 
@@ -128,28 +130,34 @@ var apiEndpoints = []string{"/v1/hot", "/v1/vulns", "/v1/discussed", "/v1/vuln/{
 	"/v1/raw/{source}/{key}.json", "/healthz"}
 
 // buildAPIMux returns the only handler the API host ever reaches: the data
-// endpoints under /v1, /raw/... (alias of /v1/raw/...), /healthz, the index,
-// robots.txt and JSON 404s.
+// endpoints under /v1 and /raw/... (alias of /v1/raw/...), which need an API
+// token, and the public /healthz, index, robots.txt and JSON 404s.
 // Nothing registered with Handle (pages, sign-in, static files) is on it.
 func (s *Server) buildAPIMux() http.Handler {
 	mux := http.NewServeMux()
 	m := &recordingMux{ServeMux: mux, patterns: &s.patterns}
 	for _, rt := range s.apiRoutes() {
-		m.Handle(rt.api, GetOnly(rt.h))
+		m.Handle(rt.api, GetOnly(s.Gate(AuthBearer, rt.h)))
 	}
 	m.Handle("/healthz", GetOnly(http.HandlerFunc(s.healthz)))
 	// Alias: raw_records[].path in /v1/vuln is "/raw/...", so it resolves
 	// against the API origin too.
-	m.Handle("/raw/{source}/{key...}", GetOnly(http.HandlerFunc(s.raw)))
+	m.Handle("/raw/{source}/{key...}", GetOnly(s.Gate(AuthBearer, http.HandlerFunc(s.raw))))
 	docs := s.cfg.PublicURL
 	if docs == "" {
 		docs = DefaultPublicURL
 	}
+	type authHint struct {
+		Scheme   string `json:"scheme"`
+		Header   string `json:"header"`
+		TokenURL string `json:"token_url"`
+	}
 	index, err := NewBody(struct {
 		Name      string   `json:"name"`
 		Docs      string   `json:"docs"`
+		Auth      authHint `json:"auth"`
 		Endpoints []string `json:"endpoints"`
-	}{"nday", docs + "/about#api", apiEndpoints})
+	}{"nday", docs + "/account#api", authHint{"Bearer", "Authorization", docs + "/account#api"}, apiEndpoints})
 	if err != nil {
 		panic(err) // static data
 	}
@@ -190,7 +198,7 @@ func APIHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Access-Control-Allow-Origin", "*")
-		h.Set("Access-Control-Expose-Headers", "ETag")
+		h.Set("Access-Control-Expose-Headers", "ETag, Retry-After, WWW-Authenticate")
 		h.Set("Cross-Origin-Resource-Policy", "cross-origin")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Content-Security-Policy", APICSP)
