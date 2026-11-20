@@ -82,6 +82,12 @@ Outcomes and back-off:
 | no valid icon, 4xx, refused | `none`, any stored icon dropped | after 30 days |
 | transport error, 5xx, 408, 429 | `failures + 1`; `error`, or `ok` kept when an icon is stored | after 1 h, 4 h, 16 h, ... at most 30 days |
 
+After the icons the same command runs the X avatar pass (`internal/xavatar`,
+at most 100 avatars and 3 minutes, through a pagefetch client pinned to
+`pbs.twimg.com`; its counts are under `avatars` in the output). It shares
+this unit, its sandbox and `siteicon.ValidateImage`; see docs/xposts.md
+"Author profiles and avatars".
+
 ## Validation (`siteicon.Validate`)
 
 The bytes are served from our origin, so only these are accepted, decided

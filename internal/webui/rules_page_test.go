@@ -21,11 +21,12 @@ func TestAboutHotRules(t *testing.T) {
 	pinLines := func(l interface {
 		HTML(string, ...any) template.HTML
 	}, c site.PinConfig) []string {
+		recent, wave := c.Days()
 		return []string{
 			string(l.HTML("about.hot.pin", "max", c.Max)),
 			string(l.HTML("about.hot.pin_count", "n", c.MinResearchers, "window", code("7d"))),
-			string(l.HTML("about.hot.pin_recent", "hours", int(c.Recent/time.Hour))),
-			string(l.HTML("about.hot.pin_wave", "days", int(c.Wave/(24*time.Hour)))),
+			string(l.HTML("about.hot.pin_recent", "days", recent)),
+			string(l.HTML("about.hot.pin_wave", "days", wave)),
 		}
 	}
 	for _, c := range []site.PinConfig{site.DefaultPinConfig,

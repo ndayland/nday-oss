@@ -164,5 +164,6 @@ func catalogueCountQuery(p CatalogueParams) (string, []any) {
 // CountKey is the cache key of CatalogueCount(p) for normalized p:
 // every filter, not the position or the page size.
 func (p CatalogueParams) CountKey() string {
-	return fmt.Sprintf("vulnsn|%s|%d|%t|%s", p.Stage, p.Year, p.IncludeRejected, strings.Join(p.Tags, ","))
+	return fmt.Sprintf("vulnsn|%s|%d|%t|%s|%s-%s", p.Stage, p.Year, p.IncludeRejected, strings.Join(p.Tags, ","),
+		p.CVSSMin, p.CVSSMax)
 }

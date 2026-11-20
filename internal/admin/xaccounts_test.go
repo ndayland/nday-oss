@@ -60,7 +60,8 @@ func xLink(t *testing.T, body, frag, label string) string {
 	t.Helper()
 	// a pager button carries a decorative glyph (<span aria-hidden="true">) before or after its label
 	glyph := `(?:<span[^>]*aria-hidden="true">[^<]*</span>)?`
-	re := regexp.MustCompile(`<a href="([^"]*#` + frag + `)"[^>]*>` + glyph + regexp.QuoteMeta(label) + glyph + `</a>`)
+	name := `(?:<span class="sr">)?` + regexp.QuoteMeta(label) + `(?:</span>)?` // a pager button's name is for screen readers
+	re := regexp.MustCompile(`<a href="([^"]*#` + frag + `)"[^>]*>` + glyph + name + glyph + `</a>`)
 	ms := re.FindAllStringSubmatch(body, -1)
 	for _, m := range ms[min(1, len(ms)):] {
 		if m[1] != ms[0][1] {
@@ -170,7 +171,7 @@ func TestXAccountsPaging(t *testing.T) {
 		if got := xRows(s); got != c.rows {
 			t.Errorf("%s: rows %s, want %s", c.path, got, c.rows)
 		}
-		has(c.path, s, c.pos, "<span>"+c.pageOf+"</span>", total)
+		has(c.path, s, c.pos, `<span class="sr">`+c.pageOf+"</span>", total)
 	}
 	// pager links: page 1 is no page; none past either end
 	s := get("/admin/x")
@@ -214,7 +215,7 @@ func TestXAccountsPaging(t *testing.T) {
 	if got := xRows(s); got != xSeq(1013, 1014, 1016, 1017, 1018, 1019, 1021, 1022, 1023, 1024) {
 		t.Errorf("acct page 2: %s", got)
 	}
-	has("acct", s, "20 of 25 accounts have a handle containing “<bdi>acct</bdi>”; showing 11–20.", "<span>page 2 of 2</span>", total)
+	has("acct", s, "20 of 25 accounts have a handle containing “<bdi>acct</bdi>”; showing 11–20.", `<span class="sr">page 2 of 2</span>`, total)
 	if p := xLink(t, s, "r-accounts", "previous"); p != "/admin/x?q=acct#r-accounts" {
 		t.Errorf("acct prev: %q", p)
 	}
@@ -250,7 +251,7 @@ func TestXAccountsPaging(t *testing.T) {
 	if c := xLink(t, s, "r-accounts", "显示全部账号"); c != "/zh-hans/admin/x#r-accounts" {
 		t.Errorf("zh-hans clear link %q", c)
 	}
-	has("zh-hans p2", get("/zh-hans/admin/x?page=2"), "共 25 个账号，本页是第 11–20 个。", "<span>第 2 页，共 3 页</span>")
+	has("zh-hans p2", get("/zh-hans/admin/x?page=2"), "共 25 个账号，本页是第 11–20 个。", `<span class="sr">第 2 页，共 3 页</span>`)
 
 	// cross-preservation with the posts filter and cursor (31 posts: the
 	// posts list has a next page)
@@ -282,10 +283,10 @@ func TestXAccountsPaging(t *testing.T) {
 		nq.Get("pp") != "2" {
 		t.Fatalf("posts next: %q", next)
 	}
-	// the posts list pages forwards only: on its first page first and
-	// previous are disabled in place, and it says which page of how many it is
-	if posts := section(s[strings.Index(s, `id="posts"`):], `<nav class="pager"`, "</nav>"); !strings.Contains(posts, `<p class="pg-pos"><span>page 1 of 4</span></p>`) ||
-		strings.Count(posts, `<span class="pg" aria-disabled="true">`) != 2 || strings.Contains(posts, `rel="prev"`) {
+	// on its first page ‹ is disabled in place (the only disabled control,
+	// page 1 is current), and it says which page of how many it is
+	if posts := section(s[strings.Index(s, `id="posts"`):], `<nav class="pager"`, "</nav>"); !strings.Contains(posts, `<p class="pg-pos sr"><span class="sr">page 1 of 4</span></p>`) ||
+		strings.Count(posts, `aria-disabled="true"`) != 1 || !strings.Contains(posts, `<span class="pg pg-a" aria-disabled="true"><span aria-hidden="true">‹</span>`) || strings.Contains(posts, `rel="prev"`) {
 		t.Errorf("posts pager on page 1:\n%s", posts)
 	}
 	pq := xQueryOf(t, xLink(t, s, "r-accounts", "previous"), "/admin/x")
@@ -298,18 +299,18 @@ func TestXAccountsPaging(t *testing.T) {
 	}
 	// on the posts' second page: First keeps q and page, previous is the first page, the accounts links keep the cursor
 	s = get(next)
-	if posts := section(s[strings.Index(s, `id="posts"`):], `<nav class="pager"`, "</nav>"); !strings.Contains(posts, `<p class="pg-pos"><span>page 2 of 4</span></p>`) ||
+	if posts := section(s[strings.Index(s, `id="posts"`):], `<nav class="pager"`, "</nav>"); !strings.Contains(posts, `<p class="pg-pos sr"><span class="sr">page 2 of 4</span></p>`) ||
 		!strings.Contains(posts, `rel="prev"`) {
 		t.Errorf("posts pager on page 2:\n%s", posts)
 	}
-	if p, f := xLink(t, s, "r-posts", "previous"), xLink(t, s, "r-posts", "first"); p == "" || p != f {
+	if p, f := xLink(t, s, "r-posts", "previous"), xLink(t, s, "r-posts", "page 1"); p == "" || p != f {
 		t.Errorf("posts previous on page 2: %q, first %q", p, f)
 	}
 	// the accounts links keep the posts page number with the posts cursor
 	if aq := xQueryOf(t, xLink(t, s, "r-accounts", "previous"), "/admin/x"); aq.Get("pp") != "2" {
 		t.Errorf("accounts prev keeps pp: %v", aq)
 	}
-	fq := xQueryOf(t, xLink(t, s, "r-posts", "first"), "/admin/x")
+	fq := xQueryOf(t, xLink(t, s, "r-posts", "page 1"), "/admin/x")
 	if fq.Get("q") != "acct" || fq.Get("page") != "2" || fq.Get("author") != "acct01" || fq.Has("before") {
 		t.Errorf("posts first: %v", fq)
 	}
@@ -346,7 +347,7 @@ func TestXAccountsPaging(t *testing.T) {
 	if got := xRows(s); got != xSeq(1013, 1014, 1016, 1017, 1018, 1019, 1021, 1022, 1023, 1024) {
 		t.Errorf("after disable: rows %s", got)
 	}
-	has(page, s, `data-act="xenable" data-x="1013"`, `<dd>24 / 25</dd>`, "<span>page 2 of 2</span>",
+	has(page, s, `data-act="xenable" data-x="1013"`, `<dd>24 / 25</dd>`, `<span class="sr">page 2 of 2</span>`,
 		"20 of 25 accounts have a handle containing “<bdi>acct</bdi>”; showing 11–20.", `name="q" value="acct"`)
 	lacks(page, s, `data-act="xdisable" data-x="1013"`)
 	check(t, "enable 1013", 200, "")(adm.post("/api/admin/x/accounts/1013/enable", ``))

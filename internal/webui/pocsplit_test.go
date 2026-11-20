@@ -201,7 +201,7 @@ func TestPoCSplitMixed(t *testing.T) {
 			t.Errorf("%s: a rejected repository is shown", c.q)
 		}
 		// both regions are paged, each with its own pager
-		if n := strings.Count(b, `data-page-region="`); n != 2 || !strings.Contains(regionOf(b, "r-poc"), `class="pager"`) ||
+		if n := strings.Count(b, `data-page-region="`); n != 3 || !strings.Contains(regionOf(b, "r-poc"), `class="pager"`) ||
 			!strings.Contains(regionOf(b, "r-pocu"), `class="pager"`) {
 			t.Errorf("%s: %d regions", c.q, n)
 		}
@@ -238,7 +238,8 @@ func TestPoCSplitMixed(t *testing.T) {
 	// (the other region's pager links carry pocp: app.js takes them from
 	// the loaded page)
 	outside := func(b string) string {
-		return strings.Replace(outsideRegion(b, "r-poc"), regionOf(b, "r-pocu"), "REGION2", 1)
+		s := strings.Replace(outsideRegion(b, "r-poc"), regionOf(b, "r-pocu"), "REGION2", 1)
+		return strings.Replace(s, regionOf(b, "r-events"), "REGION3", 1) // its pager links carry pocp too
 	}
 	if a, b := outside(one), outside(get("?pocp=2")); a != b {
 		t.Errorf("pocp pages differ outside r-poc:\n%s", firstDiff(a, b))

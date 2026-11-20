@@ -94,13 +94,20 @@ func TestPublicPageRegions(t *testing.T) {
 				t.Fatalf("%s: no region %s", p.path, c.id)
 			}
 			// the list and its pager (if any) are inside the region
-			if !strings.Contains(r, `<div class="tbl-in" role="table"`) {
+			// the list: the table of the hot list and the catalogue, the
+			// ranked list of /discussed (its box, which holds the empty
+			// note on a page past the end)
+			if !strings.Contains(r, `<div class="tbl-in" role="table"`) && !strings.Contains(r, `<div class="dzw">`) {
 				t.Errorf("%s: the list is outside region %s", p.path, c.id)
 			}
 			if pg := pagerOf(p.body); pg != "" && !strings.Contains(r, pg) {
 				t.Errorf("%s: the pager is outside region %s", p.path, c.id)
 			}
-			for _, id := range rowIDs(p.body) {
+			ids := rowIDs(p.body)
+			if c.id == "r-discussed" {
+				ids, _ = heatRows(p.body)
+			}
+			for _, id := range ids {
 				if !strings.Contains(r, `data-id="`+id+`"`) {
 					t.Errorf("%s: row %s outside region %s", p.path, id, c.id)
 				}

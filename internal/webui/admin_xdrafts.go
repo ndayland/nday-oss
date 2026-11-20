@@ -95,7 +95,7 @@ func (u *UI) adminXDrafts(w http.ResponseWriter, r *http.Request, loc *i18n.Loca
 		if id, ok := site.ParseVulnID(d.CVE); ok && id == d.CVE {
 			x.CVEHref = loc.Path("/vuln/" + id)
 			// the post links the English page (the root path)
-			link := u.canonURL(u.locales.Primary(), "/vuln/"+id)
+			link := stageLink(u.canonURL(u.locales.Primary(), "/vuln/"+id), d.Stage)
 			x.Compose = xdraft.ComposeURL(d.Body, link)
 			x.ComposeAlone = xdraft.ComposeTextURL(d.Body)
 			x.Card, x.CardName, x.Link = addrCardPath(id), id+"-nday.png", link

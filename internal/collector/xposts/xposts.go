@@ -88,6 +88,7 @@ import (
 	"nday.land/nday/internal/httpc"
 	"nday.land/nday/internal/model"
 	"nday.land/nday/internal/pyjson"
+	"nday.land/nday/internal/xavatar"
 	"nday.land/nday/internal/xconfig"
 	"nday.land/nday/internal/xlinks"
 )
@@ -115,9 +116,11 @@ const (
 	// TweetFields / Expansions of every search request: the links
 	// (entities), long posts (note_tweet), and the posts this one quotes or
 	// replies to with their authors (referenced_tweets; includes.tweets /
-	// includes.users). user.fields is always "username".
+	// includes.users). UserFields: the handle, plus the display name and
+	// avatar URL the researcher section shows (table x_user).
 	TweetFields = "author_id,created_at,lang,entities,note_tweet,referenced_tweets"
 	Expansions  = "author_id,referenced_tweets.id,referenced_tweets.id.author_id,entities.mentions.username"
+	UserFields  = "username,name,profile_image_url"
 
 	// snowflakeEpochMS is the X id epoch (ms); id>>22 is ms since it.
 	snowflakeEpochMS = 1288834974657
@@ -415,7 +418,7 @@ func searchURL(query string, maxResults int, sinceID string, start time.Time, ne
 	v.Set("max_results", fmt.Sprint(maxResults))
 	v.Set("tweet.fields", TweetFields)
 	v.Set("expansions", Expansions)
-	v.Set("user.fields", "username")
+	v.Set("user.fields", UserFields)
 	if sinceID != "" {
 		v.Set("since_id", sinceID)
 	} else {
@@ -476,13 +479,24 @@ func (c *Collector) Fetch(ctx context.Context, state model.CollectorState) (*mod
 	lr := pyjson.NewObject()
 	lr.Set("at", nowZ)
 
+	// the site's own account is never collected, even if its row got into
+	// x_accounts without the admin / CLI checks (xconfig.OwnHandle)
+	usable := make([]xconfig.Account, 0, len(c.accounts))
+	for _, a := range c.accounts {
+		if xconfig.IsOwnHandle(a.Handle) {
+			c.logger.Warn(fmt.Sprintf("xposts: skipping enabled account %s @%s: the site's own account is never collected", a.UserID, a.Handle))
+			continue
+		}
+		usable = append(usable, a)
+	}
+
 	skip := ""
 	switch {
 	case !c.settings.Enabled:
 		skip = "disabled"
 	case c.token == "":
 		skip = "no_token"
-	case len(c.accounts) == 0:
+	case len(usable) == 0:
 		skip = "no_accounts"
 	}
 	if skip != "" {
@@ -492,7 +506,7 @@ func (c *Collector) Fetch(ctx context.Context, state model.CollectorState) (*mod
 		return &model.FetchResult{Cursor: newCursor(oldSince, lr)}, nil
 	}
 
-	accounts := append([]xconfig.Account(nil), c.accounts...)
+	accounts := usable
 	sort.SliceStable(accounts, func(i, j int) bool { return idLess(accounts[i].UserID, accounts[j].UserID) })
 	allowed := map[string]bool{}
 	for _, a := range accounts {
@@ -591,6 +605,13 @@ batches:
 				if !allowed[aid] {
 					droppedAuthor++
 					continue
+				}
+				if uo, ok := users[aid].(*pyjson.Object); ok {
+					if un, _ := uo.Get("username").(string); xconfig.IsOwnHandle(un) {
+						c.logger.Warn(fmt.Sprintf("xposts: dropping post %s: its author %s is the site's own account", id, aid))
+						droppedAuthor++
+						continue
+					}
 				}
 				// Posts without a CVE id are stored too (already fetched and
 				// billed); Normalize sends them to x_post_no_cve, not event.
@@ -751,14 +772,18 @@ func (c *Collector) Normalize(rec model.RawRecord) (*model.Normalized, error) {
 	}
 	var handle any
 	h := ""
+	var users []model.XUser
 	if a, ok := p.Get("author").(*pyjson.Object); ok {
 		if u, ok := a.Get("username").(string); ok {
 			handle, h = u, u
 		}
+		if xu, ok := authorProfile(a, aid, created); ok {
+			users = []model.XUser{xu}
+		}
 	}
 	ptext := cveText(post)
 	cves, ghsas := ExtractCVEs(ptext), ExtractGHSAs(ptext)
-	n := &model.Normalized{PostLinks: postLinks(id, post), CandidateRefs: candidateRefs(p, post, id, aid, created)}
+	n := &model.Normalized{PostLinks: postLinks(id, post), CandidateRefs: candidateRefs(p, post, id, aid, created), XUsers: users}
 	link := PostURL(h, id)
 	if len(cves) == 0 {
 		// no CVE id: one x_post_no_cve row (and, below, one event per GHSA id
@@ -808,6 +833,30 @@ func (c *Collector) Normalize(rec model.RawRecord) (*model.Normalized, error) {
 		})
 	}
 	return n, nil
+}
+
+// authorProfile is the x_user row of a post's author object: only when the
+// object is the author's (id = aid) and carries name or profile_image_url
+// (raw records stored before the request asked for them carry neither and
+// give no row, so they never blank a stored profile). SeenAt is the post
+// time here; the pipeline replaces it with the time the record was fetched
+// from X (pipeline.stampProfiles). The row itself comes from
+// xavatar.Profile, shared with `nday x-profiles`: the name cleaned, the URL
+// kept only when it is a pbs.twimg.com profile image, and no row for an id
+// x_user would refuse (a post id-shaped author id like "007" gives no row
+// rather than a failed insert that would roll the whole run back; the post
+// itself is kept).
+func authorProfile(a *pyjson.Object, aid string, seen time.Time) (model.XUser, bool) {
+	if id, _ := a.Get("id").(string); id != aid {
+		return model.XUser{}, false
+	}
+	name, hasName := a.Get("name").(string)
+	img, hasImg := a.Get("profile_image_url").(string)
+	if !hasName && !hasImg {
+		return model.XUser{}, false
+	}
+	u, _, ok := xavatar.Profile(aid, name, img, seen)
+	return u, ok
 }
 
 // cveText is the text CVE and GHSA ids are read from: note_tweet.text of a long post
@@ -917,8 +966,8 @@ func candidateRefs(p, post *pyjson.Object, id, aid string, posted time.Time) []m
 	var out []model.CandidateRef
 	seen := map[string]bool{}
 	add := func(uid, handle, kind string) {
-		if !xconfig.ValidUserID(uid) || uid == aid || seen[uid+" "+kind] {
-			return
+		if !xconfig.ValidUserID(uid) || uid == aid || seen[uid+" "+kind] || xconfig.IsOwnHandle(handle) {
+			return // (never a candidate: the site's own account)
 		}
 		seen[uid+" "+kind] = true
 		r := model.CandidateRef{UserID: uid, PostID: id, ReferrerID: aid, Kind: kind, PostedAt: posted}

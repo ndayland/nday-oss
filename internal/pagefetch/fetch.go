@@ -60,6 +60,11 @@ type Options struct {
 	MaxBody int
 	// Timeout bounds one Get, redirects included; <= 0 means Timeout.
 	Timeout time.Duration
+	// CheckRedirect, when set, is asked about every redirect target after
+	// the URL rules passed; an error refuses the redirect before any
+	// connection to it (the error should wrap ErrRefused). Used to pin a
+	// client to one host.
+	CheckRedirect func(u *url.URL) error
 
 	// Tests only (set from code, never from the environment):
 	// DialControl replaces GuardControl as the dialer's Control hook.
@@ -82,6 +87,7 @@ type Client struct {
 	httpsOnly bool
 	anyBody   bool
 	maxBody   int
+	redirect  func(u *url.URL) error
 }
 
 // Page is the result of a Get that reached a server.
@@ -137,7 +143,8 @@ func New(o Options) *Client {
 	if timeout <= 0 {
 		timeout = Timeout
 	}
-	c := &Client{userAgent: o.UserAgent, accept: accept, httpsOnly: o.HTTPSOnly, anyBody: o.AnyBody, maxBody: o.MaxBody}
+	c := &Client{userAgent: o.UserAgent, accept: accept, httpsOnly: o.HTTPSOnly, anyBody: o.AnyBody, maxBody: o.MaxBody,
+		redirect: o.CheckRedirect}
 	if c.maxBody <= 0 {
 		c.maxBody = MaxBody
 	}
@@ -154,6 +161,11 @@ func New(o Options) *Client {
 			}
 			if req.Method != http.MethodGet {
 				return refused("redirect to method %s", req.Method)
+			}
+			if c.redirect != nil {
+				if err := c.redirect(req.URL); err != nil {
+					return err
+				}
 			}
 			// net/http adds the previous URL as Referer on redirects: never
 			// tell one third party about another (no cookie jar, so no

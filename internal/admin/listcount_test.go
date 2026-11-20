@@ -140,20 +140,20 @@ func TestKeysetListTotals(t *testing.T) {
 	// the pages: 26 accounts (kim, tom and 24 more) on 3 pages
 	h.user("zed", "user")
 	r := region(t, page(t, adm, "/admin/users"), "r-users")
-	if !strings.Contains(r, "<span>page 1 of 3</span>") {
+	if !strings.Contains(r, `<span class="sr">page 1 of 3</span>`) {
 		t.Errorf("users page 1:\n%s", r)
 	}
 	next := link(r, "next")
-	if r = region(t, page(t, adm, next), "r-users"); !strings.Contains(r, "<span>page 2 of 3</span>") {
+	if r = region(t, page(t, adm, next), "r-users"); !strings.Contains(r, `<span class="sr">page 2 of 3</span>`) {
 		t.Errorf("users page 2:\n%s", r)
 	}
 	// ?p= only labels the page: past the count it is the last page that
 	// still has a next one (page 2 of 3 here), and the links go on from it
 	r = region(t, page(t, adm, strings.Replace(next, "p=2", "p=99", 1)), "r-users")
-	if !strings.Contains(r, "<span>page 2 of 3</span>") || !strings.Contains(link(r, "next"), "p=3") {
+	if !strings.Contains(r, `<span class="sr">page 2 of 3</span>`) || !strings.Contains(link(r, "next"), "p=3") {
 		t.Errorf("users page 2 labelled 99:\n%s", r)
 	}
-	if r = region(t, page(t, adm, link(r, "next")), "r-users"); !strings.Contains(r, "<span>page 3 of 3</span>") || link(r, "next") != "" {
+	if r = region(t, page(t, adm, link(r, "next")), "r-users"); !strings.Contains(r, `<span class="sr">page 3 of 3</span>`) || link(r, "next") != "" {
 		t.Errorf("users page 3:\n%s", r)
 	}
 	// a filter changes the count: 8 blue accounts fit on one page
@@ -161,16 +161,16 @@ func TestKeysetListTotals(t *testing.T) {
 		t.Errorf("one page of blue accounts has a pager:\n%s", r)
 	}
 	// the audit log (27 rows: 3 pages), the patrol list (24: 3), posts (25 + the fixture's: 3)
-	if r = region(t, page(t, adm, "/admin/audit"), "r-audit"); !strings.Contains(r, "<span>page 1 of 3</span>") {
+	if r = region(t, page(t, adm, "/admin/audit"), "r-audit"); !strings.Contains(r, `<span class="sr">page 1 of 3</span>`) {
 		t.Errorf("audit page 1:\n%s", r)
 	}
 	if r = region(t, page(t, adm, "/admin/audit?action=comment_hide"), "r-audit"); strings.Contains(r, `class="pager"`) {
 		t.Errorf("9 comment.hide rows have a pager:\n%s", r)
 	}
-	if r = region(t, page(t, adm, "/admin/moderation"), "r-recent"); !strings.Contains(r, "<span>page 1 of 3</span>") {
+	if r = region(t, page(t, adm, "/admin/moderation"), "r-recent"); !strings.Contains(r, `<span class="sr">page 1 of 3</span>`) {
 		t.Errorf("patrol page 1:\n%s", r)
 	}
-	if r = region(t, page(t, adm, "/admin/moderation?status=visible"), "r-recent"); !strings.Contains(r, "<span>page 1 of 2</span>") {
+	if r = region(t, page(t, adm, "/admin/moderation?status=visible"), "r-recent"); !strings.Contains(r, `<span class="sr">page 1 of 2</span>`) {
 		t.Errorf("patrol visible page 1 (12 comments):\n%s", r)
 	}
 }

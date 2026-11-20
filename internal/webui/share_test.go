@@ -136,6 +136,9 @@ func TestShareText(t *testing.T) {
 	if len(locales) != 7 {
 		t.Fatalf("%d locales", len(locales))
 	}
+	// the stage parameter of each page's post link; no stage, no parameter
+	stageParam := map[string]string{sharePOC: "?s=poc", shareITW: "?s=itw", shareKEV: "?s=kev", shareHostile: "?s=kev",
+		shareBoth: "?s=kev", sitetest.GPU: "?s=kev", shareRejected: "", "CVE-2026-1004": ""}
 	bodyOf := func(cve string) string {
 		t.Helper()
 		var first string
@@ -146,6 +149,10 @@ func TestShareText(t *testing.T) {
 			if m := canonRe.FindStringSubmatch(page); m == nil || html.UnescapeString(m[1]) != link {
 				t.Errorf("%s: canonical %v, want %s", path, m, link)
 			}
+			// the post link names the stage ("?s=kev": a URL of its own per
+			// stage, so X does not reuse an earlier card); the canonical
+			// URL above does not
+			link += stageParam[cve]
 			body, ok := strings.CutSuffix(sh.text, "\n"+link)
 			if !ok {
 				t.Errorf("%s: copy text %q does not end in the page link %s", path, sh.text, link)

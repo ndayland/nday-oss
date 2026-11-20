@@ -46,6 +46,9 @@ type Outline struct {
 	Count   int              `json:"count"` // visible comments (all pages)
 	Threads []OutlineComment `json:"threads"`
 	More    bool             `json:"more"` // threads beyond the first page exist
+	// OutlinePage only (not in the JSON): the page's number, the number of
+	// pages, the threads shown in all.
+	Page, Pages, Total int `json:"-"`
 }
 
 func outlineOf(r *Row) OutlineComment {
@@ -80,4 +83,18 @@ func (s *Service) Outline(ctx context.Context, cve string) (*Outline, error) {
 		return nil, err
 	}
 	return buildOutline(p), nil
+}
+
+// OutlinePage is Outline for page number page (1-based, clamped) of per
+// threads: the numbered pages of a vulnerability page. Page, Pages and Total
+// say which page it is, how many there are and how many threads are shown
+// in all; More is true when a later page exists.
+func (s *Service) OutlinePage(ctx context.Context, cve string, page, per int) (*Outline, error) {
+	p, err := s.store.PageNum(ctx, nil, cve, page, per)
+	if err != nil {
+		return nil, err
+	}
+	o := buildOutline(p)
+	o.Page, o.Pages, o.Total, o.More = p.Num, p.Pages, p.Total, p.Num < p.Pages
+	return o, nil
 }

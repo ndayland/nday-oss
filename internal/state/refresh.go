@@ -48,7 +48,7 @@ type RefreshResult struct {
 	Elapsed time.Duration
 }
 
-// Refresh brings vuln_state_mat up to date with every write committed
+// Refresh brings vuln_state_mat (and vuln_score_mat with it) up to date with every write committed
 // before the call. conn must not be inside a transaction.
 //
 // Protocol (vuln_state_refresh holds one row: requested, refreshed_seq):
@@ -142,7 +142,12 @@ func refreshLocked(ctx context.Context, conn *pgx.Conn, res *RefreshResult, may 
 		if _, err := tx.Exec(ctx, `SET LOCAL statement_timeout = 0`); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `REFRESH MATERIALIZED VIEW CONCURRENTLY vuln_state_mat`)
+		if _, err := tx.Exec(ctx, `REFRESH MATERIALIZED VIEW CONCURRENTLY vuln_state_mat`); err != nil {
+			return err
+		}
+		// the displayed CVSS scores the lists filter by (migrations/0037),
+		// of the same moment as the rows
+		_, err := tx.Exec(ctx, `REFRESH MATERIALIZED VIEW CONCURRENTLY vuln_score_mat`)
 		return err
 	})
 	elapsed := time.Since(start)

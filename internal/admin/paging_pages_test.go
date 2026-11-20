@@ -45,10 +45,13 @@ func region(t *testing.T, body, id string) string {
 	return r
 }
 
-// link is the unescaped href of the pager link with label in a region ("" none).
+// link is the unescaped href of the pager link with label in a region ("" none):
+// its text, or its screen-reader name ("previous", "next", "page 1"; the
+// button shows a glyph or the bare number).
 func link(r, label string) string {
 	glyph := `(?:<span[^>]*aria-hidden="true">[^<]*</span>)?`
-	m := regexp.MustCompile(`<a href="([^"]*)"[^>]*>` + glyph + regexp.QuoteMeta(label) + glyph + `</a>`).FindStringSubmatch(r)
+	name := `(?:<span class="sr">)?` + regexp.QuoteMeta(label) + `(?:</span>)?`
+	m := regexp.MustCompile(`<a href="([^"]*)"[^>]*>` + glyph + name + glyph + `</a>`).FindStringSubmatch(r)
 	if m == nil {
 		return ""
 	}
@@ -217,8 +220,8 @@ func TestUserPageAndSystemPaging(t *testing.T) {
 	if n := strings.Count(r, "<tr><td><code>"); n < 1 || n > 10 || !strings.Contains(r, " of ") {
 		t.Errorf("tables last page: %d rows", n)
 	}
-	if l := link(r, "first"); l != "/admin/system?lp=2#r-tables" {
-		t.Errorf("tables first %q", l)
+	if l := link(r, "page 1"); l != "/admin/system?lp=2#r-tables" {
+		t.Errorf("tables page 1 %q", l)
 	}
 }
 
@@ -352,6 +355,58 @@ func TestBulkMarkup(t *testing.T) {
 		`data-pick="" data-id="` + d + `" data-version="1" aria-labelledby="lb-xd-` + d + `"`, `<span id="lb-xd-` + d + `">`} {
 		if !strings.Contains(pend, w) {
 			t.Errorf("pending drafts lack %s", w)
+		}
+	}
+}
+
+// TestAdminKeysetNumbers: a keyset list's numbers (users, ~12 pages) lead
+// where a walk with › gets, each marked current, each link ending in the
+// region's #id; ?p= alone reaches the first and last pages, a crafted one
+// is bounded (the middle is the first page, past the end the last).
+func TestAdminKeysetNumbers(t *testing.T) {
+	h := newHarness(t, hopt{})
+	adm := h.user("kim", "admin")
+	for i := 0; i < 114; i++ {
+		h.user(fmt.Sprintf("w%03d", i), "user")
+		h.clock.Advance(time.Second)
+	}
+	urow := regexp.MustCompile(`<tr>\s*<td><a href="/admin/users/([0-9a-f-]{36})">`)
+	cur := regexp.MustCompile(`aria-current="page"><span aria-hidden="true">([0-9]+)</span>`)
+	num := regexp.MustCompile(`<a href="([^"]+)" class="pg[^"]*"><span aria-hidden="true">([0-9]+)</span>`)
+	type pg struct{ url, rows string }
+	var walk []pg
+	for u := "/admin/users"; u != ""; u = link(region(t, page(t, adm, u), "r-users"), "next") {
+		r := region(t, page(t, adm, u), "r-users")
+		if m := cur.FindStringSubmatch(r); m == nil || m[1] != fmt.Sprint(len(walk)+1) {
+			t.Fatalf("%s: current %v, want %d", u, m, len(walk)+1)
+		}
+		walk = append(walk, pg{u, strings.Join(ids(urow, r), ",")})
+		if len(walk) > 30 {
+			t.Fatal("no end")
+		}
+	}
+	if len(walk) != 12 {
+		t.Fatalf("%d pages, want 12", len(walk))
+	}
+	for i, p := range walk {
+		r := region(t, page(t, adm, p.url), "r-users")
+		for _, m := range num.FindAllStringSubmatch(r, -1) {
+			href := html.UnescapeString(m[1])
+			var n int
+			fmt.Sscan(m[2], &n)
+			if !strings.HasSuffix(href, "#r-users") {
+				t.Errorf("page %d: number %d %q without #r-users", i+1, n, href)
+			}
+			got := region(t, page(t, adm, href), "r-users")
+			if c := cur.FindStringSubmatch(got); c == nil || c[1] != m[2] || strings.Join(ids(urow, got), ",") != walk[n-1].rows {
+				t.Errorf("page %d: number %d (%s) shows another page", i+1, n, href)
+			}
+		}
+	}
+	for p, want := range map[string]int{"2": 2, "3": 3, "10": 10, "11": 11, "12": 12, "999999": 12, "6": 1, "-4": 1, "x": 1} {
+		got := region(t, page(t, adm, "/admin/users?p="+p), "r-users")
+		if c := cur.FindStringSubmatch(got); c == nil || c[1] != fmt.Sprint(want) || strings.Join(ids(urow, got), ",") != walk[want-1].rows {
+			t.Errorf("?p=%s: current %v, want page %d", p, c, want)
 		}
 	}
 }

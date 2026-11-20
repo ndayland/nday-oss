@@ -1,5 +1,6 @@
 // Package xfake is an in-process stand-in for the X API v2 user lookup
-// (GET /2/users/by?usernames=…) used by the tests of internal/xlookup,
+// (GET /2/users/by?usernames=…, and GET /2/users?ids=… for
+// xlookup.ProfilesByID) used by the tests of internal/xlookup,
 // internal/admin and internal/cli, and by tools/authdev. It never touches
 // the network unless Start is called (then it listens on loopback only).
 //
@@ -27,6 +28,9 @@ type User struct {
 	// Name ("" = "<username> (fake)") and Description (sent only when
 	// user.fields=description is asked for, like the X API).
 	Name, Description string
+	// ProfileImageURL is sent by GET /2/users?ids= when user.fields asks
+	// for profile_image_url ("" = left out).
+	ProfileImageURL string
 }
 
 // Server is the fake API. Set the maps before serving; they are read
@@ -105,8 +109,12 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_, _ = w.Write(b)
 }
 
-// ServeHTTP implements the endpoint.
+// ServeHTTP implements the endpoints.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/2/users" {
+		s.serveByID(w, r)
+		return
+	}
 	q := r.URL.Query().Get("usernames")
 	s.mu.Lock()
 	s.requests++
@@ -218,4 +226,79 @@ func (s *Server) Start() (string, func(), error) {
 	srv := &http.Server{Handler: s, ReadHeaderTimeout: 5 * time.Second}
 	go func() { _ = srv.Serve(ln) }()
 	return "http://" + ln.Addr().String(), func() { _ = srv.Close() }, nil
+}
+
+// serveByID is GET /2/users?ids=…: users by numeric id, with username,
+// name and (when asked for) profile_image_url; ids of suspended users
+// (Suspended holds handles) and unknown ids are partial errors; a request
+// naming a user whose handle is in RateLimited gets 429.
+func (s *Server) serveByID(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("ids")
+	s.mu.Lock()
+	s.requests++
+	s.queries = append(s.queries, q)
+	s.auths = append(s.auths, r.Header.Get("Authorization"))
+	s.mu.Unlock()
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusNotFound, map[string]any{"title": "Not Found", "type": "about:blank", "status": 404})
+		return
+	}
+	if r.Header.Get("Authorization") != "Bearer "+s.Token {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"title": "Unauthorized", "type": "about:blank", "status": 401, "detail": "Unauthorized"})
+		return
+	}
+	ids := strings.Split(q, ",")
+	if q == "" || len(ids) > 100 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"title": "Invalid Request", "type": "https://api.x.com/2/problems/invalid-request"})
+		return
+	}
+	fields := map[string]bool{}
+	for _, f := range strings.Split(r.URL.Query().Get("user.fields"), ",") {
+		fields[f] = true
+	}
+	s.mu.Lock()
+	byID := map[string]User{}
+	for _, u := range s.Users {
+		byID[u.ID] = u
+	}
+	limited := false
+	for _, id := range ids {
+		if u, ok := byID[id]; ok && s.RateLimited[strings.ToLower(u.Username)] {
+			limited = true
+		}
+	}
+	var data, errs []map[string]any
+	for _, id := range ids {
+		u, ok := byID[id]
+		switch {
+		case ok && s.Suspended[strings.ToLower(u.Username)]:
+			errs = append(errs, map[string]any{"value": id, "detail": "User has been suspended: [" + id + "].", "title": "Forbidden",
+				"resource_type": "user", "parameter": "ids", "resource_id": id, "type": "https://api.x.com/2/problems/resource-unavailable"})
+		case ok:
+			d := map[string]any{"id": u.ID, "name": u.Username + " (fake)", "username": u.Username}
+			if u.Name != "" {
+				d["name"] = u.Name
+			}
+			if fields["profile_image_url"] && u.ProfileImageURL != "" {
+				d["profile_image_url"] = u.ProfileImageURL
+			}
+			data = append(data, d)
+		default:
+			errs = append(errs, map[string]any{"value": id, "detail": "Could not find user with ids: [" + id + "].", "title": "Not Found Error",
+				"resource_type": "user", "parameter": "ids", "resource_id": id, "type": "https://api.x.com/2/problems/resource-not-found"})
+		}
+	}
+	s.mu.Unlock()
+	if limited {
+		writeJSON(w, http.StatusTooManyRequests, map[string]any{"title": "Too Many Requests", "type": "about:blank", "status": 429})
+		return
+	}
+	body := map[string]any{}
+	if data != nil {
+		body["data"] = data
+	}
+	if errs != nil {
+		body["errors"] = errs
+	}
+	writeJSON(w, http.StatusOK, body)
 }

@@ -12,7 +12,8 @@ WorkingDirectory=/opt/nday
 # At most 200 hosts a run, one at a time, 1 s apart; https on port 443 of
 # public addresses only (internal/pagefetch guard), 10 s a request, 15 s a
 # host; the run stops itself after 15 minutes (siteicon.RunBudget), below
-# TimeoutStartSec; see docs/siteicons.md.
+# TimeoutStartSec; see docs/siteicons.md. Then the X avatar pass: at most
+# 100 images from pbs.twimg.com, 3 minutes (docs/xposts.md).
 ExecStart=/opt/nday/bin/nday site-icons
 TimeoutStartSec=20min
 MemoryMax=512M

@@ -19,6 +19,8 @@ collector from the Python reference.
 | `internal/collector` | The collector interface (the package doc is the porting guide), `NormalizeError`, `Text`, `ParseISODate` |
 | `internal/collector/kev` | CISA KEV collector |
 | `internal/collector/xposts` | X (Twitter) post collector (Go only): official API v2 recent search plus an allowlist; event type `social_post` (not a lifecycle stage). See `docs/xposts.md` |
+| `internal/collector/osssec` | oss-security mailing list collector (Go only): reads the seclists.org archive, one `analysis_published` event per post and CVE/GHSA id. See `docs/osssec.md` |
+| `internal/collector/zerowire` | Cloudflare Radar Zero Wire collector (Go only): reads the advisories' RSS feed, one `analysis_published` event per advisory and CVE/GHSA id, dated by day. See `docs/zerowire.md` |
 | `internal/xconfig` | All the SQL for xposts' database configuration (the `x_accounts` allowlist and the `x_settings` run parameters); shared by the CLI and the admin back office |
 | `internal/settings` | Settings stored in the database (`app_settings`): a registry of `NDAY_*` variables that can be stored, read/write, secret encryption (master key `NDAY_SETTINGS_KEY`), and snapshots (database > environment variable > default). Commands `nday settings` / `settings-set` / `settings-unset`; back office page `/admin/settings`. See `docs/settings.md` |
 | `internal/httpc` | HTTP shared by collectors: common UA, timeouts, retry with backoff on 429/5xx/transport errors, Retry-After, size limit, injectable RoundTripper/sleep |

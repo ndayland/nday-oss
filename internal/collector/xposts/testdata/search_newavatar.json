@@ -1,0 +1,18 @@
+{
+  "data": [
+    {
+      "id": "2120900000000000002",
+      "author_id": "1001",
+      "created_at": "2026-11-12T12:30:00.000Z",
+      "lang": "en",
+      "text": "New picture. CVE-2026-1111",
+      "edit_history_tweet_ids": ["2120900000000000002"]
+    }
+  ],
+  "includes": {
+    "users": [
+      {"id": "1001", "name": "Alice ⁦R⁩", "username": "alice_sec", "profile_image_url": "https://pbs.twimg.com/profile_images/1790000000000000002/new_normal.png"}
+    ]
+  },
+  "meta": {"newest_id": "2120900000000000002", "oldest_id": "2120900000000000002", "result_count": 1}
+}

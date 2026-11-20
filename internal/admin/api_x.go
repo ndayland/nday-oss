@@ -63,6 +63,8 @@ func (s *Service) xFail(w http.ResponseWriter, op string, err error) {
 		web.WriteError(w, http.StatusNotFound, "not_found", "no such candidate", "")
 	case errors.Is(err, ErrCandidateNoHandle):
 		web.WriteError(w, http.StatusUnprocessableEntity, "no_handle", "the candidate has no valid handle", "handle")
+	case errors.Is(err, xconfig.ErrOwnAccount):
+		web.WriteError(w, http.StatusUnprocessableEntity, "own_account", "the site's own X account is never collected", "handle")
 	case errors.Is(err, xconfig.ErrExists):
 		web.WriteError(w, http.StatusConflict, "exists", "this user id is already listed", "user_id")
 	case errors.Is(err, auth.ErrNotAdmin):

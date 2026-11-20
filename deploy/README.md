@@ -86,6 +86,18 @@ sudo systemctl enable --now nday-collect@<source>.timer
 
 It runs once an hour, with up to 5 minutes of random delay.
 
+For the oss-security collector (`docs/osssec.md`; no configuration, and the first run takes only the newest 40 posts):
+
+```bash
+sudo systemctl enable --now nday-collect@osssec.timer
+```
+
+For the Zero Wire collector (`docs/zerowire.md`; no configuration, one small feed per run, and the first run takes the whole feed):
+
+```bash
+sudo systemctl enable --now nday-collect@zerowire.timer
+```
+
 ## Web service (nday-web)
 
 `nday serve` serves the HTML pages and the JSON API (`docs/api.md`) from one process. Static assets are embedded in the binary, so it doesn't read or write the disk for them.
@@ -310,6 +322,16 @@ sudo -u nday sh -c 'cd /opt/nday && env $(cat /etc/nday/nday.env) /opt/nday/bin/
 - GitHub repository metadata (migration `0023_github_repo`, additive: tables `github_repo`, `github_repo_name`, `github_repo_cve` and the column `x_post_link.repo_queued_url`): when you release, `nday.new migrate` should print `applied: 0023_github_repo`.
   After that, every successful xposts collection also queues the GitHub repository links of posts and fetches their metadata from `https://api.github.com` only (at most 25 repositories, 2 minutes, 1 second apart; it stops quietly at the rate limit; see `docs/github.md`). The repositories then show as `owner/name`, stars and creation date in the vulnerability page's Resources panel.
   The token is the existing `NDAY_GITHUB_TOKEN` (store it on `/admin/settings`, or put it in an env file the xposts collector unit loads); without it requests are anonymous, 60 an hour. Backfill: `nday github-enqueue`, then `nday github-fetch` (50 per run by default; repeat after the rate-limit window when anonymous). If the migration hasn't been applied, the automatic step logs a warning.
+- Authors' names and avatars (migration `0038_x_user`, additive: the table `x_user` only): when you release, `nday.new migrate` should print `applied: 0038_x_user`. From then on every collected post brings its author's X display name and profile image address, and the daily `nday-site-icons` job fetches the images (only from `pbs.twimg.com/profile_images/`, and only for authors who appear in a vulnerability page's public list); pages serve them from our own origin at `/avatar/<hash>`. Details in `docs/xposts.md`.
+  A profile only arrives with a new post, so backfill the allowlist once by hand (3 requests for 270 accounts; the token has to be in the command's environment, so add `/etc/nday/xposts.env` to the `cat` if it isn't stored in the database):
+
+  ```bash
+  sudo -u nday sh -c 'cd /opt/nday && env $(cat /etc/nday/nday.env) /opt/nday/bin/nday x-profiles --dry-run'   # asks X, writes nothing, prints the counts
+  sudo -u nday sh -c 'cd /opt/nday && env $(cat /etc/nday/nday.env) /opt/nday/bin/nday x-profiles'             # one "x profiles pass" line, "written": N
+  sudo systemctl start nday-site-icons.service && journalctl -u nday-site-icons.service -n 20 | grep 'x avatars pass'   # fetch the images now instead of at 05:15
+  ```
+
+  `x-profiles` asks only for enabled accounts with no profile or one older than 30 days (`--all` asks for every enabled account), at most 100 a request and 10 requests a run, and stops on a rate limit. `avatar_rejected` counts accounts whose image address isn't under `pbs.twimg.com/profile_images/`: an account without a picture of its own has X's default one at `abs.twimg.com/sticky/…` and shows the first letter of its handle instead.
 
 ## GitHub PoC discovery (nday-github-discover)
 
@@ -602,7 +624,8 @@ sudo -u nday pg_restore -j 2 --no-owner -d 'postgresql:///nday?host=/var/run/pos
 sudo -u nday sh -c 'cd /opt/nday && env $(cat /etc/nday/nday.env) /opt/nday/bin/nday migrate'     # catches up on migrations when the binary is newer than the backup
 sudo systemctl start nday-web.service nday-stats.timer nday-backup.timer
 sudo systemctl start 'nday-collect@cvelist.timer' 'nday-collect@kev.timer' 'nday-collect@ghsa.timer' \
-  'nday-collect@exploitdb.timer' 'nday-collect@metasploit.timer' 'nday-collect@nuclei.timer' 'nday-collect@nvd.timer'
+  'nday-collect@exploitdb.timer' 'nday-collect@metasploit.timer' 'nday-collect@nuclei.timer' 'nday-collect@nvd.timer' \
+  'nday-collect@osssec.timer' 'nday-collect@zerowire.timer'
 ```
 
 After the restore, the collectors catch up on everything since the backup from their own cursors. If NVD hasn't been updated for more than 7 days, the first run re-reads the yearly files.

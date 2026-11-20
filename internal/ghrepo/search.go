@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"nday.land/nday/internal/model"
+	"nday.land/nday/internal/researchsql"
 )
 
 // Discovery through the GitHub search API (GET /search/repositories;
@@ -80,8 +81,8 @@ const (
 	// hotPool is how many CVEs each source of "hot" contributes (the first
 	// page of /discussed and of /hot: site.DefaultHotLimit).
 	hotPool = 50
-	// hotWindow is the window of both sources (site.ResearcherWindow and the
-	// hot list's default since=7d).
+	// hotWindow is the window of the hot list's default since=7d (the
+	// discussed source uses the researcher window, researchsql.Window).
 	hotWindow = 7 * 24 * time.Hour
 	// scanMinWindow: a scan window is not halved below this.
 	scanMinWindow = time.Minute
@@ -227,11 +228,22 @@ type DiscoverOptions struct {
 	// Spacing between requests; 0 = SearchSpacingAuth with a token, else
 	// SearchSpacingAnon.
 	Spacing time.Duration
-	// RunTime bounds the run (0 = MaxRunTime).
+	// RunTime bounds the run (0 = MaxRunTime), the review refresh included.
 	RunTime time.Duration
-	Now     func() time.Time
-	Sleep   func(ctx context.Context, d time.Duration) error
-	Logger  *slog.Logger
+	// RefreshLimit caps the review refresh (refreshUnverified): 0 =
+	// RefreshUnverifiedLimit with a token, RefreshUnverifiedAnonLimit
+	// without; < 0 = no review refresh.
+	RefreshLimit int
+	// RefreshSpacing between two refresh requests; 0 = RefreshSpacingAuth
+	// with a token, else RefreshSpacingAnon.
+	RefreshSpacing time.Duration
+	// RefreshReserve: the refresh stops once the core limit reports fewer
+	// requests left than this; 0 = RefreshReserveAuth with a token, else
+	// RefreshReserveAnon.
+	RefreshReserve int
+	Now            func() time.Time
+	Sleep          func(ctx context.Context, d time.Duration) error
+	Logger         *slog.Logger
 
 	decode func([]byte) (*SearchPage, error) // tests only; nil = DecodeSearch
 }
@@ -260,19 +272,25 @@ type DiscoverResult struct {
 	// SkippedForks: new forks under MinForkStars stars, not stored at all
 	// (a fork we already have a row for is refreshed and counted in Updated)
 	SkippedForks int `json:"skipped_forks"`
+
+	// Refresh is the review refresh after the search part (refresh.go).
+	Refresh RefreshResult `json:"refresh"`
 }
 
 // Discover runs the new-repository scan (current year, then the previous
 // one; at most ScanPages requests, a third of them kept for the previous
 // year) and then the targeted search for HotCVEs (at most HotCVEs CVEs,
 // one request each), in all at most MaxRequests requests, Spacing apart,
-// within RunTime. It stops cleanly, without an error, on any 403 or 429,
-// after a response reporting 0 requests left, and at RunTime. Only one
+// within RunTime minus the refresh's share (refreshShare). The search
+// part stops cleanly, without an error, on any 403 or 429, after a
+// response reporting 0 requests left, and at its time. Then the review
+// refresh (refreshUnverified) brings the repositories waiting for review
+// up to date through the core API, until RunTime. Only one
 // GitHub pass at a time (DiscoverLockID, shared with FetchPending; a run
 // that cannot take it returns Locked). Errors are database and context
 // errors; db must be a single connection (the lock is per session).
 func Discover(ctx context.Context, db DB, o DiscoverOptions) (DiscoverResult, error) {
-	res := DiscoverResult{Remaining: -1}
+	res := DiscoverResult{Remaining: -1, Refresh: RefreshResult{Remaining: -1}}
 	if o.MaxRequests <= 0 {
 		o.MaxRequests = DefaultMaxRequests
 	}
@@ -316,9 +334,27 @@ func Discover(ctx context.Context, db DB, o DiscoverOptions) (DiscoverResult, er
 		return res, nil
 	}
 	defer unlock(ctx, db)
+	// the whole run has RunTime; the search part may use all of it but
+	// the review refresh's share, so that one always gets its turn
 	run, cancel := context.WithTimeout(ctx, o.RunTime)
 	defer cancel()
-	d := &discoverer{db: db, o: o, res: &res, now: o.Now().UTC(), run: run}
+	srun, scancel := context.WithTimeout(run, o.RunTime-refreshShare(o.RunTime))
+	defer scancel()
+	d := &discoverer{db: db, o: o, res: &res, now: o.Now().UTC(), run: srun}
+	if err := d.search(ctx); err != nil {
+		return res, err
+	}
+	// the core API has its own limit: a search part stopped by the search
+	// limit or its time share doesn't stop the refresh
+	if err := d.refreshUnverified(ctx, run); err != nil {
+		return res, err
+	}
+	return res, nil
+}
+
+// search is the search part of a run: the scan, then the targeted search.
+func (d *discoverer) search(ctx context.Context) error {
+	o, res := d.o, d.res
 	budget := o.MaxRequests
 	if o.ScanPages > 0 {
 		scan := min(o.ScanPages, budget)
@@ -348,42 +384,42 @@ func Discover(ctx context.Context, db DB, o DiscoverOptions) (DiscoverResult, er
 			}
 			before := res.Requests
 			if err := d.scanYear(ctx, year, &share); err != nil {
-				return res, err
+				return err
 			}
 			used := res.Requests - before
 			scan -= used
 			budget -= used
 			if d.stop {
-				return res, nil
+				return nil
 			}
 		}
 		if ghsa > 0 {
 			before := res.Requests
 			if err := d.scan(ctx, ghsaScanKey, func(lo, hi time.Time) (string, error) { return GHSAScanQuery(lo, hi), nil }, &ghsa); err != nil {
-				return res, err
+				return err
 			}
 			budget -= res.Requests - before
 			if d.stop {
-				return res, nil
+				return nil
 			}
 		}
 	}
 	if o.HotCVEs > 0 && budget > 0 {
-		cves, err := HotCVEs(ctx, db, d.now, min(o.HotCVEs, budget))
+		cves, err := HotCVEs(ctx, d.db, d.now, min(o.HotCVEs, budget))
 		if err != nil {
-			return res, err
+			return err
 		}
 		for _, cve := range cves {
 			if d.stop || budget <= 0 {
 				break
 			}
 			if err := d.searchCVE(ctx, cve); err != nil {
-				return res, err
+				return err
 			}
 			budget--
 		}
 	}
-	return res, nil
+	return nil
 }
 
 func sleepCtx(ctx context.Context, d time.Duration) error {
@@ -719,22 +755,23 @@ var hotStages = []string{model.EventPatchReleased, model.EventAnalysisPublished,
 
 // hotSQL selects the ids to search: the union of the first page of
 // /discussed (site.Discussed: distinct enabled allowlisted researchers who
-// posted about the CVE in the last 7 days, then the latest post, then the
-// id; the hot list's pinned rows come from the same ranking) and the first
-// page of /hot in its default view (site.Hot: a transition to
-// patch_released or a later stage in the last 7 days, not rejected, newest
-// transition first), each at most $3 vulnerabilities (CVE-keyed or
-// GHSA-keyed, as both lists hold them); for each its own id and, when it
-// is CVE-keyed, its GHSA alias ids; without the ids searched after $5, and
-// without those whose last failure is within their backoff (2^(failures-1)
-// hours, at most 24); CVE ids before GHSA ids, then never tried first,
-// then least recently tried, then discussed before hot, then rank; at
-// most $6.
+// posted about the CVE in the researcher window [$7, $2], the same bounds
+// as site.Discussed through researchsql.Window: today and the 6 UTC days
+// before; then the latest post, then the id; the hot list's pinned rows
+// come from the same ranking) and the first page of /hot in its default
+// view (site.Hot: a transition to patch_released or a later stage in
+// [$1, $2], the last 7 days, not rejected, newest transition first), each
+// at most $3 vulnerabilities (CVE-keyed or GHSA-keyed, as both lists hold
+// them); for each its own id and, when it is CVE-keyed, its GHSA alias
+// ids; without the ids searched after $5, and without those whose last
+// failure is within their backoff (2^(failures-1) hours, at most 24); CVE
+// ids before GHSA ids, then never tried first, then least recently tried,
+// then discussed before hot, then rank; at most $6.
 const hotSQL = `
 WITH discussed AS (
   SELECT p.cve_id, count(DISTINCT p.detail->>'author_id') AS researchers, max(p.occurred_at) AS last_at
   FROM event p JOIN x_accounts xa ON xa.user_id = p.detail->>'author_id' AND xa.enabled
-  WHERE p.type = 'social_post' AND p.source = 'xposts' AND p.occurred_at >= $1 AND p.occurred_at <= $2
+  WHERE p.type = 'social_post' AND p.source = 'xposts' AND p.occurred_at >= $7 AND p.occurred_at <= $2
   GROUP BY p.cve_id
   ORDER BY researchers DESC, last_at DESC, p.cve_id
   LIMIT $3
@@ -776,7 +813,8 @@ func HotCVEs(ctx context.Context, db DB, now time.Time, limit int) ([]string, er
 	if limit <= 0 {
 		return nil, nil
 	}
-	rows, err := db.Query(ctx, hotSQL, now.Add(-hotWindow), now, hotPool, hotStages, now.Add(-ResearchAfter), limit)
+	wstart, _ := researchsql.Window(now)
+	rows, err := db.Query(ctx, hotSQL, now.Add(-hotWindow), now, hotPool, hotStages, now.Add(-ResearchAfter), limit, wstart)
 	if err != nil {
 		return nil, err
 	}

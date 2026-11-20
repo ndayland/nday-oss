@@ -13,7 +13,9 @@ import (
 	"nday.land/nday/internal/collector/metasploit"
 	"nday.land/nday/internal/collector/nuclei"
 	"nday.land/nday/internal/collector/nvd"
+	"nday.land/nday/internal/collector/osssec"
 	"nday.land/nday/internal/collector/xposts"
+	"nday.land/nday/internal/collector/zerowire"
 )
 
 // Collectors maps source name -> factory for the collectors ported to Go.
@@ -31,6 +33,10 @@ var Collectors = map[string]collector.Factory{
 	xposts.Name: xposts.Factory, // Go only (no Python counterpart)
 
 	nvd.Name: nvd.Factory, // Go only: streamed (nvd.Collector.Run), no events; docs/nvd.md
+
+	osssec.Name: osssec.Factory, // Go only: oss-security posts from seclists.org; docs/osssec.md
+
+	zerowire.Name: zerowire.Factory, // Go only: Cloudflare Radar Zero Wire advisories; docs/zerowire.md
 }
 
 // PythonOnly are sources the Python implementation has but Go does not yet.

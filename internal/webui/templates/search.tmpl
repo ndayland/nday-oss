@@ -9,6 +9,7 @@
 {{- end}}
 </div>
 <div class="flags">
+{{template "cvssfilter" .}}
 {{template "tagfilter" .}}
 </div>
 {{- if ne .Kind "too_short"}}

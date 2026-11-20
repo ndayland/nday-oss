@@ -534,7 +534,54 @@ func ApplyNormalized(ctx context.Context, db execer, norm *model.Normalized, obs
 			return fmt.Errorf("x_account_candidate_ref %s/%s: %w", r.UserID, r.PostID, err)
 		}
 	}
+	// Go only (xposts): the profile of each post's author. The newest fetch
+	// wins (seen_at, set by stampProfiles to when the raw record was
+	// fetched), so re-normalizing an old raw record never rolls a name or
+	// avatar back, and a profile change shows on the next fetch even when
+	// the author has posted nothing newer. A changed avatar_url leaves the stored image in
+	// place (internal/xavatar refetches it at once); a NULL one drops it.
+	for _, u := range norm.XUsers {
+		if err := UpsertXUser(ctx, db, u); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// UpsertXUser writes one author profile (table x_user): the newer fetch
+// wins (seen_at), an equal or older one changes nothing it should not. A
+// NULL avatar_url drops a stored image; a changed one keeps it until
+// internal/xavatar fetches the new one. Used by ApplyNormalized and by
+// `nday x-profiles` (internal/xprofiles), so both follow the same rule.
+func UpsertXUser(ctx context.Context, db Execer, u model.XUser) error {
+	if _, err := db.Exec(ctx, `INSERT INTO x_user (user_id, name, avatar_url, seen_at, updated_at)
+               VALUES ($1, $2, $3, $4, now())
+               ON CONFLICT (user_id) DO UPDATE SET
+                   name          = EXCLUDED.name,
+                   avatar_url    = EXCLUDED.avatar_url,
+                   seen_at       = EXCLUDED.seen_at,
+                   updated_at    = now(),
+                   avatar_status = CASE WHEN EXCLUDED.avatar_url IS NULL THEN NULL ELSE x_user.avatar_status END,
+                   avatar_type   = CASE WHEN EXCLUDED.avatar_url IS NULL THEN NULL ELSE x_user.avatar_type END,
+                   avatar_image  = CASE WHEN EXCLUDED.avatar_url IS NULL THEN NULL ELSE x_user.avatar_image END,
+                   avatar_hash   = CASE WHEN EXCLUDED.avatar_url IS NULL THEN NULL ELSE x_user.avatar_hash END,
+                   avatar_src    = CASE WHEN EXCLUDED.avatar_url IS NULL THEN NULL ELSE x_user.avatar_src END
+               WHERE x_user.seen_at <= EXCLUDED.seen_at
+                 AND (x_user.name, x_user.avatar_url, x_user.seen_at)
+                     IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.avatar_url, EXCLUDED.seen_at)`,
+		u.UserID, u.Name, u.AvatarURL, u.SeenAt); err != nil {
+		return fmt.Errorf("x_user %s: %w", u.UserID, err)
+	}
+	return nil
+}
+
+// stampProfiles dates the author profiles of norm at fetchedAt, the time
+// the raw record was fetched from X: a profile is what X said then, not
+// when the post was written.
+func stampProfiles(norm *model.Normalized, fetchedAt time.Time) {
+	for i := range norm.XUsers {
+		norm.XUsers[i].SeenAt = fetchedAt
+	}
 }
 
 // normalizeOne runs Normalize and the constructor-time validation Python does.
@@ -645,6 +692,7 @@ func RunCollector(ctx context.Context, conn *pgx.Conn, c collector.Collector, op
 					log.Warn(fmt.Sprintf("normalize failed for %s/%s: %s", rec.Source, rec.SourceKey, nerr.Msg))
 					continue
 				}
+				stampProfiles(norm, runAt) // every record here came from X in this run
 				if err := ApplyNormalized(ctx, db, norm, runAt, st.IsBackfill || rec.IsBackfill, st); err != nil {
 					return err
 				}
@@ -715,16 +763,19 @@ func Renormalize(ctx context.Context, conn *pgx.Conn, c collector.Collector, opt
 		return nil, err
 	}
 	defer tx.Rollback(context.WithoutCancel(ctx)) //nolint:errcheck // no-op after Commit
-	rows, err := tx.Query(ctx, `SELECT DISTINCT ON (source_key) source_key, payload::text
+	rows, err := tx.Query(ctx, `SELECT DISTINCT ON (source_key) source_key, payload::text, fetched_at
            FROM raw_record WHERE source = $1
            ORDER BY source_key, fetched_at DESC, id DESC`, c.Name())
 	if err != nil {
 		return nil, err
 	}
-	type kv struct{ key, payload string }
+	type kv struct {
+		key, payload string
+		fetched      time.Time
+	}
 	recs, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (kv, error) {
 		var x kv
-		return x, r.Scan(&x.key, &x.payload)
+		return x, r.Scan(&x.key, &x.payload, &x.fetched)
 	})
 	if err != nil {
 		return nil, err
@@ -759,6 +810,7 @@ func Renormalize(ctx context.Context, conn *pgx.Conn, c collector.Collector, opt
 			log.Warn(fmt.Sprintf("normalize failed for %s/%s: %s", rec.Source, rec.SourceKey, nerr.Msg))
 			continue
 		}
+		stampProfiles(norm, r.fetched.UTC()) // as of the stored fetch, never the re-run
 		if err := ApplyNormalized(ctx, db, norm, runAt, true, st); err != nil {
 			return nil, err
 		}

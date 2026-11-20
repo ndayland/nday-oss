@@ -114,8 +114,12 @@ func runGitHubEnqueue(ctx context.Context, env Env, prog string, rest []string) 
 // new-repository scan and the targeted search for hot CVEs through
 // GET https://api.github.com/search/repositories, at most N requests
 // (default ghrepo.DefaultMaxRequests, at most ghrepo.MaxMaxRequests),
-// spaced so the per-minute search limit cannot be reached, with
-// NDAY_GITHUB_TOKEN when set. Stops cleanly at the rate limit; a run
+// spaced so the per-minute search limit cannot be reached, then the
+// review refresh (every repository waiting for review, by id through the
+// core API; not counted in N), with NDAY_GITHUB_TOKEN when set. A
+// refresh can rename a repository or make it 'gone', so the PoC
+// fingerprint below is taken around the whole run, refresh included.
+// Stops cleanly at the rate limit; a run
 // while another holds the lock does nothing ("locked": true). Run by
 // deploy/systemd/nday-github-discover.timer. Output: the counts as JSON;
 // one summary log line.
@@ -203,6 +207,10 @@ func logDiscover(res ghrepo.DiscoverResult, err error, authenticated bool) {
 		"hidden", res.Hidden,
 		"malformed", res.Malformed, "failed", res.Failed, "incomplete", res.Incomplete, "rate_limited", res.RateLimited,
 		"timed_out", res.TimedOut, "remaining", res.Remaining, "locked", res.Locked, "authenticated", authenticated,
+		"refresh_candidates", res.Refresh.Candidates, "refresh_requests", res.Refresh.Requests, "refresh_ok", res.Refresh.OK,
+		"refresh_not_modified", res.Refresh.NotModified, "refresh_gone", res.Refresh.Gone, "refresh_failed", res.Refresh.Failed,
+		"refresh_rate_limited", res.Refresh.RateLimited, "refresh_capped", res.Refresh.Capped,
+		"refresh_timed_out", res.Refresh.TimedOut, "core_remaining", res.Refresh.Remaining,
 		"err", errString(err))
 }
 

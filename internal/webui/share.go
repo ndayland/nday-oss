@@ -76,10 +76,25 @@ func (u *UI) canonURL(l *i18n.Locale, path string) string {
 	return u.opts.BaseURL + l.Path(path)
 }
 
+// stageLink is a page link for a post about stage (an event type): link
+// plus "?s=" and the stage code in lower case ("?s=poc"), or link as it is
+// when stage is not a lifecycle stage. X keeps the card of a URL it has
+// seen (for about a week) whatever the page shows later, so a post about a
+// new stage must not reuse the URL an earlier post or preview carded: with
+// the parameter each stage is a URL of its own. The page ignores it and
+// its canonical URL stays the plain one.
+func stageLink(link, stage string) string {
+	if c := strings.ToLower(site.StageCode(stage)); c != "" {
+		return link + "?s=" + c
+	}
+	return link
+}
+
 // shareView is the share control of v's page in locale l.
 func (u *UI) shareView(l *i18n.Locale, v *site.VulnDetail) *ShareView {
-	body := xdraft.Share(shareInput(v))
-	link := u.canonURL(l, "/vuln/"+v.CVEID)
+	in := shareInput(v)
+	body := xdraft.Share(in)
+	link := stageLink(u.canonURL(l, "/vuln/"+v.CVEID), in.Stage)
 	return &ShareView{Compose: xdraft.ComposeURL(body, link), Text: xdraft.ComposeText(body, link)}
 }
 

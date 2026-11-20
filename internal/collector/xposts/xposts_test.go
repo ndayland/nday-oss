@@ -291,7 +291,7 @@ func TestFetchFirstRun(t *testing.T) {
 	if q1.Get("query") != "(from:alice_sec OR from:bob_sec) (CVE OR GHSA) -is:retweet" || q1.Get("start_time") != "2026-11-06T13:00:00Z" ||
 		q1.Has("since_id") || q1.Get("max_results") != "100" ||
 		q1.Get("expansions") != "author_id,referenced_tweets.id,referenced_tweets.id.author_id,entities.mentions.username" ||
-		q1.Get("tweet.fields") != "author_id,created_at,lang,entities,note_tweet,referenced_tweets" || q1.Get("user.fields") != "username" || q1.Has("pagination_token") {
+		q1.Get("tweet.fields") != "author_id,created_at,lang,entities,note_tweet,referenced_tweets" || q1.Get("user.fields") != "username,name,profile_image_url" || q1.Has("pagination_token") {
 		t.Errorf("request 1: %v", q1)
 	}
 	if q2.Get("pagination_token") != "b26v89c19zqg8o3fpzbkk7bmjckcbfhy9cmhn8ofhdpml" || q2.Get("query") != q1.Get("query") ||
@@ -548,8 +548,22 @@ func TestNormalizeErrors(t *testing.T) {
 			t.Errorf("%s: %v", s, err)
 		}
 	}
+	// an author id x_user would refuse ("0123": leading zero): the post is
+	// normalized as usual, the profile is left out (an insert that fails
+	// its CHECK would roll the whole run back)
+	n, err := c.Normalize(mk(`{"post": {"id": "5", "author_id": "0123", "created_at": "2026-11-12T00:00:00Z", "text": "CVE-2026-1111"},
+        "author": {"id": "0123", "username": "zero", "name": "Zero", "profile_image_url": "https://pbs.twimg.com/profile_images/1/z.jpg"}}`))
+	if err != nil || len(n.Events) != 1 || len(n.XUsers) != 0 {
+		t.Errorf("author id 0123: %v %+v", err, n)
+	}
+	// the same with a valid id gives the profile
+	n, err = c.Normalize(mk(`{"post": {"id": "5", "author_id": "123", "created_at": "2026-11-12T00:00:00Z", "text": "CVE-2026-1111"},
+        "author": {"id": "123", "username": "zero", "name": "Zero", "profile_image_url": "https://pbs.twimg.com/profile_images/1/z.jpg"}}`))
+	if err != nil || len(n.XUsers) != 1 || *n.XUsers[0].Name != "Zero" {
+		t.Errorf("author id 123: %v %+v", err, n)
+	}
 	// no author object: i/web link, null handle
-	n, err := c.Normalize(mk(`{"post": {"id": "5", "author_id": "1", "created_at": "2026-11-12T00:00:00Z", "text": "CVE-2026-1111"}, "author": null}`))
+	n, err = c.Normalize(mk(`{"post": {"id": "5", "author_id": "1", "created_at": "2026-11-12T00:00:00Z", "text": "CVE-2026-1111"}, "author": null}`))
 	if err != nil || len(n.Events) != 1 || *n.Events[0].URL != "https://x.com/i/web/status/5" || n.Events[0].Detail["author_handle"] != nil {
 		t.Errorf("%v %+v", err, n)
 	}

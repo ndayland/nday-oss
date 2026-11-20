@@ -86,6 +86,15 @@
 <a class="tall" href="{{.TagsHref}}">{{if .Chips}}{{t "tag.filter.more"}}{{else}}{{t "tag.filter.browse"}}{{end}}</a>
 </div>{{end}}
 
+{{define "cvssfilter"}}<div class="flag cvssf">
+<span class="k">{{t "cat.cvss"}}</span>
+<div class="seg">
+{{- range .CVSS}}
+<a href="{{.Href}}"{{if .Active}} aria-current="true"{{end}}>{{.Label}}</a>
+{{- end}}
+</div>
+</div>{{end}}
+
 {{define "adminhead"}}<div class="stack adm-head">
 <h1 class="h1"><span class="h" aria-hidden="true"># </span><bdi>{{.Title}}</bdi></h1>
 <p class="note">{{if .Handle}}{{t "admin.signed_in_as" "handle" .Handle "role" (ts "acct.role.name" "role" .Role)}}{{else}}{{t "acct.role.name" "role" .Role}}{{end}}</p>
@@ -273,13 +282,17 @@
 right: first, previous, next, each a link or, where it does not apply, a disabled span in the same
 place. The glyphs are decoration; the words carry the meaning. */}}
 {{define "pager"}}{{with .}}<nav class="pager" aria-label="{{ts "pager.label"}}">
-<p class="pg-pos">{{with .Page}}<span>{{.}}</span>{{end}}{{with .Range}}<span>{{.}}</span>{{end}}</p>
+<p class="pg-pos{{if not .Range}} sr{{end}}">{{with .Page}}<span class="sr">{{.}}</span>{{end}}{{with .Range}}<span>{{.}}</span>{{end}}</p>
 <div class="pg-ctl">
-{{- if .First}}<a href="{{.First}}" class="pg"><span class="pg-g" aria-hidden="true">«</span>{{t "pager.first"}}</a>
-{{- else}}<span class="pg" aria-disabled="true"><span class="pg-g" aria-hidden="true">«</span>{{t "pager.first"}}</span>{{end}}
-{{- if .Prev}}<a href="{{.Prev}}" rel="prev" class="pg"><span class="pg-g" aria-hidden="true">‹</span>{{t "pager.prev"}}</a>
-{{- else}}<span class="pg" aria-disabled="true"><span class="pg-g" aria-hidden="true">‹</span>{{t "pager.prev"}}</span>{{end}}
-{{- if .Next}}<a href="{{.Next}}" rel="next" class="pg">{{t "pager.next"}}<span class="pg-g" aria-hidden="true">›</span></a>
-{{- else}}<span class="pg" aria-disabled="true">{{t "pager.next"}}<span class="pg-g" aria-hidden="true">›</span></span>{{end}}
+{{- if .Prev}}<a href="{{.Prev}}" rel="prev" class="pg pg-a"><span aria-hidden="true">‹</span><span class="sr">{{t "pager.prev"}}</span></a>
+{{- else}}<span class="pg pg-a" aria-disabled="true"><span aria-hidden="true">‹</span><span class="sr">{{t "pager.prev"}}</span></span>{{end}}
+{{- range .Items}}
+{{- if .Gap}}<span class="pg-gap{{with .Class}} {{.}}{{end}}" aria-hidden="true">…</span>
+{{- else if .Current}}<span class="pg pg-cur{{with .Class}} {{.}}{{end}}" aria-current="page"><span aria-hidden="true">{{.Text}}</span><span class="sr">{{.Name}}</span></span>
+{{- else}}<a href="{{.Href}}" class="pg{{with .Class}} {{.}}{{end}}"><span aria-hidden="true">{{.Text}}</span><span class="sr">{{.Name}}</span></a>
+{{- end}}
+{{- end}}
+{{- if .Next}}<a href="{{.Next}}" rel="next" class="pg pg-a"><span aria-hidden="true">›</span><span class="sr">{{t "pager.next"}}</span></a>
+{{- else}}<span class="pg pg-a" aria-disabled="true"><span aria-hidden="true">›</span><span class="sr">{{t "pager.next"}}</span></span>{{end}}
 </div>
 </nav>{{end}}{{end}}

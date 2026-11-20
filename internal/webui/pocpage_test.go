@@ -93,7 +93,7 @@ func TestPoCPages(t *testing.T) {
 		}
 		r := regionOf(c.body, "r-poc")
 		pg := pocPgRe.FindString(r)
-		if n := strings.Count(c.body, `data-page-region="`); n != 2 || pg == "" || !strings.Contains(pg, c.pos) ||
+		if n := strings.Count(c.body, `data-page-region="`); n != 3 || pg == "" || !strings.Contains(pg, c.pos) ||
 			!strings.Contains(r, `<h3 class="rsrc-k k-poc">PoC / exploit code</h3>`) {
 			t.Errorf("%s: %d regions, pager %q", c.name, n, pg)
 		}
@@ -117,7 +117,11 @@ func TestPoCPages(t *testing.T) {
 		}
 	}
 	// outside the region: the same page (chart, popovers, everything)
-	if a, b := outsideRegion(one, "r-poc"), outsideRegion(two, "r-poc"); a != b {
+	// (the event log's pager links carry pocp, as the other region's do)
+	rest := func(b string) string {
+		return strings.Replace(outsideRegion(b, "r-poc"), regionOf(b, "r-events"), "EVENTS", 1)
+	}
+	if a, b := rest(one), rest(two); a != b {
 		t.Errorf("page 1 vs 2 differ outside r-poc:\n%s", firstDiff(a, b))
 	}
 	if strings.Count(one, `class="dot d-poc`) == 0 || !strings.Contains(one, `<div class="crow lane">`) ||

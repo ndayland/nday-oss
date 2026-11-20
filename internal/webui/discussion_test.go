@@ -63,6 +63,19 @@ func (f *fakeDisc) Outline(ctx context.Context, cve string) (*discuss.Outline, e
 	return &o, nil
 }
 
+// OutlinePage is the fixed outline as page 1 of 1 (an Outline call).
+func (f *fakeDisc) OutlinePage(ctx context.Context, cve string, page, per int) (*discuss.Outline, error) {
+	o, err := f.Outline(ctx, cve)
+	if o != nil && o.Pages == 0 {
+		o.Page, o.Pages = 1, 1
+	}
+	return o, err
+}
+
+func (f *fakeDisc) Locate(ctx context.Context, cve, id string) (*discuss.Position, error) {
+	return nil, discuss.ErrNotFound
+}
+
 func (f *fakeDisc) calls() (int, int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -190,7 +203,7 @@ func TestDiscussionSection(t *testing.T) {
 			t.Errorf("speckle sizes %v, want m,s,l,s", got)
 		}
 		for _, want := range []string{"5 comments", "Hidden by a moderator.", "3 more replies",
-			"More comments follow.", "Sign in to read 5 comments.", `id="disc-veil"`,
+			"Sign in to read 5 comments.", `id="disc-veil"`,
 			`aria-hidden="true"></span></a><span class="sr">A comment. Sign in to read it.</span>`,
 			`<a class="spk-go" href="/login?return=%2Fvuln%2F` + sitetest.GPU + `%3Fdiscussion" tabindex="-1" aria-hidden="true">`} {
 			if !strings.Contains(sec, want) {

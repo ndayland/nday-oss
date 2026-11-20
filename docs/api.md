@@ -134,6 +134,7 @@ is redacted in the access and error logs. See `docs/auth.md` for how the key is 
   `"Java SE: buffer overflow / out-of-bounds write in Compiler"`; the rule is in `docs/titles.md`). Both are `null` when the
   vulnerability has no title at all. Plain text (escape it like any other string).
 - List data comes from the materialized state `vuln_state_mat`, which is refreshed after every successful collection (`state_refreshed_at`).
+  The scores the `cvss_min` / `cvss_max` filters use (`vuln_score_mat`, the score each vulnerability page shows) are refreshed with it.
   `slots` / `transition` in `/api/vuln` are computed straight from the events, so they're always current.
 
 ### Errors
@@ -195,15 +196,15 @@ Vulnerabilities that recently moved into a new stage, newest transition first (t
 | `before` | — | added 2026-11-17: a page's `prev_cursor`, to page backwards (see "Paging backwards" below). Not combined with `cursor` (400, `param: "before"`) |
 | `tag` | — | tag slug (see `GET /api/tags`). **Repeatable**; results must match all of them (`?tag=remote-unauth&tag=xss`). Case-insensitive. An unknown slug, or more than 5 distinct slugs, is a 400 (`param: "tag"`) |
 
-Each row has `researchers_7d` (added 2026-11-14; additive only): the number of **distinct** allowlisted researchers who posted about the CVE on X in the last 7 days (`[now-7d, now]`); only enabled accounts count
+Each row has `researchers_7d` (added 2026-11-14; additive only): the number of **distinct** allowlisted researchers who posted about the CVE on X in the last 7 days; only enabled accounts count. Since 2026-11-21 the 7 days are UTC calendar days (00:00 UTC six days ago up to now), not a rolling 168 hours, so the number changes only at 00:00 UTC or when a post arrives. The window always lies inside the old rolling 168 hours, so the number is the same as before or lower, lowest just after 00:00 UTC (when the window is about 144 hours)
 (rules in `internal/site/public.go` and `docs/xposts.md`, "Public visibility"). It doesn't affect ordering or `cursor`.
 
 Each row has `pinned` (boolean; added 2026-11-14; additive only): CVEs researchers are **currently discussing** are pinned at the very top of the **first page** (no `cursor` and `offset=0`).
 Those rows have `pinned: true`; all others have `false`. A CVE is pinned only if all of these hold (the rules live in `internal/site/pin.go`):
 
 1. `researchers_7d` ≥ 2 (same definition as above: only enabled allowlisted accounts count);
-2. the latest researcher post is at most 72 hours old;
-3. the current "wave" of discussion started within the last 7 days. A wave is the CVE's most recent run of consecutive posts where each pair of neighbours is at most 7 days apart; it starts at the earliest post in that run.
+2. the latest researcher post is from today or the 3 UTC days before (the 72 hours rounded up to whole UTC days);
+3. the current "wave" of discussion started today or in the 7 UTC days before (since 2026-11-21 these rules, and the wave gap below, use UTC days only, so a pin appears or goes only at 00:00 UTC or when a post arrives). A wave is the CVE's most recent run of consecutive posts where the UTC dates of each pair of neighbours are at most 7 days apart; it starts at the earliest post in that run.
    So a CVE that goes quiet for more than 7 days and then gets discussed again can be pinned again, while a CVE that's discussed continuously stops being pinned 7 days after its wave began;
 4. it's already in this request's list (same `since`, `min_stage`, `include_rejected` and `tag`).
 
@@ -228,7 +229,7 @@ are unchanged.
 The response has `tags` (added 2026-11-14; additive only): the normalized tag filter (in vocabulary order; `[]` when there's no filter). Each row has `tags` too: that CVE's tag slugs (vocabulary order).
 
 Row fields: `products` has at most 2 entries (deduplicated case-insensitively, first reporter first) and `product_count` is the total.
-`transition` is the most recent change (`type/code/at/precision/source/event_id`). `poc_sources` is how many of exploitdb,
+`transition` is the most recent change (`type/code/at/precision/source/event_id`); an oss-security post (source `osssec`) is never one (`docs/osssec.md`). `poc_sources` is how many of exploitdb,
 metasploit, nuclei and github have a PoC event (n/4; github since 2026-11-19, see below).
 
 ```sh
@@ -344,13 +345,14 @@ including ones with only a disclosure event; placeholder CVEs with no events are
 It doesn't return a total (per-stage totals are in `GET /api/stats`).
 
 Order: most recent change (`transition.at`) descending, ties broken by the **current** stage (higher first), then CVE ID descending (same as `/api/hot`).
-A CVE whose stage event times are all unknown has no `transition.at`; it sorts after every row that has a time, by current stage (higher first) and then CVE ID descending.
+A CVE whose stage event times are all unknown (or whose only events are oss-security posts) has no `transition.at`; it sorts after every row that has a time, by current stage (higher first) and then CVE ID descending.
 
 | Parameter | Default | Values |
 |---|---|---|
 | `stage` | — (all) | The **current** stage, exact match. Values are the same as `min_stage` in `/api/hot`: `disclosed`, `patch`, `analysis`, `poc`, `exploited`, `kev`, or a code (`DIS` etc.), or the full type name. Case-insensitive. An empty or unknown value is a 400 (`param: "stage"`) |
 | `year` | — (all) | The year in the CVE ID (`CVE-<year>-…`), from 1999 up to the current UTC year + 1. `0`, an empty value or a non-integer is a 400 (`param: "year"`). A vulnerability whose ID is a GHSA ID has no year and is never in a year-filtered list |
 | `tag` | — | Same as `/api/hot`: repeatable, must match all, at most 5 distinct slugs (comma syntax isn't supported; `a,b` is treated as one unknown slug) |
+| `cvss_min` / `cvss_max` | — (any score) | Added 2026-11-20: the CVSS base score shown on the vulnerability's page (`cvss.score` of `/api/vuln`) is at least / at most this, both inclusive and each optional; both the same value = that exact score. A score 0–10 with at most one decimal, written plainly (`9`, `9.8`, `10.0`). A vulnerability without a score is never in a score-filtered list. Negative, above 10, two decimals, exponent form, a comma, a sign, spaces, `NaN`, an empty value or `cvss_min` above `cvss_max` is a 400 (`param: "cvss_min"` / `"cvss_max"`). Severity bands as ranges: critical `cvss_min=9`, high `cvss_min=7&cvss_max=8.9`, medium `cvss_min=4&cvss_max=6.9`, low `cvss_min=0.1&cvss_max=3.9` |
 | `include_rejected` | `false` | `true/false/1/0` (empty = true) |
 | `limit` | 50 | 1–200 |
 | `cursor` | — | the previous page's `next_cursor` (opaque; a `/api/hot` cursor doesn't work here and vice versa). An empty or invalid value is a 400 |
@@ -366,6 +368,7 @@ Response:
 | `stage` / `stage_code` | The stage filter (full type name / code); `null` when there's no filter |
 | `year` | The year filter; `null` when there's no filter |
 | `tags` | The normalized tag filter (vocabulary order; `[]` when there's no filter) |
+| `cvss_min` / `cvss_max` | Added 2026-11-20: the score filter's bounds as numbers; `null` when that bound isn't set |
 | `include_rejected`, `limit` | The values actually used |
 | `rows` | Exactly the same structure as the `/api/hot` rows (including `tags` and `researchers_7d`); `pinned` is always `false` |
 | `next_cursor` | A string when there's another page, otherwise `null` |
@@ -434,6 +437,7 @@ CVEs that are only mentioned in posts and have just a placeholder row in the dat
 
 Row fields are the same as `/api/hot` rows (`stage`/`stage_code`/`transition` can be `null`), plus `researchers_7d` (≥1).
 `next_offset` is the next page's `offset` when there's another page, otherwise `null`. Cache: `private, max-age=60`.
+Unchanged by the 2026-11-21 heat-ranking redesign of the `/discussed` page: the per-day post counts, the "new" flag and the avatars that page shows are not in this JSON, and the endpoint does not compute them (`docs/xposts.md`).
 
 ```sh
 curl -s -H "Authorization: Bearer $NDAY_TOKEN" 'https://api.nday.land/v1/discussed?limit=20' | jq '.rows[] | {cve_id, researchers_7d}'
@@ -1051,6 +1055,9 @@ Counts by current stage (all 6 stages are listed, including zeros; rejected CVEs
 - `truncated: true` means there are more matches.
 - `tag` (repeatable, must match all; validated like `/api/hot`): limits any of the results above to CVEs that have all those tags. If `q` is empty but there's a `tag`, it lists every CVE with those tags,
   most recently changed first (`kind: "tags"`). The response has `tags` (the normalized filter), and each row has `tags` (added 2026-11-14; additive only).
+- `cvss_min` / `cvss_max` (added 2026-11-20; validated exactly like `/api/vulns`): limit any of the results above to vulnerabilities whose page shows a CVSS
+  base score in that range (inclusive; no score = no match). A blank `q` with only a score filter searches nothing (`kind: "empty"`; `/api/vulns` lists by score);
+  with a `tag` it narrows the `kind: "tags"` listing. The response has `cvss_min` / `cvss_max` (numbers, `null` when not set).
 
 ### `GET /api/tags`
 
@@ -1157,7 +1164,9 @@ Vendor and product name suggestions (used by the "follow" search box on the firs
 
 The latest version of a record from one source, output as is (rendered from jsonb). `source` is one of cvelist, kev, ghsa, exploitdb,
 metasploit, nuclei, nvd (the NVD key is the CVE ID and the content is that entry's `cve` object from the NVD data feed; `raw_records` doesn't list it,
-so build `/raw/nvd/<CVE>.json` yourself). `key` is a CVE ID, GHSA ID, EDB ID, the full Metasploit module name (including `/`) or a Nuclei template id.
+so build `/raw/nvd/<CVE>.json` yourself), osssec, zerowire. `key` is a CVE ID, GHSA ID, EDB ID, the full Metasploit module name (including `/`), a Nuclei template id,
+for osssec `<year>/q<n>/<number>` (the post's place in the seclists.org archive; the record has the post's subject, author name and date, not its text)
+or, for zerowire, the advisory's slug (`radar.cloudflare.com/zero-wire/<slug>`; the record has the advisory's title, link, date, ids and categories, not its text).
 For links, just use `raw_records[].path` (`/raw/...`) from `/api/vuln` (`/v1/vuln`). On the API host, `GET /raw/{source}/{key}.json`
 is an alias of `/v1/raw/...` (same handler, same response), so resolving it against the API origin works. Resolved against the website host,
 it's answered there too (no redirect), with a token **or** a signed-in session cookie (a reader clicking the link on a vulnerability page).
@@ -1244,10 +1253,10 @@ There's no text, post id, post link, exact time, language or numeric author id:
 
 ```json
 {"cve":"CVE-2026-102895","signed_in":false,"researchers_7d":3,"count":4,"posts":[],"outline":[
-  {"author":"QzMarkerHandle","author_url":"https://x.com/QzMarkerHandle","size":"s","day":"2026-11-13"},
-  {"author":"","author_url":null,"size":"s","day":"2026-11-12"},
-  {"author":"QzSecondHandle","author_url":"https://x.com/QzSecondHandle","size":"l","day":"2026-11-11"},
-  {"author":"QzMarkerHandle","author_url":"https://x.com/QzMarkerHandle","size":"s","day":"2026-11-05"}]}
+  {"author":"QzMarkerHandle","author_url":"https://x.com/QzMarkerHandle","author_name":"","author_avatar":"","size":"s","day":"2026-11-13"},
+  {"author":"","author_url":null,"author_name":"","author_avatar":"","size":"s","day":"2026-11-12"},
+  {"author":"QzSecondHandle","author_url":"https://x.com/QzSecondHandle","author_name":"","author_avatar":"","size":"l","day":"2026-11-11"},
+  {"author":"QzMarkerHandle","author_url":"https://x.com/QzMarkerHandle","author_name":"","author_avatar":"","size":"s","day":"2026-11-05"}]}
 ```
 
 Signed in: the posts themselves (also at most 50, newest first, only posts from currently enabled accounts; `author_url` is given only when the handle is valid, and `url` only accepts
@@ -1255,16 +1264,18 @@ Signed in: the posts themselves (also at most 50, newest first, only posts from 
 
 ```json
 {"cve":"CVE-2026-102895","signed_in":true,"researchers_7d":3,"count":4,"posts":[
-  {"post_id":"1999000000000000001","author_handle":"QzMarkerHandle","author_url":"https://x.com/QzMarkerHandle",
+  {"post_id":"1999000000000000001","author_handle":"QzMarkerHandle","author_url":"https://x.com/QzMarkerHandle","author_name":"","author_avatar":"",
    "text":"QZMARKER-TEXT-ONE PoC out for CVE-2026-102895","lang":"en","posted_at":"2026-11-13T00:00:00Z",
    "url":"https://x.com/QzMarkerHandle/status/1999000000000000001","links":[
      {"short_url":"https://t.co/QZSHORT01","final_url":"https://github.com/qzres/fix/commit/abc123/","host":"h.example","kind":"patch"},
      {"short_url":"https://t.co/QZSHORT02","final_url":"https://pbs.twimg.com/media/QZMEDIA.jpg","host":"h.example","kind":"media"},
      {"short_url":"https://t.co/QZSHORT03","final_url":"javascript:alert(5)","host":"h.example","kind":"other"}]},
-  {"post_id":"1999000000000000099","author_handle":"\"><svg onload=QZEVILHANDLE>","author_url":null,
+  {"post_id":"1999000000000000099","author_handle":"\"><svg onload=QZEVILHANDLE>","author_url":null,"author_name":"","author_avatar":"",
    "text":"QZMARKER-EVIL <script>alert(1)</script>\"><img src=x onerror=alert(2)> \u202eevil","lang":"en",
    "posted_at":"2026-11-12T22:00:00Z","url":"https://x.com/i/web/status/1999000000000000099","links":[]},…]}
 ```
+
+`author_name` and `author_avatar` (added 2026-11-20; on every outline entry and every post): the author's X display name (cleaned of control and bidi characters, at most 64 characters; untrusted text, display it as text) and the same-origin path of their stored avatar (`/avatar/<16 hex digits>`, an image served by the website host itself; never an X or twimg URL). Either is `""` when unknown. See `docs/xposts.md` "Author profiles and avatars".
 
 `links` (added 2026-11-15; signed-in responses only): the post's resolved t.co links (rows in `x_post_link` with `status = 'ok'` and a `final_url`), in the order they appear in the post; `[]` if there are none.
 Each entry has `short_url` (the t.co short link as it appears in the text), `final_url` (the final address, **untrusted**: clients should only make it a link if it's an http/https address), `host` and `kind`

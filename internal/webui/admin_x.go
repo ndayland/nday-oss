@@ -261,12 +261,16 @@ func (u *UI) adminX(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me
 		cve = id
 	}
 	pos := admin.Keyset[admin.Cursor]{Older: admin.DecodeXCursor(q.Get("before")), Newer: admin.DecodeXCursor(q.Get("after"))}
-	posts, prev, next, err := a.XPosts(ctx, author, cve, pos)
+	postsN, err := a.XPostsCount(ctx, author, cve)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
 	}
-	postsN, err := a.XPostsCount(ctx, author, cve)
+	pp := pageIndex(q.Get("pp")) // the posts' page number: labels a position, or picks a first or last page
+	if pos.Older == nil && pos.Newer == nil {
+		pp = keysetJump(&pos, pp, postsN)
+	}
+	posts, prev, next, err := a.XPosts(ctx, author, cve, pos)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
@@ -400,7 +404,7 @@ func (u *UI) adminX(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, me
 	links.set("cve", cve)
 	links.set("before", admin.EncodeXCursor(pos.Older)) // a position that does not decode is dropped
 	links.set("after", admin.EncodeXCursor(pos.Newer))
-	links.set("pp", pageStr(pageIndex(q.Get("pp"))))
+	links.set("pp", pageStr(pp))
 	// candidates
 	cand := func(rows []xconfig.Candidate, open bool, param, region string, w admin.Window) AdminXCandTable {
 		t := AdminXCandTable{Rows: xCandRows(loc, rows), Open: open, State: xconfig.CandidateDismissed, Region: region}

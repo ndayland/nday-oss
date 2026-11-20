@@ -139,3 +139,38 @@ func TestXImportHandles(t *testing.T) {
 		t.Error("the token reached the output or the audit")
 	}
 }
+
+// TestXProfiles: `nday x-profiles` fills x_user from the lookup by id
+// (dry run first: nothing written), never prints the token, and needs one.
+func TestXProfiles(t *testing.T) {
+	const tok = "XPROFILES-CLI-TOKEN-secret"
+	d := testutil.NewMigratedDB(t)
+	t.Setenv("NDAY_DATABASE_URL", d.URL)
+	if _, err := d.Conn.Exec(context.Background(), `INSERT INTO x_accounts (user_id, handle, enabled) VALUES ('1001', 'alice', true), ('1002', 'gone', true)`); err != nil {
+		t.Fatal(err)
+	}
+	f := xfake.New(tok)
+	f.Users["alice"] = xfake.User{ID: "1001", Username: "alice", Name: "Alice", ProfileImageURL: "https://pbs.twimg.com/profile_images/1/a.jpg"}
+	env := cli.Env{Transport: f.Transport()}
+	t.Setenv("NDAY_X_BEARER_TOKEN", "")
+	if code, _, errOut := runCLI(t, env, "x-profiles"); code != 1 || !strings.Contains(errOut, "NDAY_X_BEARER_TOKEN") || f.Requests() != 0 {
+		t.Fatalf("no token: %d %q", code, errOut)
+	}
+	t.Setenv("NDAY_X_BEARER_TOKEN", tok)
+	if code, _, errOut := runCLI(t, env, "x-profiles", "--all", "--only-missing"); code != 2 || !strings.Contains(errOut, "not allowed") {
+		t.Fatalf("conflicting flags: %d %q", code, errOut)
+	}
+	code, out, errOut := runCLI(t, env, "x-profiles", "--dry-run")
+	if code != 0 || !strings.Contains(out, `"returned": 1`) || !strings.Contains(out, `"not_returned": 1`) || !strings.Contains(out, `"written": 0`) ||
+		strings.Contains(out+errOut, tok) {
+		t.Fatalf("dry run: %d %q %q", code, out, errOut)
+	}
+	code, out, errOut = runCLI(t, env, "x-profiles")
+	if code != 0 || !strings.Contains(out, `"written": 1`) || strings.Contains(out+errOut, tok) {
+		t.Fatalf("run: %d %q %q", code, out, errOut)
+	}
+	var name string
+	if err := d.Conn.QueryRow(context.Background(), `SELECT name FROM x_user WHERE user_id = '1001'`).Scan(&name); err != nil || name != "Alice" {
+		t.Fatalf("%q %v", name, err)
+	}
+}

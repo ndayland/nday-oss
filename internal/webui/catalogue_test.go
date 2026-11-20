@@ -164,7 +164,7 @@ func TestCatalogueOrderAndPaging(t *testing.T) {
 	if strings.Contains(body, `data-id="CVE-2026-1010"`) || strings.Contains(body, `data-id="CVE-2026-1005"`) {
 		t.Error("a CVE without events or a rejected one is listed")
 	}
-	if !strings.Contains(body, `<nav class="pager" aria-label="Pages">`) || !strings.Contains(body, `<span class="pg" aria-disabled="true"><span class="pg-g" aria-hidden="true">«</span>first</span>`) ||
+	if !strings.Contains(body, `<nav class="pager" aria-label="Pages">`) || !strings.Contains(body, `<span class="pg pg-a" aria-disabled="true"><span aria-hidden="true">‹</span>`) ||
 		strings.Contains(body, `rel="prev"`) {
 		t.Error("first page pager")
 	}
@@ -187,8 +187,8 @@ func TestCatalogueOrderAndPaging(t *testing.T) {
 		t.Errorf("next link %s", next)
 	}
 	resp, body = e.get(t, next)
-	if !strings.Contains(body, `<a href="/vuln?browse=1" class="pg"><span class="pg-g" aria-hidden="true">«</span>first</a>`) || catNextRe.MatchString(body) ||
-		!strings.Contains(body, `<span class="pg" aria-disabled="true">next<span class="pg-g" aria-hidden="true">›</span></span>`) {
+	if !strings.Contains(body, `<a href="/vuln?browse=1" class="pg"><span aria-hidden="true">1</span>`) || catNextRe.MatchString(body) ||
+		!strings.Contains(body, `<span class="pg pg-a" aria-disabled="true"><span aria-hidden="true">›</span>`) {
 		t.Error("last page pager")
 	}
 	if !strings.Contains(body, `<link rel="canonical" href="https://nday.land/vuln?browse=1"/>`) || resp.Header.Get("X-Robots-Tag") != "" ||
@@ -255,7 +255,7 @@ func TestCatalogueFilters(t *testing.T) {
 			t.Errorf("filtered page missing %s", want)
 		}
 	}
-	if strings.Count(body, `aria-current="true"`) != 4 { // stage, year, rejected, the language
+	if strings.Count(body, `aria-current="true"`) != 5 { // stage, year, score ("all"), rejected, the language
 		t.Errorf("aria-current count %d", strings.Count(body, `aria-current="true"`))
 	}
 	// the unfiltered page: "all" is current, the filters start open (closed on phones by app.js)

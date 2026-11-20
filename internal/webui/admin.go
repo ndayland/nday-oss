@@ -53,7 +53,7 @@ var adminKeys = []string{"acct.busy", "acct.reauth.done", "acct.err.webauthn_can
 	"admin.err.bad_note", "admin.err.bad_setting", "admin.err.bad_import", "admin.err.too_large",
 	"admin.err.stale_version", "admin.err.too_long", "admin.err.bad_body", "admin.err.bad_post_url",
 	"admin.err.x_lookup_off", "admin.err.x_not_found", "admin.err.x_unavailable", "admin.err.x_rate_limited", "admin.err.x_auth",
-	"admin.err.x_upstream", "admin.err.no_handle", "admin.x.add_done", "admin.x.add_renamed", "admin.x.import_found",
+	"admin.err.x_upstream", "admin.err.no_handle", "admin.err.own_account", "admin.x.add_done", "admin.x.add_renamed", "admin.x.import_found",
 	"admin.x.worst_posts", "admin.x.field_err", "admin.x.import_line", "admin.x.import_preview", "admin.xd.length",
 	"admin.err.settings_off", "admin.err.no_master_key", "admin.err.unknown_setting", "admin.err.secret_setting",
 	"admin.err.not_secret", "admin.err.bad_secret", "admin.err.invalid_config", "admin.err.sign_in_off", "admin.err.not_applied",
@@ -640,12 +640,15 @@ func (u *UI) adminModeration(w http.ResponseWriter, r *http.Request, loc *i18n.L
 	}
 	v.QueueTotal = qw.Total
 	v.QueuePager = links.numbered(loc, qw, "qp", "r-queue")
-	recent, rprev, rnext, err := a.RecentComments(r.Context(), status, pos)
+	recentN, err := a.RecentCommentsCount(r.Context(), status)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
 	}
-	recentN, err := a.RecentCommentsCount(r.Context(), status)
+	if pos.Older == nil && pos.Newer == nil {
+		links.set("rp", pageStr(keysetJump(&pos, pageIndex(q.Get("rp")), recentN)))
+	}
+	recent, rprev, rnext, err := a.RecentComments(r.Context(), status, pos)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
@@ -700,12 +703,13 @@ func (u *UI) adminUsers(w http.ResponseWriter, r *http.Request, loc *i18n.Locale
 	}
 	// keyset: ?after= older, ?before= newer, ?p= the page number
 	pos := admin.Keyset[auth.UserCursor]{Older: admin.DecodeUserCursor(q.Get("after")), Newer: admin.DecodeUserCursor(q.Get("before"))}
-	rows, prev, next, err := a.Users(r.Context(), query, pos)
+	total, err := a.UsersCount(r.Context(), query)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
 	}
-	total, err := a.UsersCount(r.Context(), query)
+	jp := keysetJump(&pos, pageIndex(q.Get("p")), total)
+	rows, prev, next, err := a.Users(r.Context(), query, pos)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
@@ -726,6 +730,9 @@ func (u *UI) adminUsers(w http.ResponseWriter, r *http.Request, loc *i18n.Locale
 	links.set("q", query)
 	links.set("after", admin.EncodeUserCursor(pos.Older))
 	links.set("before", admin.EncodeUserCursor(pos.Newer))
+	if pos.Older == nil && pos.Newer == nil {
+		links.set("p", pageStr(jp))
+	}
 	v.Pager = links.keyset(loc, "r-users", "after", "before", "p", admin.EncodeUserCursor(prev), admin.EncodeUserCursor(next), total)
 	u.adminRender(w, r, loc, me, "users", "admin_users", loc.Text("admin.nav", "tab", "users"), v)
 }
@@ -1262,12 +1269,14 @@ func (u *UI) adminAudit(w http.ResponseWriter, r *http.Request, loc *i18n.Locale
 		}
 		return &n
 	}
-	rows, prev, next, err := u.opts.Admin.AuditLog(r.Context(), f, admin.Keyset[int64]{Older: id("before"), Newer: id("after")})
+	total, err := u.opts.Admin.AuditCount(r.Context(), f)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
 	}
-	total, err := u.opts.Admin.AuditCount(r.Context(), f)
+	pos := admin.Keyset[int64]{Older: id("before"), Newer: id("after")}
+	jp := keysetJump(&pos, pageIndex(q.Get("p")), total)
+	rows, prev, next, err := u.opts.Admin.AuditLog(r.Context(), f, pos)
 	if err != nil {
 		u.adminFail(w, r, loc, err)
 		return
@@ -1289,6 +1298,9 @@ func (u *UI) adminAudit(w http.ResponseWriter, r *http.Request, loc *i18n.Locale
 	links.set("action", v.Action)
 	links.set("actor", f.ActorHandle)
 	links.set("target", f.TargetID)
+	if pos.Older == nil && pos.Newer == nil {
+		links.set("p", pageStr(jp))
+	}
 	v.Pager = links.keyset(loc, "r-audit", "before", "after", "p", idText(prev), idText(next), total)
 	u.adminRender(w, r, loc, me, "audit", "admin_audit", loc.Text("admin.nav", "tab", "audit"), v)
 }

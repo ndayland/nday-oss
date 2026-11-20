@@ -476,7 +476,7 @@ func TestXSystemPage(t *testing.T) {
 	for _, c := range cs {
 		names = append(names, fmt.Sprintf("%s:%v", c.Name, c.Public))
 	}
-	if strings.Join(names, " ") != "cvelist:true kev:true ghsa:true exploitdb:true metasploit:true nuclei:true nvd:true xposts:false" {
+	if strings.Join(names, " ") != "cvelist:true kev:true ghsa:true exploitdb:true metasploit:true nuclei:true osssec:true zerowire:true nvd:true xposts:false" {
 		t.Errorf("collectors: %v", names)
 	}
 }

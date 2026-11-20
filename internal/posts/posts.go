@@ -159,11 +159,16 @@ func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Post is one post in a signed-in response.
 type Post struct {
-	PostID       string    `json:"post_id"`
-	AuthorHandle string    `json:"author_handle"`
-	AuthorURL    *string   `json:"author_url"` // https://x.com/<handle>, only for a valid handle
-	Text         string    `json:"text"`       // untrusted: render as text
-	Lang         string    `json:"lang"`       // BCP 47-like tag or ""
+	PostID       string  `json:"post_id"`
+	AuthorHandle string  `json:"author_handle"`
+	AuthorURL    *string `json:"author_url"` // https://x.com/<handle>, only for a valid handle
+	// AuthorName: the X display name (cleaned upstream text, render as
+	// text), "" when unknown. AuthorAvatar: the same-origin path of the
+	// stored avatar (/avatar/<hash>), "" when none; never an X URL.
+	AuthorName   string    `json:"author_name"`
+	AuthorAvatar string    `json:"author_avatar"`
+	Text         string    `json:"text"` // untrusted: render as text
+	Lang         string    `json:"lang"` // BCP 47-like tag or ""
 	PostedAt     time.Time `json:"posted_at"`
 	URL          *string   `json:"url"` // https://x.com/<handle|i/web>/status/<id>
 	// Links: the post's resolved t.co links in order ([] when none); the
@@ -266,7 +271,7 @@ func (s *Service) read(w http.ResponseWriter, r *http.Request) {
 			links = append(links, Link{ShortURL: l.ShortURL, FinalURL: l.FinalURL, Host: l.Host, Kind: l.Kind})
 		}
 		resp.Posts = append(resp.Posts, Post{PostID: p.PostID, AuthorHandle: p.AuthorHandle, AuthorURL: ProfileURL(p.AuthorHandle),
-			Text: p.Text, Lang: lang, PostedAt: p.PostedAt.UTC(), URL: PostURL(p.URL, p.PostID), Links: links})
+			AuthorName: p.AuthorName, AuthorAvatar: p.AuthorAvatar, Text: p.Text, Lang: lang, PostedAt: p.PostedAt.UTC(), URL: PostURL(p.URL, p.PostID), Links: links})
 	}
 	resp.Count = len(resp.Posts)
 	s.write(w, resp)

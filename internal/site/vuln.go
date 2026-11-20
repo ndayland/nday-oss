@@ -472,7 +472,8 @@ func assemble(v *VulnDetail) {
 
 	// Slots and transition (same rules as vuln_state / vuln_state_mat).
 	var in SlotInput
-	first := [6]*Event{} // event defining FirstAt per type
+	first := [6]*Event{}   // event defining FirstAt per type
+	firstTr := [6]*Event{} // the same over sources that count as a transition
 	slots := make([]DetailSlot, 6)
 	for i := range v.Events {
 		e := &v.Events[i]
@@ -492,17 +493,21 @@ func assemble(v *VulnDetail) {
 				first[k] = e
 				in.FirstAt[k] = e.EffectiveAt
 			}
+			if f := firstTr[k]; !contains(NoTransitionSources, e.Source) && (f == nil || e.EffectiveAt.Before(*f.EffectiveAt) ||
+				(e.EffectiveAt.Equal(*f.EffectiveAt) && betterTransitionEvent(e, f))) {
+				firstTr[k] = e
+			}
 		}
 	}
 	latest := -1
 	for k := 0; k < 6; k++ {
-		if in.FirstAt[k] != nil && (latest < 0 || !in.FirstAt[k].Before(*in.FirstAt[latest])) {
+		if firstTr[k] != nil && (latest < 0 || !firstTr[k].EffectiveAt.Before(*firstTr[latest].EffectiveAt)) {
 			latest = k // later time wins; equal time -> higher rank (k ascending)
 		}
 	}
 	if latest >= 0 {
 		in.Latest = StageInfos[latest].Type
-		e := first[latest]
+		e := firstTr[latest]
 		src, id := e.Source, e.ID
 		v.Transition = &Transition{Type: e.Type, Code: StageCode(e.Type), At: *e.EffectiveAt,
 			Precision: e.Precision, Source: &src, EventID: &id}

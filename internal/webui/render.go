@@ -80,6 +80,8 @@ type Page struct {
 	// Tag filters (tagview.go): SearchTags keep the search page's tag filter
 	// in the search box form.
 	SearchTags []string
+	// SearchCVSS keeps the score filter (cvss_min / cvss_max) the same way.
+	SearchCVSS []HiddenField
 	// siteIcons: put the site icon in front of every link that leaves the
 	// site (the vulnerability page; siteicons.go).
 	siteIcons bool

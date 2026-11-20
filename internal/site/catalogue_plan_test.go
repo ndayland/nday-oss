@@ -144,6 +144,58 @@ func TestCataloguePlans(t *testing.T) {
 			t.Logf("%s:\n%s", c.name, plan)
 		}
 	}
+	// the pager's numbered pages (Offset from the start, FromEnd from the
+	// end): the same walks under a Limit of at most Offset+Limit+1 rows,
+	// then a sort of those few rows; never a scan of the whole view
+	for _, c := range []struct {
+		name string
+		p    CatalogueParams
+		scan string
+	}{
+		{"offset, no filter", CatalogueParams{Offset: 100}, "Index Scan Backward using "},
+		{"offset, stage poc", CatalogueParams{Stage: "poc", Offset: 100}, "Index Scan Backward using "},
+		{"offset, poc + 2014", CatalogueParams{Stage: "poc", Year: 2014, Offset: 100}, "Index Scan Backward using "},
+		{"end, no filter", CatalogueParams{FromEnd: true}, "Index Scan using "},
+		{"end + offset, no filter", CatalogueParams{FromEnd: true, Offset: 100}, "Index Scan using "},
+		{"end + offset, stage poc", CatalogueParams{Stage: "poc", FromEnd: true, Offset: 100}, "Index Scan using "},
+		{"end + offset, year 2014", CatalogueParams{Year: 2014, FromEnd: true, Offset: 100}, "Index Scan using "},
+	} {
+		p, err := c.p.Normalize()
+		if err != nil {
+			t.Fatal(err)
+		}
+		inner, args := catalogueRows(p)
+		rows, err := d.Conn.Query(ctx, "EXPLAIN "+sprintfSelect(inner), args...)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		var lines []string
+		for rows.Next() {
+			var l string
+			if err := rows.Scan(&l); err != nil {
+				t.Fatal(err)
+			}
+			lines = append(lines, l)
+		}
+		rows.Close()
+		plan := strings.Join(lines, "\n")
+		bad := strings.Contains(plan, "Seq Scan on vuln_state_mat")
+		walks := 0
+		for i, l := range lines {
+			if !strings.Contains(l, " on vuln_state_mat ") {
+				continue
+			}
+			walks++
+			if !strings.Contains(l, c.scan) || i == 0 || !strings.Contains(lines[i-1], "->  Limit") {
+				bad = true
+			}
+		}
+		if bad || walks == 0 {
+			t.Errorf("%s: want walks (%s) under a Limit:\n%s", c.name, c.scan, plan)
+		} else {
+			t.Logf("%s:\n%s", c.name, plan)
+		}
+	}
 }
 
 func sprintfSelect(inner string) string { return strings.Replace(catalogueSelect, "%s", inner, 1) }

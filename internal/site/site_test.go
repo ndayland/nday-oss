@@ -408,7 +408,7 @@ func TestSourcesStatsHealth(t *testing.T) {
 	for _, c := range src.Collectors {
 		names = append(names, c.Name)
 	}
-	if strings.Join(names, ",") != "cvelist,kev,ghsa,exploitdb,metasploit,nuclei,nvd" || src.CollectorsTotal != 7 || src.CollectorsOK != 1 {
+	if strings.Join(names, ",") != "cvelist,kev,ghsa,exploitdb,metasploit,nuclei,osssec,zerowire,nvd" || src.CollectorsTotal != 9 || src.CollectorsOK != 1 {
 		t.Errorf("collectors %v ok=%d", names, src.CollectorsOK)
 	}
 	kev := src.Collectors[1]

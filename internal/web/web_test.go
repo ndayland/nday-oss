@@ -241,7 +241,7 @@ func TestOtherEndpoints(t *testing.T) {
 	e := newEnv(t, nil)
 	for path, check := range map[string]func(map[string]any) bool{
 		"/api/sources": func(m map[string]any) bool {
-			return len(m["collectors"].([]any)) == 7 && m["cvelist_backfill_backlog"].(float64) == 10
+			return len(m["collectors"].([]any)) == 9 && m["cvelist_backfill_backlog"].(float64) == 10
 		},
 		"/api/stats":                func(m map[string]any) bool { return len(m["by_stage"].([]any)) == 6 },
 		"/api/search?q=barracuda":   func(m map[string]any) bool { return m["kind"] == "text" && len(m["rows"].([]any)) == 1 },

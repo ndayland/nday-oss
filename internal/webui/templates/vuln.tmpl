@@ -181,6 +181,7 @@
 
 <section class="evlog" aria-labelledby="evh">
 <h2 class="h2" id="evh"><span class="h" aria-hidden="true"># </span>{{t "vuln.events.h2"}}</h2>
+<div class="pgr" id="r-events" data-page-region="r-events">
 {{- range .Events}}
 <article class="ev" id="{{.Anchor}}" data-row="">
 <div class="when"><span>{{.Time.HTML}}</span>{{with .TimeNote}}<small>{{.}}</small>{{end}}</div>
@@ -200,6 +201,8 @@
 {{- else}}
 <p class="note">{{t "vuln.none"}}</p>
 {{- end}}
+{{template "pager" .EventPager}}
+</div>
 </section>
 {{- with .Corrections}}
 {{template "corrections" .}}
@@ -329,17 +332,20 @@
 {{- else if not .Entries}}
 <p class="note">{{t "rsch.empty"}}</p>
 {{- else}}
-<ol class="rp-list veil" id="rsch-list">
+<div class="pgr" id="r-research" data-page-region="r-research">
+<ol class="rp-list veil" id="rsch-list" data-offset="{{.Offset}}">
 {{- range .Entries}}
-<li class="rp"><p class="rp-h">{{if .AuthorURL}}<a class="rp-au" href="{{.AuthorURL}}" target="_blank" rel="noopener noreferrer nofollow">@{{.Author}}</a>{{else}}<span class="rp-au weak">{{t "rsch.unknown_author"}}</span>{{end}}<span class="rp-t">{{.Day}}</span></p>{{if $.Accounts}}<a class="spk-go" href="{{$.Login}}" tabindex="-1" aria-hidden="true">{{end}}<span class="spk" data-size="{{.Size}}" aria-hidden="true"></span>{{if $.Accounts}}</a>{{end}}<span class="sr">{{if .AuthorURL}}{{t "rsch.entry_hidden" "author" (print "@" .Author) "day" .Day}}{{else}}{{t "rsch.entry_hidden_anon" "day" .Day}}{{end}}</span></li>
+<li class="rp"><div class="rp-h">{{if .Avatar}}<img class="rp-av" src="{{.Avatar}}" width="28" height="28" loading="lazy" decoding="async" alt=""/>{{else}}<span class="rp-av rp-mono" aria-hidden="true">{{.Initial}}</span>{{end}}{{if .AuthorURL}}<a class="rp-au" href="{{.AuthorURL}}" target="_blank" rel="noopener noreferrer nofollow">{{if .Name}}<bdi class="rp-nm">{{.Name}}</bdi> <span class="rp-hd">@{{.Author}}</span>{{else}}@{{.Author}}{{end}}</a>{{else if .Name}}<span class="rp-au"><bdi class="rp-nm">{{.Name}}</bdi></span>{{else}}<span class="rp-au weak">{{t "rsch.unknown_author"}}</span>{{end}}<span class="rp-xm" aria-hidden="true"></span></div>{{if $.Accounts}}<a class="spk-go" href="{{$.Login}}" tabindex="-1" aria-hidden="true">{{end}}<span class="spk" data-size="{{.Size}}" aria-hidden="true"></span>{{if $.Accounts}}</a>{{end}}<p class="rp-f"><span class="rp-t">{{.Day}}</span></p><span class="sr">{{if .AuthorURL}}{{t "rsch.entry_hidden" "author" (print "@" .Author) "day" .Day}}{{else}}{{t "rsch.entry_hidden_anon" "day" .Day}}{{end}}</span></li>
 {{- end}}
 </ol>
 <div class="veil-cta" id="rsch-veil">
-<p class="note">{{t "rsch.locked" "n" (len .Entries)}}</p>
+<p class="note">{{t "rsch.locked" "n" .Total}}</p>
 {{- if .Accounts}}
 <a class="btn acct-btn" href="{{.Login}}">{{t "rsch.signin"}}</a>
 <noscript><p class="note">{{t "rsch.nojs"}}</p></noscript>
 {{- end}}
+</div>
+{{template "pager" .Pager}}
 </div>
 {{- end}}
 </section>
@@ -384,7 +390,8 @@
 <span class="note" id="disc-n">{{t "disc.count" "n" .Count}}</span>
 {{- end}}
 </div>
-<div id="disc-list">
+<div class="pgr" id="r-discussion" data-page-region="r-discussion">
+<div id="disc-list" data-page="{{.Page}}">
 {{- if .Failed}}
 <p class="note">{{t "disc.unavailable"}}</p>
 {{- else if .Threads}}
@@ -405,9 +412,6 @@
 </li>
 {{- end}}
 </ol>
-{{- if .More}}
-<p class="note">{{t "veil.more_threads"}}</p>
-{{- end}}
 {{- else}}
 <p class="note">{{t "disc.empty"}}</p>
 {{- end}}
@@ -425,6 +429,8 @@
 {{- end}}
 </div>
 {{- end}}
+{{template "pager" .Pager}}
+</div>
 {{- if .Write}}
 {{template "discwrite" .}}
 {{- end}}

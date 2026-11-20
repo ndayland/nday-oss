@@ -116,6 +116,7 @@
     "cat.year": "Année du CVE",
     "cat.year.other": "autres années",
     "cat.year.go": "Afficher",
+    "cat.cvss": "Score CVSS",
     "cat.empty": "Aucune vulnérabilité ne correspond à ces filtres.",
     "cat.clear": "Effacer les filtres",
     "cat.browse": "tout parcourir",
@@ -161,7 +162,6 @@
     "js.copy_failed": "échec de copie",
     "js.copied_id": "{id} copié",
     "pager.label": "Pagination",
-    "pager.first": "première",
     "pager.prev": "précédente",
     "pager.next": "suivante",
     "pager.page": "page {n}",
@@ -413,6 +413,7 @@
     "ev.nuclei.no_time": "La source n’indique pas la date de publication du modèle.",
     "ev.github.repo": "Dépôt de PoC sur GitHub : {repo}.",
     "ev.github.created": "La date est celle de la création du dépôt.",
+    "ev.osssec.post": {"post": "Publié sur la liste de diffusion oss-security : « {subject} ».", "reply": "Réponse sur la liste de diffusion oss-security : « {subject} ».", "none": "Publié sur la liste de diffusion oss-security."},
     "ev.generic": {
       "DIS": "{source} a signalé une divulgation.",
       "PAT": "{source} a signalé un correctif.",
@@ -460,6 +461,8 @@
     "src.metasploit.produces": "{poc} PoC publique (la source ne date pas la publication des modules)",
     "src.nuclei.what": "Modèles de détection de CVE du dépôt nuclei-templates de ProjectDiscovery.",
     "src.nuclei.produces": "{poc} PoC publique (modèle de détection ; la source ne donne pas de date de publication)",
+    "src.osssec.what": "Messages de la liste de diffusion oss-security, tirés de l’archive de seclists.org : objet, nom de l’auteur et heure de chaque message mentionnant un identifiant CVE ou GHSA. Le texte du message n’est pas conservé.",
+    "src.osssec.produces": "{ana} analyse technique (une par message mentionnant l’identifiant ; l’heure est celle du message)",
     "src.backfill.h2": "Rattrapage",
     "src.backfill.p1": {
       "one": "KEV, GHSA et les trois sources de PoC citent souvent d’anciennes CVE. La première fois que nday rencontre un tel identifiant, il crée un enregistrement vide (sans titre ni date de divulgation) ; le collecteur cvelist récupère ensuite les fiches CVE officielles par lots lors des exécutions suivantes. Identifiant en attente de rattrapage : {n}.",
@@ -564,6 +567,8 @@
     "rsch.nojs": "La lecture des publications nécessite JavaScript.",
     "rsch.more": {"one": "afficher {n} de plus", "other": "afficher {n} de plus"},
     "rsch.view_on_x": "voir sur X",
+    "rsch.expand": "afficher plus",
+    "rsch.collapse": "afficher moins",
     "rsch.res.h2": "Ressources liées",
     "rsch.res.poc": "PoC / code d’exploitation",
     "rsch.res.patch": "Correctifs",
@@ -575,13 +580,16 @@
     "rsch.res.unreviewed": "Dépôts non examinés ({n})",
     "veil.comments": {"one": "Connectez-vous pour lire {n} commentaire.", "other": "Connectez-vous pour lire {n} commentaires."},
     "veil.more_replies": {"one": "{n} autre réponse", "other": "{n} autres réponses"},
-    "veil.more_threads": "D'autres commentaires suivent.",
     "veil.comment": "Un commentaire. Connectez-vous pour le lire.",
     "discussed.title": "Ce dont parlent les chercheurs · nday",
     "discussed.description": "Les CVE dont les chercheurs suivis par nday ont parlé sur X ces 7 derniers jours, les plus citées d'abord.",
     "discussed.h1": "Ce dont parlent les chercheurs",
     "discussed.lede": "Les CVE citées sur X par les chercheurs suivis par nday ces 7 derniers jours, par nombre de chercheurs.",
     "discussed.note": "Une publication ne change jamais l'étape du cycle de vie. Pour les lire sur la page d'une vulnérabilité, il faut se connecter.",
-    "discussed.empty": "Aucun chercheur de la liste n'a publié sur une CVE ces 7 derniers jours."
+    "discussed.empty": "Aucun chercheur de la liste n'a publié sur une CVE ces 7 derniers jours.",
+    "discussed.unit": {"one": "chercheur", "other": "chercheurs"},
+    "discussed.flag.new": "nouveau",
+    "discussed.flag.bare": "discuté, ni PoC ni correctif",
+    "discussed.trend": {"up": "tendance sur 7 jours : en hausse", "flat": "tendance sur 7 jours : stable", "down": "tendance sur 7 jours : en baisse"}
 }
 }

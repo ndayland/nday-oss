@@ -1144,30 +1144,23 @@
           "kind": "label"
         },
         {
-          "key": "pager.first",
-          "where": "pager under every paginated list (hot list, catalogue, discussed; also the back office), a button; drawn disabled on the first page",
-          "intent": "Go to the first page. No arrow: the page draws the glyph («) itself.",
-          "kind": "label",
-          "max_cols": 16
-        },
-        {
           "key": "pager.prev",
-          "where": "pager under every paginated list, a button between first and next; drawn disabled on the first page",
+          "where": "pager under every paginated list: the accessible name of the ‹ arrow before the page numbers (screen readers only, not shown); drawn disabled on the first page",
           "intent": "Go to the previous page. No arrow: the page draws the glyph (‹) itself.",
           "kind": "label",
           "max_cols": 16
         },
         {
           "key": "pager.next",
-          "where": "pager under every paginated list, the last button; drawn disabled on the last page",
+          "where": "pager under every paginated list: the accessible name of the › arrow after the page numbers (screen readers only, not shown); drawn disabled on the last page",
           "intent": "Go to the next page. No arrow: the page draws the glyph (›) itself.",
           "kind": "label",
           "max_cols": 16
         },
         {
           "key": "pager.page",
-          "where": "pager under a paginated list, left of the buttons, when the number of pages is not known (a catalogue filtered by one of the broadest tags)",
-          "intent": "Which page of the list this is.",
+          "where": "pager under every paginated list: the accessible name of each page number button (screen readers only; the button shows the bare number); also the position said to screen readers when the number of pages is not known (a list filtered by one of the broadest tags)",
+          "intent": "Page number n of the list (go to it, or: this is it).",
           "kind": "label",
           "placeholders": {
             "n": {
@@ -1180,7 +1173,7 @@
         },
         {
           "key": "pager.page_of",
-          "where": "pager under every paginated list (hot list, catalogue, discussed; also the back office), left of the buttons",
+          "where": "pager under every paginated list (hot list, catalogue, discussed; also the back office): said to screen readers only (the page numbers show it on screen), and announced after an in-place page change",
           "intent": "Which page of the list this is and how many pages the list has.",
           "kind": "label",
           "placeholders": {
@@ -3220,6 +3213,49 @@
           "kind": "sentence"
         },
         {
+          "key": "ev.osssec.post",
+          "where": "oss-security event (a post to the oss-security mailing list naming this vulnerability)",
+          "intent": "A post on the oss-security mailing list names it; with the post's subject when known. 'reply' is a reply in an existing thread. Keep 'oss-security' as is; quote the subject the way your language quotes titles.",
+          "kind": "sentence",
+          "placeholders": {
+            "subject": {
+              "kind": "upstream",
+              "meaning": "subject line of the post (usually English)",
+              "example": "CVE-2026-124749: pam-mysql: pre-auth authentication bypass",
+              "optional": true
+            }
+          },
+          "select": {
+            "var": "kind",
+            "values": [
+              "post",
+              "reply",
+              "none"
+            ]
+          }
+        },
+        {
+          "key": "ev.zerowire.advisory",
+          "where": "Zero Wire event (a Cloudflare Radar Zero Wire advisory naming this vulnerability)",
+          "intent": "A Zero Wire advisory by Cloudflare names it; with the advisory's title when known. Keep 'Cloudflare' and 'Zero Wire' as is; quote the title the way your language quotes titles.",
+          "kind": "sentence",
+          "placeholders": {
+            "title": {
+              "kind": "upstream",
+              "meaning": "title of the advisory (English)",
+              "example": "ruby2shell: heap overflow in Ruby string case conversion",
+              "optional": true
+            }
+          },
+          "select": {
+            "var": "kind",
+            "values": [
+              "advisory",
+              "none"
+            ]
+          }
+        },
+        {
           "key": "ev.generic",
           "where": "fallback for events of other sources",
           "intent": "Source X reported an event of this stage; claim nothing more.",
@@ -3402,8 +3438,8 @@
         },
         {
           "key": "cat.all",
-          "where": "catalogue: the first item of the stage row and of the CVE year filter",
-          "intent": "No restriction: every stage / every year. One short word that fits both.",
+          "where": "catalogue: the first item of the stage row, of the CVE year filter and of the CVSS score filter (also on the search page)",
+          "intent": "No restriction: every stage / every year / any score. One short word that fits all of them.",
           "kind": "label",
           "max_cols": 10
         },
@@ -3430,6 +3466,13 @@
             "button"
           ],
           "max_cols": 10
+        },
+        {
+          "key": "cat.cvss",
+          "where": "catalogue and search page filters: label of the CVSS score filter (its options are score ranges such as 9–10, 7–8.9); also before the active range in the filter summary",
+          "intent": "The CVSS base score shown on each vulnerability's page. Keep \"CVSS\" as is.",
+          "kind": "label",
+          "max_cols": 16
         },
         {
           "key": "cat.empty",
@@ -3655,6 +3698,44 @@
           "where": "sources page, row 'nvd', after src.produces",
           "intent": "NVD produces no lifecycle event; it only supplies classification data (CWE, CVSS, CPE). Must say 'no events' clearly: readers compare this row with the stage codes of the other rows.",
           "kind": "phrase"
+        },
+        {
+          "key": "src.osssec.what",
+          "where": "sources page, row 'osssec'",
+          "intent": "What the osssec source is: posts to the oss-security mailing list, read from the seclists.org archive; nday keeps each post's subject, author name and time, not its text. Keep 'oss-security' and 'seclists.org' as is.",
+          "kind": "sentence"
+        },
+        {
+          "key": "src.osssec.produces",
+          "where": "sources page, row 'osssec', after src.produces",
+          "intent": "Which lifecycle events osssec produces (analysis, one per post naming the ID) and that the time is the post's own time.",
+          "kind": "phrase",
+          "placeholders": {
+            "ana": {
+              "kind": "html",
+              "meaning": "styled stage code (DIS PAT ANA POC ITW KEV), shown as is",
+              "example": "ANA"
+            }
+          }
+        },
+        {
+          "key": "src.zerowire.what",
+          "where": "sources page, row 'zerowire'",
+          "intent": "What the zerowire source is: Cloudflare Radar's Zero Wire advisories, written by Cloudforce One; nday keeps each advisory's title, link and date, not its text. Keep 'Cloudflare Radar', 'Zero Wire' and 'Cloudforce One' as is.",
+          "kind": "sentence"
+        },
+        {
+          "key": "src.zerowire.produces",
+          "where": "sources page, row 'zerowire', after src.produces",
+          "intent": "Which lifecycle events zerowire produces (analysis, one per advisory naming the ID) and that the time is the advisory's date (a day, no time of day).",
+          "kind": "phrase",
+          "placeholders": {
+            "ana": {
+              "kind": "html",
+              "meaning": "styled stage code (DIS PAT ANA POC ITW KEV), shown as is",
+              "example": "ANA"
+            }
+          }
         },
         {
           "key": "src.backfill.h2",
@@ -4040,7 +4121,7 @@
         {
           "key": "about.hot.repeat",
           "where": "about, home list rules, second paragraph",
-          "intent": "Repeats do not count: once a kind of event has a known time, further events of that kind (another advisory with a patch, another PoC) never move the vulnerability up again. Events whose time is unknown (no source time and not observed live) never count as a change.",
+          "intent": "Repeats do not count: once a kind of event has a known time, further events of that kind (another advisory with a patch, another PoC) never move the vulnerability up again. Events whose time is unknown (no source time and not observed live) never count as a change, and neither do posts to the oss-security mailing list.",
           "kind": "sentence"
         },
         {
@@ -4112,21 +4193,21 @@
         {
           "key": "about.hot.pin_recent",
           "where": "about, pinning conditions, list item",
-          "intent": "Condition: the CVE's most recent researcher post is at most {hours} hours old.",
+          "intent": "Condition: the CVE's most recent researcher post is from today or the {days} UTC days before (whole UTC days, not hours).",
           "kind": "sentence",
           "placeholders": {
-            "hours": {
+            "days": {
               "kind": "number",
-              "meaning": "hours (a setting)",
-              "example": "72"
+              "meaning": "whole UTC days before today (a setting, rounded up)",
+              "example": "3"
             }
           },
-          "plural": "hours"
+          "plural": "days"
         },
         {
           "key": "about.hot.pin_wave",
           "where": "about, pinning conditions, list item",
-          "intent": "Condition: the current wave of discussion began at most {days} days ago. A wave is a run of posts with no gap longer than {days} days; so a CVE discussed again after a longer silence can be pinned again, and one discussed without such a break stops being pinned {days} days after its wave began.",
+          "intent": "Condition: the current wave of discussion began today or in the {days} UTC days before. A wave is a run of posts whose UTC dates are at most {days} days apart; so a CVE discussed again after a longer silence can be pinned again, and one discussed without such a break stops being pinned {days} days after the day its wave began. Whole UTC days, not hours.",
           "kind": "sentence",
           "placeholders": {
             "days": {
@@ -8052,6 +8133,20 @@
           "max_cols": 20
         },
         {
+          "key": "rsch.expand",
+          "where": "vulnerability page, researcher section (posts on X by allow-listed researchers), under a long post cut to five lines",
+          "intent": "Small button that shows the rest of a long post.",
+          "kind": "label",
+          "max_cols": 16
+        },
+        {
+          "key": "rsch.collapse",
+          "where": "vulnerability page, researcher section (posts on X by allow-listed researchers), under a long post shown in full",
+          "intent": "Small button that cuts the post back to five lines (the opposite of rsch.expand).",
+          "kind": "label",
+          "max_cols": 16
+        },
+        {
           "key": "rsch.res.h2",
           "where": "vulnerability page, resources section (public): links found in posts on X by allow-listed researchers, grouped by kind",
           "intent": "Heading of the section that lists the links (patches, PoCs, advisories, repositories, articles) researchers on nday's list posted on X about this CVE. Everyone sees it; who posted a link is not shown.",
@@ -8158,12 +8253,6 @@
           "plural": "n"
         },
         {
-          "key": "veil.more_threads",
-          "where": "vulnerability page, discussion section, shown to signed-out visitors",
-          "intent": "More comments exist after the ones drawn here.",
-          "kind": "sentence"
-        },
-        {
           "key": "veil.comment",
           "where": "vulnerability page, discussion section, signed-out visitors: read by screen readers in place of each unreadable comment placeholder (not shown)",
           "intent": "This is one comment; signing in lets you read it.",
@@ -8206,6 +8295,55 @@
           "where": "/discussed page (CVEs ranked by how many researchers posted about them on X in the last 7 days)",
           "intent": "No researcher on the list posted about any CVE in the last 7 days.",
           "kind": "sentence"
+        },
+        {
+          "key": "discussed.unit",
+          "where": "/discussed rows, small under each row's big number (how many different researchers posted about the CVE in the last 7 days)",
+          "intent": "The unit of that number: researchers. The number itself is shown separately, above; only say the number if the language needs it inside the word.",
+          "kind": "label",
+          "placeholders": {
+            "n": {
+              "kind": "number",
+              "meaning": "distinct researchers, last 7 days (chooses the plural form)",
+              "example": "13",
+              "optional": true
+            }
+          },
+          "plural": "n",
+          "max_cols": 14
+        },
+        {
+          "key": "discussed.flag.new",
+          "where": "/discussed rows, a small badge on the second line",
+          "intent": "New to researchers: first mentioned today or yesterday (UTC), i.e. no researcher post about this CVE on any earlier UTC day. One word if possible.",
+          "kind": "label",
+          "max_cols": 12
+        },
+        {
+          "key": "discussed.flag.bare",
+          "where": "/discussed rows, a small badge on the second line",
+          "intent": "Researchers are discussing this CVE, but nday knows of neither a public PoC nor a patch for it yet. Very short.",
+          "kind": "label",
+          "max_cols": 36
+        },
+        {
+          "key": "discussed.trend",
+          "where": "/discussed rows: accessible name (screen readers) of the small 7-day line chart at the right of each row",
+          "intent": "Which way researcher posts about this CVE went over the last 7 days: rising, steady or falling.",
+          "kind": "label",
+          "select": {
+            "var": "trend",
+            "values": [
+              "up",
+              "flat",
+              "down"
+            ],
+            "meaning": {
+              "up": "more posts in the last 3 days than in the first 3",
+              "flat": "about as many",
+              "down": "fewer posts in the last 3 days than in the first 3"
+            }
+          }
         }
       ]
     },
@@ -11513,6 +11651,12 @@
           "key": "admin.err.no_handle",
           "where": "back office (staff only), status line next to an action (script)",
           "intent": "The candidate cannot be added: X sent no valid handle for it (add it with the add form instead).",
+          "kind": "sentence"
+        },
+        {
+          "key": "admin.err.own_account",
+          "where": "back office (staff only), status line next to an action (script)",
+          "intent": "The account is the site's own X account, which is never collected, so it cannot be added to the list.",
           "kind": "sentence"
         },
         {

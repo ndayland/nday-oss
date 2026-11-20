@@ -155,7 +155,7 @@ func TestTextFits(t *testing.T) {
 // URLs do not change).
 func TestAddressCard(t *testing.T) {
 	plain := sample()
-	if plain.Key() != "8cec58c08e" { // sample().Key() at b705e83, before Address
+	if plain.Key() != "02d71a9bb3" { // sample().Key() at Version 2 (8cec58c08e at Version 1, b705e83, before Address)
 		t.Errorf("plain key changed: %s", plain.Key())
 	}
 	addr := sample()

@@ -241,8 +241,8 @@ func (b *browser) do(method, path, body string, hdr ...string) (*http.Response, 
 }
 
 var (
-	pagerPosRe = regexp.MustCompile(`(?s)<nav class="pager"[^>]*>\s*<p class="pg-pos">(.*?)</p>`)
-	firstSpan  = regexp.MustCompile(`^<span>([^<]*)</span>`)
+	pagerPosRe = regexp.MustCompile(`(?s)<nav class="pager"[^>]*>\s*<p class="pg-pos[^"]*">(.*?)</p>`)
+	firstSpan  = regexp.MustCompile(`^<span class="sr">([^<]*)</span>`)
 	digitsRe   = regexp.MustCompile(`[0-9][0-9,.]*`)
 )
 

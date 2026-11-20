@@ -148,15 +148,17 @@
     if (!r.ok || !j) throw fail(r, j);
     return j;
   }
-  // load asks for the comments this page shows: the same page of threads,
-  // or the same continuation of a long thread.
-  // load asks for the first page of comments, or (?c=<id> in the address
-  // bar, a permalink or the result of a write) the page that holds that
-  // comment; more pages and cut threads are appended by the buttons.
+  // load asks for the comments of the page of threads shown; cut threads
+  // are continued by the buttons. The page of threads is the one the server-rendered region shows
+  // (data-page: ?cmp=, or the page of ?c=): PER top-level comments with
+  // their replies; the pager below it is the page's own (server-rendered).
+  const PER = 10;
+  const pageNo = () => {
+    const l = $('disc-list');
+    return Math.max(1, parseInt(l && l.dataset.page, 10) || 1);
+  };
   async function load() {
-    const q = new URLSearchParams({ locale });
-    const c = (new URLSearchParams(window.location.search).get('c') || '').toLowerCase();
-    if (UUID.test(c)) q.set('c', c);
+    const q = new URLSearchParams({ locale, page: String(pageNo()), limit: String(PER) });
     const j = await getJSON('/api/discuss/' + cve + '?' + q.toString());
     // signed out: the comments only while signed-out reading is on (an
     // outline answer means it was switched off meanwhile)
@@ -177,10 +179,13 @@
   // ?c=<id> (the server renders whichever page holds that comment, even a
   // later one), the browser cache bypassed by a throw-away parameter,
   // scrolled to the comment; without a comment, the first page.
-  function reload(id) {
+  // keep: stay on the page of threads shown now (an edit, a deletion; a new
+  // comment is found by its id, on the page that holds it).
+  function reload(id, keep) {
     const q = new URLSearchParams();
     const ok = typeof id === 'string' && UUID.test(id);
     if (ok) q.set('c', id);
+    if (keep && pageNo() > 1) q.set('cmp', String(pageNo()));
     q.set('fresh', Date.now().toString(36));
     let p = window.location.pathname;
     if (!p.startsWith('/') || p.startsWith('//')) p = '/';
@@ -444,13 +449,13 @@
       const body = bodyOf(form);
       // top level: the purpose as chosen (null = none); replies: body only
       await post(commentPath(c.id, 'edit'), top ? { body, purpose: purposeOf(editSel) } : { body });
-      reload(c.id);
+      reload(c.id, true);
     }));
     del.addEventListener('click', () => {
       if (!nday.confirmStep(del, msg('disc.delete_confirm'))) return; // first click arms, second click deletes
       run(del, st, async () => {
         await post(commentPath(c.id, 'delete'));
-        reload(c.parent_id || c.id);
+        reload(c.parent_id || c.id, true);
       });
     });
     if (reportBox) report.addEventListener('click', () => openSub(reportBox, 'disc-tpl-report', null, async (form) => {
@@ -470,11 +475,11 @@
       const reason = form.querySelector('[data-f=reason]').value.trim();
       if (!reason) throw { code: 'bad_reason' };
       await post(commentPath(c.id, 'hide'), { reason });
-      reload(c.id);
+      reload(c.id, true);
     }));
     unhide.addEventListener('click', () => run(unhide, st, async () => {
       await post(commentPath(c.id, 'unhide'));
-      reload(c.id);
+      reload(c.id, true);
     }));
   }
 
@@ -546,10 +551,37 @@
       only('disc-new');
       compose();
     }
+    attachAll();
+  }
+  function attachAll() {
     sec.querySelectorAll('article.cm[data-id]').forEach((art) => {
       const c = byID.get(art.dataset.id);
-      if (c) attach(c, v);
+      if (c) attach(c, state.viewer);
     });
+  }
+  // watch: a page of threads loaded in place by the pager (app.js "paging")
+  // brings the outline back in the region; fill it with the comments of
+  // that page, as at load.
+  let watching = false;
+  function watch() {
+    if (watching || !window.MutationObserver) return;
+    watching = true;
+    let busy = false;
+    new window.MutationObserver(async () => {
+      const o = sec.querySelector('#disc-list .cm-list.veil:not([data-failed])');
+      if (busy || !o) return;
+      busy = true;
+      try {
+        await load();
+        renderList();
+        attachAll();
+      } catch (_) {
+        o.setAttribute('data-failed', '');
+        const t = $('disc-veil-t');
+        if (t) put(t, 'disc.unavailable');
+      }
+      busy = false;
+    }).observe(sec, { childList: true, subtree: true });
   }
 
   // ---- rendering the comments (signed in)
@@ -752,22 +784,10 @@
     const veil = $('disc-veil');
     if (veil) veil.remove();
     box.replaceChildren();
-    if (state.cursor) { // a later page (a permalink): offer the first one
-      const p = el('p', 'disc-page');
-      const a = el('a');
-      a.setAttribute('href', '#discussion');
-      put(a, 'disc.first');
-      a.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        reload('');
-      });
-      p.appendChild(a);
-      box.appendChild(p);
-    }
     const list = el('ol', 'cm-list');
     state.comments.forEach((c) => thread(list, c));
     if (state.comments.length) box.appendChild(list);
-    else if (!state.cursor) {
+    else {
       const p = el('p', 'note');
       put(p, 'disc.empty');
       box.appendChild(p);
@@ -851,30 +871,91 @@
     return out;
   }
   // linkParts-end
+  // cveParts splits a piece of post text around the CVE ids in it, so the
+  // ids can be set in mono green ({t, cve: true}); the rest stays {t}.
+  // Pure: no DOM (tested with node with linkParts).
+  // cveParts-begin
+  const CVEID = /CVE-\d{4}-\d{4,}/gi;
+  function cveParts(text) {
+    const out = [];
+    let i = 0;
+    CVEID.lastIndex = 0;
+    for (let m = CVEID.exec(text); m; m = CVEID.exec(text)) {
+      if (m.index > i) out.push({ t: text.slice(i, m.index) });
+      out.push({ t: m[0], cve: true });
+      i = m.index + m[0].length;
+    }
+    if (i < text.length || !out.length) out.push({ t: text.slice(i) });
+    return out;
+  }
+  // cveParts-end
+  function textWithIDs(parent, text) {
+    cveParts(text).forEach((x) => {
+      if (!x.cve) {
+        parent.appendChild(d.createTextNode(x.t));
+        return;
+      }
+      const c = el('span', 'rp-cve');
+      c.textContent = x.t;
+      parent.appendChild(c);
+    });
+  }
+  const AVATAR = /^\/avatar\/[0-9a-f]{16}$/;
+  // postHead is the card's top row, as the server draws it for the
+  // outline (vuln.tmpl "research"): the avatar or the handle's letter, the
+  // display name and @handle (one link to the profile), the X mark.
+  function postHead(p) {
+    const h = el('div', 'rp-h');
+    const handle = typeof p.author_handle === 'string' ? p.author_handle : '';
+    const name = typeof p.author_name === 'string' ? p.author_name : '';
+    if (typeof p.author_avatar === 'string' && AVATAR.test(p.author_avatar)) {
+      const img = el('img', 'rp-av');
+      img.setAttribute('src', p.author_avatar);
+      img.setAttribute('width', '28');
+      img.setAttribute('height', '28');
+      img.setAttribute('loading', 'lazy');
+      img.setAttribute('decoding', 'async');
+      img.setAttribute('alt', '');
+      h.appendChild(img);
+    } else {
+      const m = el('span', 'rp-av');
+      m.classList.add('rp-mono');
+      m.setAttribute('aria-hidden', 'true');
+      m.textContent = handle.charAt(0).toUpperCase();
+      h.appendChild(m);
+    }
+    const linked = typeof p.author_url === 'string' && XUSER.test(p.author_url) && handle;
+    const au = el(linked ? 'a' : 'span', 'rp-au');
+    if (linked) xlink(au, p.author_url);
+    if (name) {
+      const n = el('bdi', 'rp-nm');
+      n.textContent = name;
+      au.appendChild(n);
+      if (handle) {
+        au.appendChild(d.createTextNode(' '));
+        const hd = el('span', 'rp-hd');
+        hd.textContent = '@' + handle;
+        au.appendChild(hd);
+      }
+    } else if (handle) {
+      au.textContent = '@' + handle;
+    }
+    if (name || handle) h.appendChild(au);
+    const x = el('span', 'rp-xm');
+    x.setAttribute('aria-hidden', 'true');
+    h.appendChild(x);
+    return h;
+  }
   function postItem(p) {
     const li = el('li', 'rp');
-    const h = el('p', 'rp-h');
-    const handle = typeof p.author_handle === 'string' ? p.author_handle : '';
-    if (typeof p.author_url === 'string' && XUSER.test(p.author_url) && handle) {
-      const a = el('a', 'rp-au');
-      xlink(a, p.author_url);
-      a.textContent = '@' + handle;
-      h.appendChild(a);
-    } else if (handle) {
-      const b = el('bdi', 'rp-au');
-      b.textContent = '@' + handle;
-      h.appendChild(b);
-    }
-    const t = stamp(p.posted_at);
-    t.classList.add('rp-t');
-    h.appendChild(t);
-    li.appendChild(h);
+    li.appendChild(postHead(p));
     const tx = el('p', 'rp-tx');
+    tx.classList.add('clamp');
     tx.setAttribute('dir', 'auto');
     if (typeof p.lang === 'string' && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(p.lang)) tx.setAttribute('lang', p.lang);
     linkParts(String(p.text || ''), p.links).forEach((x) => {
       if (!x.href) {
-        tx.appendChild(d.createTextNode(x.t));
+        textWithIDs(tx, x.t);
         return;
       }
       const a = el('a', 'rp-l');
@@ -884,13 +965,41 @@
       tx.appendChild(a);
     });
     li.appendChild(tx);
+    // "expand" only when the text is longer than the clamp (fitClamps,
+    // once the card is in the page)
+    const more = el('button', 'rp-more');
+    more.classList.add('btn', 'sm');
+    more.type = 'button';
+    more.hidden = true;
+    more.setAttribute('aria-expanded', 'false');
+    put(more, 'rsch.expand');
+    more.addEventListener('click', () => {
+      const open = more.getAttribute('aria-expanded') !== 'true';
+      tx.classList.toggle('clamp', !open);
+      more.setAttribute('aria-expanded', String(open));
+      put(more, open ? 'rsch.collapse' : 'rsch.expand');
+    });
+    li.appendChild(more);
+    const f = el('p', 'rp-f');
+    const t = stamp(p.posted_at);
+    t.classList.add('rp-t');
+    f.appendChild(t);
     if (typeof p.url === 'string' && XPOST.test(p.url)) {
       const a = el('a', 'rp-x');
       xlink(a, p.url);
       put(a, 'rsch.view_on_x');
-      li.appendChild(a);
+      f.appendChild(a);
     }
+    li.appendChild(f);
     return li;
+  }
+  // fitClamps shows "expand" on the cards of list whose text is cut by
+  // the clamp (an open card is left as it is).
+  function fitClamps(list) {
+    list.querySelectorAll('.rp-more[aria-expanded="false"]').forEach((b) => {
+      const tx = b.previousElementSibling;
+      b.hidden = !(tx && tx.scrollHeight > tx.clientHeight + 1);
+    });
   }
   // the posts' dots on the lifecycle chart (app.js; chartdots.go): each
   // line of a popover names a post of the outline (data-ri, its index, and
@@ -931,38 +1040,45 @@
       return;
     }
     if (!j.signed_in || !Array.isArray(j.posts)) return;
-    const veil = $('rsch-veil');
-    if (veil) veil.remove();
-    let list = $('rsch-list');
-    if (!list) {
-      if (!j.posts.length) return; // the page already says there are none
-      list = el('ol', 'rp-list');
-      list.id = 'rsch-list';
-      box.appendChild(list);
-    }
     enrichDots(j.posts);
-    list.classList.remove('veil');
-    list.replaceChildren();
-    j.posts.forEach((p, i) => {
-      const li = postItem(p);
-      if (i >= SHOW) li.hidden = true;
-      list.appendChild(li);
-    });
-    if (!j.posts.length) {
-      const p = el('p', 'note');
-      put(p, 'rsch.empty');
-      list.replaceWith(p);
-      return;
-    }
-    if (j.posts.length > SHOW) {
-      const b = el('button', 'btn sm');
-      b.type = 'button';
-      put(b, 'rsch.more', { n: j.posts.length - SHOW });
-      b.addEventListener('click', () => {
-        list.querySelectorAll('li[hidden]').forEach((li) => { li.hidden = false; });
-        b.remove();
+    // the page's list shows SHOW posts, from data-offset (the server's page
+    // of the outline, ?rp=); a page loaded in place by the pager brings the
+    // outline back, and the observer below fills it with the real posts
+    const show = () => {
+      const veil = $('rsch-veil');
+      if (veil) veil.remove();
+      let list = $('rsch-list');
+      if (!list) {
+        if (!j.posts.length) return; // the page already says there are none
+        list = el('ol', 'rp-list');
+        list.id = 'rsch-list';
+        box.appendChild(list);
+      }
+      list.classList.remove('veil');
+      list.replaceChildren();
+      const off = Math.max(0, parseInt(list.dataset.offset, 10) || 0);
+      j.posts.slice(off, off + SHOW).forEach((p) => list.appendChild(postItem(p)));
+      if (!j.posts.length) {
+        const p = el('p', 'note');
+        put(p, 'rsch.empty');
+        list.replaceWith(p);
+        return;
+      }
+      fitClamps(list);
+    };
+    show();
+    let fitting = 0;
+    window.addEventListener('resize', () => {
+      window.cancelAnimationFrame(fitting);
+      fitting = window.requestAnimationFrame(() => {
+        const list = $('rsch-list');
+        if (list && !list.classList.contains('veil')) fitClamps(list);
       });
-      list.after(b);
+    });
+    if (window.MutationObserver) {
+      new window.MutationObserver(() => {
+        if ($('rsch-veil') || ($('rsch-list') && $('rsch-list').classList.contains('veil'))) show();
+      }).observe(box, { childList: true, subtree: true });
     }
   }
 
@@ -993,6 +1109,7 @@
       renderList();
       render();
       if (!me) only('disc-unknown');
+      watch();
       await reveal();
       cleanURL();
       return;
@@ -1017,6 +1134,7 @@
     }
     renderList();
     render();
+    watch();
     await reveal();
     cleanURL();
   });

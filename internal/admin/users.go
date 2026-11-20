@@ -203,10 +203,13 @@ func reportRows(ctx context.Context, c *pgx.Conn, cond string, id string, page i
 func (s *Service) AuditLog(ctx context.Context, f audit.Filter, pos Keyset[int64]) ([]audit.Row, *int64, *int64, error) {
 	return keysetPage(pos, ListPage, func(cur *int64, back bool, n int) ([]audit.Row, error) {
 		span := audit.Span{}
-		if cur != nil && back {
+		switch {
+		case cur != nil && back:
 			span.After = *cur
-		} else if cur != nil {
+		case cur != nil:
 			span.Before = *cur
+		case back:
+			span.Oldest = true
 		}
 		return audit.Query(ctx, s.o.ReadDB, f, span, n)
 	}, func(r audit.Row) int64 { return r.ID })

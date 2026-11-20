@@ -240,8 +240,11 @@ const xPostMatch = `e.source = $1 AND e.type = 'social_post'
 
 func (s *Service) xPosts(ctx context.Context, handle, cve string, cur *Cursor, back bool, n int) ([]XPost, error) {
 	at := Cursor{At: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), ID: "99999999999999999999"}
-	if cur != nil {
+	switch {
+	case cur != nil:
 		at = *cur
+	case back:
+		at = Cursor{ID: "0"} // from the oldest
 	}
 	cmp, ord := "<", "DESC"
 	if back {
@@ -489,6 +492,9 @@ type XAdded struct {
 func (s *Service) XAddByHandle(ctx context.Context, actor, handle, note string) (*XAdded, error) {
 	if !xconfig.ValidHandle(handle) {
 		return nil, xlookup.ErrBadHandle
+	}
+	if xconfig.IsOwnHandle(handle) { // no X request for it; the returned handle is checked by the writes below
+		return nil, xconfig.ErrOwnAccount
 	}
 	r, err := s.xLookup().LookupOne(ctx, handle)
 	if err != nil {

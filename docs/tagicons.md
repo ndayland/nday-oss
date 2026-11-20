@@ -34,6 +34,30 @@ There are two renderings, chosen by the constant `TagIconMode` in
 
 Tests render both.
 
+## On the share card
+
+The vulnerability's link card (`/og/vuln/{id}.png`, `internal/ogcard`)
+carries the same mark as a large, faint watermark behind the text: the mark
+of the first tag, in the page's tag order, that has an icon (`cardMark` in
+`internal/webui/ogcard.go`); no such tag, no watermark. The path data is
+read from the embedded `tagicons.svg` (`tagIconPaths`), so the sprite stays
+the only copy, and rasterised by the card's own small path parser
+(`internal/ogcard/svgpath.go`, `mark.go`). Size, position and opacity are
+the `mark*` constants in `mark.go`. The mark's slug is part of the card's
+key, so a different mark is a different card URL. `TestTagIconPathsRasterise`
+checks that every symbol of the sprite parses and draws something.
+
+Without an icon the card uses the product's name as the watermark instead,
+big faint bold text in the bottom right corner, behind the lifecycle
+strip and clear of the id and the title, one line of at most the name's
+first two words (`cardWordmark`,
+`ogcard.Card.Wordmark`, `internal/ogcard/wordmark.go`): the short
+name of the first product tag (`tags.ShortName`: the name in common use
+where the label is long, `internal/tags/shortnames.go`, else the label), else the first affected product with a usable name (or
+its vendor when the product is a placeholder). Placeholders ("n/a",
+"unknown", ...) and names with no Latin letter or digit are skipped; no
+name, plain card. The name is part of the key.
+
 ## Which tags have an icon
 
 Only tags of the product and ecosystem dimensions. The rule is "never

@@ -236,6 +236,9 @@ var placeholders = map[string]bool{
 
 func isPlaceholder(s string) bool { return placeholders[strings.ToLower(strings.TrimSpace(s))] }
 
+// IsPlaceholder reports whether an affected vendor or product value names nothing ("n/a", "unknown", ...).
+func IsPlaceholder(s string) bool { return isPlaceholder(s) }
+
 // legalSuffixes are company-form words dropped from the end of a vendor
 // name (case-insensitive, with any comma or period before them).
 var legalSuffixes = []string{

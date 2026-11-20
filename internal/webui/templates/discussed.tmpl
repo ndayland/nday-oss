@@ -8,29 +8,42 @@
 <p class="note">{{t "discussed.note"}}</p>
 </div>
 <div class="pgr" id="r-discussed" data-page-region="r-discussed">
-<div class="tbl">
-<div class="tbl-in" role="table">
-{{template "hothead"}}
+<div class="dzw">
+{{- if .Rows}}
+<ol class="dzl" role="list" start="{{.Start}}">
 {{- range .Rows}}
-<div class="grp" role="rowgroup">
-{{template "hotrow" .}}
-</div>
+{{template "heatrow" .}}
+{{- end}}
+</ol>
 {{- else}}
-<div class="empty" role="row">
-<p role="cell">{{t "discussed.empty"}}</p>
+<div class="empty">
+<p>{{t "discussed.empty"}}</p>
 </div>
 {{- end}}
-</div>
 </div>
 {{template "pager" .Pager}}
 </div>
-<div class="legend">
-{{template "legend"}}
 {{- if not $.L.IsPrimary}}
+<div class="legend">
 {{template "upstreamnote"}}
-{{- end}}
 </div>
+{{- end}}
 </main>
 </div>
 </div>
 {{end}}{{end}}
+
+{{/* one row of the heat ranking (webui.HeatRowView): rank, heat (the count, its unit, a bar scaled to the
+     ranking's top), the CVE link with its title, then the stage, a flag and the avatars, and a 7-day
+     sparkline. Sizes are SVG attributes, never style attributes (CSP style-src 'self'). The avatars are
+     decoration: the count says the same in words. */}}
+{{define "heatrow"}}<li class="dzr" data-row="" data-id="{{.CVE}}" data-href="{{.Href}}">
+<span class="cur" aria-hidden="true"></span>
+<span class="dz-rk">{{.Rank}}</span>
+<div class="dz-heat"><span class="dz-n" aria-hidden="true">{{.Heat}}</span><span class="dz-u" aria-hidden="true">{{.Unit}}</span><span class="sr">{{.HeatText}}</span><svg class="dz-bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="dz-bt" width="100" height="4"/><rect class="dz-bf" width="{{.Bar}}" height="4"/></svg></div>
+<div class="dz-m">
+<div class="dz-l1"><a class="dz-a" href="{{.Href}}"><span class="dz-id">{{.CVE}}</span> <span class="dz-t{{if .TitleMissing}} missing{{end}}"{{with .TitleLang}} lang="{{.}}"{{end}}>{{.Title}}</span>{{template "titlemark" .Mark}}</a>{{if .Rejected}} <span class="tag">REJECTED</span>{{end}}</div>
+<div class="dz-l2">{{with .Stage}}<span class="dz-st {{$.StageClass}}" title="{{$.StageName}}"><span aria-hidden="true">{{.}}</span><span class="sr">{{$.StageName}}</span></span>{{end}}{{with .Flag}}<span class="dz-flag {{$.FlagClass}}">{{.}}</span>{{end}}{{if or .Faces .More}}<span class="dz-fc" aria-hidden="true">{{range .Faces}}{{if .}}<img class="dz-fa" src="{{.}}" width="20" height="20" alt="" loading="lazy" decoding="async"/>{{else}}<span class="dz-fa dz-fx"></span>{{end}}{{end}}{{with .More}}<span class="dz-more">{{.}}</span>{{end}}</span>{{end}}</div>
+</div>
+<svg class="dz-sp dz-{{.Spark.Trend}}" viewBox="0 0 60 20" role="img" aria-label="{{.Spark.Label}}" focusable="false"><polyline points="{{.Spark.Points}}"/></svg>
+</li>{{end}}

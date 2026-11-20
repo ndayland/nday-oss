@@ -16,7 +16,7 @@ import (
 
 // /vuln without a query is the catalogue: every vulnerability with at least
 // one lifecycle event, most recent change first (site.Store.Catalogue), in
-// the hot list's rows. ?stage=&year=&tag=&include_rejected=&cursor=&before=&p=
+// the hot list's rows. ?stage=&year=&tag=&cvss_min=&cvss_max=&include_rejected=&cursor=&before=&p=
 // filter and page it; ?q= is the search page (search, webui.go). A URL with only
 // tag= (the former "search by tag") is the catalogue filtered by those tags.
 //
@@ -45,10 +45,16 @@ type CatFilters struct {
 	IncludeRejected bool
 	// Tags: ?tag= filters (vocabulary slugs, canonical order; unknown slugs
 	// are dropped as on the hot list).
-	Tags   []string
-	Cursor string
-	Before string // ?before=: a page's previous-page position
-	Page   int    // ?p=: display-only page number of a later page (pageIndex)
+	Tags []string
+	// CVSSMin/CVSSMax: ?cvss_min=&cvss_max=, the displayed CVSS score's
+	// inclusive bounds (site.NormalizeCVSS, canonical); "" = no bound.
+	CVSSMin, CVSSMax string
+	Cursor           string
+	Before           string // ?before=: a page's previous-page position
+	// Page: ?p=, the page number of a later page (pageIndex). Next to a
+	// position it only labels the page; alone it picks one of the first or
+	// last pages (jumpTo).
+	Page int
 }
 
 // parseCatFilters reads the catalogue parameters; unknown parameters are
@@ -78,18 +84,83 @@ func parseCatFilters(q url.Values) (CatFilters, error) {
 			return f, &site.InputError{Param: "include_rejected", Msg: "expected true or false"}
 		}
 	}
-	f.Cursor, f.Before = q.Get("cursor"), q.Get("before")
-	if f.Cursor != "" || f.Before != "" {
-		f.Page = pageIndex(q.Get("p"))
+	if f.CVSSMin, f.CVSSMax, err = parseCVSSFilter(q); err != nil {
+		return f, err
 	}
+	f.Cursor, f.Before = q.Get("cursor"), q.Get("before")
+	f.Page = pageIndex(q.Get("p"))
 	f.Tags, _ = tags.ParseFilter(q["tag"])
 	return f, nil
+}
+
+// parseCVSSFilter reads ?cvss_min=&cvss_max= (the catalogue and the search
+// page): empty means no bound, a bad value is an *InputError (400 page).
+func parseCVSSFilter(q url.Values) (min, max string, err error) {
+	return site.NormalizeCVSS(strings.TrimSpace(q.Get("cvss_min")), strings.TrimSpace(q.Get("cvss_max")))
+}
+
+// cvssQuery is the score filter as query parameters ("" without one).
+func cvssQuery(min, max string) string {
+	var parts []string
+	if min != "" {
+		parts = append(parts, "cvss_min="+url.QueryEscape(min))
+	}
+	if max != "" {
+		parts = append(parts, "cvss_max="+url.QueryEscape(max))
+	}
+	return strings.Join(parts, "&")
+}
+
+// cvssHidden is the score filter as hidden form fields (the search forms
+// keep it, like the tag filter).
+func cvssHidden(min, max string) []HiddenField {
+	var h []HiddenField
+	if min != "" {
+		h = append(h, HiddenField{"cvss_min", min})
+	}
+	if max != "" {
+		h = append(h, HiddenField{"cvss_max", max})
+	}
+	return h
+}
+
+// cvssLabel is the active score filter as shown ("" without one): "9–10",
+// "≥ 7", "≤ 3.9", or the single score of an exact match.
+func cvssLabel(min, max string) string {
+	switch {
+	case min == "" && max == "":
+		return ""
+	case min == max:
+		return min
+	case max == "":
+		return "≥ " + min
+	case min == "":
+		return "≤ " + max
+	}
+	return min + "–" + max
+}
+
+// cvssOpts is the score filter row: "all", then the severity bands
+// (site.CVSSBands), each a link from href with that range; a range that is
+// not a band is appended as the active entry.
+func cvssOpts(l *i18n.Locale, min, max string, href func(min, max string) string) []FilterOpt {
+	opts := []FilterOpt{{Label: l.Text("cat.all"), Href: href("", ""), Active: min == "" && max == ""}}
+	band := false
+	for _, b := range site.CVSSBands {
+		on := b.Min == min && b.Max == max
+		band = band || on
+		opts = append(opts, FilterOpt{Label: cvssLabel(b.Min, b.Max), Href: href(b.Min, b.Max), Active: on})
+	}
+	if !band && (min != "" || max != "") {
+		opts = append(opts, FilterOpt{Label: cvssLabel(min, max), Href: href(min, max), Active: true})
+	}
+	return opts
 }
 
 // Params are the store parameters of f (not yet normalized).
 func (f CatFilters) Params() site.CatalogueParams {
 	return site.CatalogueParams{Stage: f.Stage, Year: f.Year, Tags: f.Tags, IncludeRejected: f.IncludeRejected,
-		Limit: catPageSize, Cursor: f.Cursor, Before: f.Before}
+		CVSSMin: f.CVSSMin, CVSSMax: f.CVSSMax, Limit: catPageSize, Cursor: f.Cursor, Before: f.Before}
 }
 
 // Query renders f as page query parameters, unset ones omitted; withCursor
@@ -108,6 +179,9 @@ func (f CatFilters) Query(withCursor bool) string {
 	if len(f.Tags) > 0 {
 		parts = append(parts, tagQuery(f.Tags))
 	}
+	if c := cvssQuery(f.CVSSMin, f.CVSSMax); c != "" {
+		parts = append(parts, c)
+	}
 	if withCursor {
 		if f.Cursor != "" {
 			parts = append(parts, "cursor="+url.QueryEscape(f.Cursor))
@@ -124,17 +198,22 @@ func (f CatFilters) Query(withCursor bool) string {
 
 // Href is the locale-neutral page URL for f.
 func (f CatFilters) Href(withCursor bool) string {
-	if q := f.Query(withCursor); q != "" {
-		return "/vuln?" + q
+	q := f.Query(withCursor)
+	switch {
+	case q == "":
+		return catBrowseHref // a bare /vuln is the landing, not the list
+	case f.Query(false) == "" && f.Cursor == "" && f.Before == "":
+		// a page number alone stays on the full list (isCatLanding)
+		return catBrowseHref + "&" + q
 	}
-	return catBrowseHref // a bare /vuln is the landing, not the list
+	return "/vuln?" + q
 }
 
 // isCatLanding reports whether a catalogue request (no search query) is
 // the landing: no filter, no page position and no browse=. Unknown
-// parameters and empty known ones do not count.
+// parameters, empty known ones and a page number alone (?p=) do not count.
 func isCatLanding(q url.Values, f CatFilters) bool {
-	return f.Query(true) == "" && q.Get(catBrowseParam) == ""
+	return f.Query(false) == "" && f.Cursor == "" && f.Before == "" && q.Get(catBrowseParam) == ""
 }
 
 // APIPath is the equivalent JSON API path (/vulns, filters only).
@@ -151,6 +230,9 @@ func (f CatFilters) APIPath() string {
 	}
 	if len(f.Tags) > 0 {
 		parts = append(parts, tagQuery(f.Tags))
+	}
+	if c := cvssQuery(f.CVSSMin, f.CVSSMax); c != "" {
+		parts = append(parts, c)
 	}
 	if len(parts) == 0 {
 		return "/vulns"
@@ -190,15 +272,18 @@ type CatalogueView struct {
 	SearchAction string
 	Examples     template.HTML // example search links, " · "-separated
 	SearchTags   []string      // tag filters the search form keeps
+	SearchCVSS   []HiddenField // the score filter the search form keeps
 	Stages       []StageEntry  // "all", then DIS..KEV
 	Years        []FilterOpt   // "all", then the current and catQuickYears earlier years
 	YearOpts     []YearOpt     // the select: every other accepted year
 	YearHidden   []HiddenField
 	YearLabel    string // the active year for the filter summary ("" = every year)
 	Rejected     FilterOpt
+	CVSS         []FilterOpt // the score filter row (cvssOpts)
+	CVSSLabel    string      // the active score filter for the summary ("" = none)
 	Chips        []TagChip
 	TagsHref     string
-	Custom       bool // year, tags or rejected set: the filters start open on phones
+	Custom       bool // year, score, tags or rejected set: the filters start open on phones
 	Rows         []CatRow
 	Pager        *Pager // nil when the list fits on one page
 	OnCursor     bool   // a page after the first (the hero is compact)
@@ -228,7 +313,8 @@ func BuildLandingView(l *i18n.Locale) CatalogueView {
 // (< 0 = not known; catalogueTotal); now is the clock (the current year).
 func BuildCatalogueView(l *i18n.Locale, f CatFilters, page *site.CataloguePage, st *site.Stats, length int64, api API, now time.Time) CatalogueView {
 	cv := CatalogueView{SearchAction: l.Path("/vuln"), Examples: searchExamples(l), SearchTags: f.Tags,
-		TagsHref: l.Path("/tags"), Custom: f.Year != 0 || f.IncludeRejected || len(f.Tags) > 0,
+		SearchCVSS: cvssHidden(f.CVSSMin, f.CVSSMax), CVSSLabel: cvssLabel(f.CVSSMin, f.CVSSMax),
+		TagsHref: l.Path("/tags"), Custom: f.Year != 0 || f.IncludeRejected || len(f.Tags) > 0 || f.CVSSMin != "" || f.CVSSMax != "",
 		ClearHref: l.Path(catBrowseHref)}
 	cv.Filtered = cv.Custom || f.Stage != ""
 	link := func(g CatFilters) string {
@@ -298,7 +384,13 @@ func BuildCatalogueView(l *i18n.Locale, f CatFilters, page *site.CataloguePage, 
 	for _, s := range f.Tags {
 		cv.YearHidden = append(cv.YearHidden, HiddenField{"tag", s})
 	}
-	// rejected, tags
+	cv.YearHidden = append(cv.YearHidden, cv.SearchCVSS...)
+	// score, rejected, tags
+	cv.CVSS = cvssOpts(l, f.CVSSMin, f.CVSSMax, func(min, max string) string {
+		g := f
+		g.CVSSMin, g.CVSSMax = min, max
+		return link(g)
+	})
 	g = f
 	g.IncludeRejected = !f.IncludeRejected
 	cv.Rejected = FilterOpt{Label: l.Text("hot.filter.rejected"), Href: link(g), Active: f.IncludeRejected}
@@ -333,7 +425,7 @@ func BuildCatalogueView(l *i18n.Locale, f CatFilters, page *site.CataloguePage, 
 			cv.Rows = append(cv.Rows, cr)
 		}
 		cv.Pager = catPager(l, f, page, length)
-		cv.OnCursor = f.Cursor != "" || (f.Before != "" && page.PrevCursor != nil)
+		cv.OnCursor = f.Cursor != "" || page.PrevCursor != nil
 	}
 	return cv
 }
@@ -342,42 +434,48 @@ func BuildCatalogueView(l *i18n.Locale, f CatFilters, page *site.CataloguePage, 
 // one without a position, or the one paging back reached); total is the
 // catalogue's length for f (< 0 = not known; catalogueTotal).
 func catPager(l *i18n.Locale, f CatFilters, page *site.CataloguePage, total int64) *Pager {
-	first := f.Cursor == "" && (f.Before == "" || page.PrevCursor == nil)
+	first := f.Cursor == "" && ((f.Before == "" && f.Page <= 1) || page.PrevCursor == nil)
 	cur := f.Page
 	if first {
 		cur = 1
 	}
-	cur, pages := clampPage(cur, pagesOf(total, page.Limit), first, page.NextCursor != nil)
+	cur, pages := clampPage(cur, pagesOf(total, catPageSize), first, page.NextCursor != nil)
 	at := func(cursor, before string, idx int) string {
 		g := f
 		g.Cursor, g.Before, g.Page = cursor, before, idx
 		return l.Path(g.Href(true))
 	}
-	var firstHref, prev, next string
+	firstHref := l.Path(f.Href(false))
+	var prev, next string
 	if !first {
-		firstHref = l.Path(f.Href(false))
-		prev = firstHref // a later page without rows: back to the start
-		if page.PrevCursor != nil {
+		prev = firstHref // page 2, or a later page without rows: back to the start
+		if page.PrevCursor != nil && cur != 2 {
 			prev = at("", *page.PrevCursor, prevIndex(cur))
 		}
 	}
 	if page.NextCursor != nil {
 		next = at(*page.NextCursor, "", nextIndex(cur))
 	}
-	pg := newPager(firstHref, prev, next)
+	pg := newPager(prev, next)
 	from := 0
 	if cur > 0 {
-		from = (cur-1)*page.Limit + 1
+		from = (cur-1)*catPageSize + 1
 	}
 	pg.position(l, cur, pages, from, len(page.Rows), total)
+	pg.numbers(l, cur, pages, func(n int) string {
+		if n <= 1 {
+			return firstHref
+		}
+		return at("", "", n)
+	})
 	return pg
 }
 
 // catTotal is the length of the catalogue for f when the whole-database
 // counts already give it (st, as on /stats; one scan, cached): no year and
-// no tag filter. -1 when not known (catalogueTotal counts it then).
+// no tag and no score filter. -1 when not known (catalogueTotal counts it then).
 func catTotal(f CatFilters, st *site.Stats) int64 {
-	if st == nil || f.Year != 0 || len(f.Tags) > 0 {
+	if st == nil || f.Year != 0 || len(f.Tags) > 0 || f.CVSSMin != "" || f.CVSSMax != "" {
 		return -1
 	}
 	if f.Stage == "" {
@@ -457,12 +555,6 @@ func (u *UI) catalogue(w http.ResponseWriter, r *http.Request, loc *i18n.Locale)
 		u.fail(w, r, loc, err)
 		return
 	}
-	v, err := u.cached(r.Context(), "cat|"+p.CacheKey(), func(ctx context.Context) (any, error) { return u.srv.Store.Catalogue(ctx, p) })
-	if err != nil {
-		u.fail(w, r, loc, err)
-		return
-	}
-	page := v.(*site.CataloguePage)
 	st, err := u.statsReport(r.Context())
 	if err != nil {
 		u.fail(w, r, loc, err)
@@ -471,6 +563,34 @@ func (u *UI) catalogue(w http.ResponseWriter, r *http.Request, loc *i18n.Locale)
 	length, err := u.catalogueTotal(r.Context(), f, p, st)
 	if err != nil {
 		u.fail(w, r, loc, err)
+		return
+	}
+	if f.Cursor == "" && f.Before == "" && f.Page > 1 {
+		// a page number without a position: one of the first or last pages
+		// (jumpTo); any other is out of reach
+		j, ok := jumpTo(f.Page, length, catPageSize)
+		if !ok {
+			u.notFound(w, r, loc)
+			return
+		}
+		f.Page, p.Offset, p.Limit, p.FromEnd = j.Page, j.Offset, j.Limit, j.FromEnd
+		if f.Page <= 1 {
+			f.Page = 0
+		}
+		if p, err = p.Normalize(); err != nil {
+			u.fail(w, r, loc, err)
+			return
+		}
+	}
+	v, err := u.cached(r.Context(), "cat|"+p.CacheKey(), func(ctx context.Context) (any, error) { return u.srv.Store.Catalogue(ctx, p) })
+	if err != nil {
+		u.fail(w, r, loc, err)
+		return
+	}
+	page := v.(*site.CataloguePage)
+	if p.Offset > 0 && len(page.Rows) == 0 {
+		// one of the first pages of a list that is shorter (not counted)
+		u.notFound(w, r, loc)
 		return
 	}
 	cv := BuildCatalogueView(loc, f, page, st, length, u.api, u.opts.Now())
@@ -487,5 +607,5 @@ func (u *UI) catalogue(w http.ResponseWriter, r *http.Request, loc *i18n.Locale)
 	u.page(w, r, loc, http.StatusOK, "catalogue", &Page{Title: loc.Text("page.cat.title"),
 		Description: loc.Text("page.cat.description"),
 		Nav:         "vuln", Path: "~/vuln", Pos: pos, PosID: true, Hints: helpHints(loc), AutoSelect: true,
-		Canonical: f.Href(false), NoIndex: noIndex, Data: cv, SearchTags: f.Tags})
+		Canonical: f.Href(false), NoIndex: noIndex, Data: cv, SearchTags: f.Tags, SearchCVSS: cv.SearchCVSS})
 }

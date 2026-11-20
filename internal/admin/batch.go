@@ -34,7 +34,7 @@ import (
 // showed: another state or version), not_found, no_change, exists (already
 // listed), wrong_status — counted as changed since the page was loaded;
 // invalid (a malformed id, state or version), no_handle (a candidate
-// without a valid handle), error (an internal error, logged) — counted as
+// without a valid handle), own_account (the site's own X account), error (an internal error, logged) — counted as
 // failed.
 
 // BatchMax is the most items one batch request may carry: one page.
@@ -139,6 +139,8 @@ func (s *Service) batchOutcome(op string, err error) string {
 		return "wrong_status"
 	case errors.Is(err, ErrCandidateNoHandle):
 		return "no_handle"
+	case errors.Is(err, xconfig.ErrOwnAccount):
+		return "own_account"
 	default:
 		s.log.Error("admin: internal error", "op", op, "err", err)
 		return "error"

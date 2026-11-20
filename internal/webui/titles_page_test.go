@@ -263,15 +263,18 @@ func grep(s, sub string) string {
 	return strings.Join(out, "\n")
 }
 
-// rowOf is the hot-list row of id (from its div to the next row).
+// rowOf is the list row of id (from its element to the next row).
 func rowOf(page, id string) string {
 	i := strings.Index(page, `data-id="`+id+`"`)
 	if i < 0 {
 		return ""
 	}
 	rest := page[i:]
-	if j := strings.Index(rest[1:], `role="row"`); j > 0 {
-		rest = rest[:j+1]
+	// up to the next row: a table row, or a /discussed list row
+	for _, next := range []string{`role="row"`, `<li class="dzr"`} {
+		if j := strings.Index(rest[1:], next); j > 0 {
+			rest = rest[:j+1]
+		}
 	}
 	return rest
 }

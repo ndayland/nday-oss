@@ -236,8 +236,9 @@ type HotFilters struct {
 	Cursor          string
 	// Before: ?before=, a page's previous-page position (site.HotParams.Before).
 	Before string
-	// Page: the display-only page number ?p= of a later page (pageIndex; 0 =
-	// not known). It labels the page; the rows never depend on it.
+	// Page: the page number ?p= of a later page (pageIndex; 0 = not
+	// known). Next to a position it only labels the page; alone it picks
+	// one of the first or last pages (jumpTo).
 	Page int
 	// Tags: ?tag= filters (vocabulary slugs, canonical order; unknown slugs
 	// were dropped by parseHotFilters).
@@ -444,15 +445,17 @@ func BuildHotView(l *i18n.Locale, f HotFilters, page *site.HotPage, total *site.
 // the pinned rows before its hotPageSize ordinary rows; later pages have
 // ordinary rows only, after those of the pages before. total (nil = not
 // known) is the list's length, counted a moment earlier (site.HotCount).
+// The arrows and the current page's neighbours link by position; the
+// other numbers by page number alone (jumpTo).
 func hotPager(l *i18n.Locale, f HotFilters, page *site.HotPage, total *site.HotTotal) *Pager {
-	first := f.Cursor == "" && (f.Before == "" || page.PrevCursor == nil)
+	first := f.Cursor == "" && ((f.Before == "" && f.Page <= 1) || page.PrevCursor == nil)
 	cur := f.Page
 	if first {
 		cur = 1
 	}
 	pages, rows := 0, int64(-1)
 	if total != nil {
-		pages, rows = total.Pages(page.Limit), total.Rows+int64(total.Pins)
+		pages, rows = total.Pages(hotPageSize), total.Rows+int64(total.Pins)
 	}
 	cur, pages = clampPage(cur, pages, first, page.NextCursor != nil)
 	at := func(cursor, before string, idx int) string {
@@ -460,26 +463,32 @@ func hotPager(l *i18n.Locale, f HotFilters, page *site.HotPage, total *site.HotT
 		g.Cursor, g.Before, g.Page = cursor, before, idx
 		return l.Path(g.Href(true))
 	}
-	var firstHref, prev, next string
+	firstHref := l.Path(f.Href(false))
+	var prev, next string
 	if !first {
-		firstHref = l.Path(f.Href(false))
-		prev = firstHref // a later page without rows: back to the start
-		if page.PrevCursor != nil {
+		prev = firstHref // page 2, or a later page without rows: back to the start
+		if page.PrevCursor != nil && cur != 2 {
 			prev = at("", *page.PrevCursor, prevIndex(cur))
 		}
 	}
 	if page.NextCursor != nil {
 		next = at(*page.NextCursor, "", nextIndex(cur))
 	}
-	pg := newPager(firstHref, prev, next)
+	pg := newPager(prev, next)
 	from := 0
 	switch {
 	case first:
 		from = 1
 	case cur > 1:
-		from = page.Pins + (cur-1)*page.Limit + 1
+		from = page.Pins + (cur-1)*hotPageSize + 1
 	}
 	pg.position(l, cur, pages, from, len(page.Rows), rows)
+	pg.numbers(l, cur, pages, func(n int) string {
+		if n <= 1 {
+			return firstHref
+		}
+		return at("", "", n)
+	})
 	return pg
 }
 

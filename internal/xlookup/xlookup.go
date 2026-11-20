@@ -2,7 +2,9 @@
 // official X API v2 user lookup (GET /2/users/by?usernames=…, app-only
 // Bearer token), for the allowlist of the xposts collector: the back office
 // (/admin/x) and `nday x-accounts-import` bind a handle to its id at the
-// moment an administrator enters it (docs/xposts.md, docs/admin.md).
+// moment an administrator enters it (docs/xposts.md, docs/admin.md). The
+// same client also looks users up by id (GET /2/users?ids=…, ProfilesByID)
+// for `nday x-profiles` (internal/xprofiles), under the same rules.
 //
 // Rules:
 //   - the token (NDAY_X_BEARER_TOKEN) is sent only as the Authorization
@@ -285,4 +287,98 @@ func transportReason(err error) string {
 		s = string(r[:200]) + "..."
 	}
 	return s
+}
+
+// IDPath is the user lookup by ids endpoint (GET /2/users?ids=…).
+const IDPath = "/2/users"
+
+// ProfileFields are the user.fields of ProfilesByID: the handle, the
+// display name and the avatar URL (the researcher section's cards).
+const ProfileFields = "username,name,profile_image_url"
+
+// Profile is one user ProfilesByID returned. Every field but ID is upstream
+// text: the caller cleans the name and validates the URL before storing.
+type Profile struct {
+	ID              string
+	Handle          string
+	Name            string
+	ProfileImageURL string
+}
+
+// ProfilesByID makes ONE request for at most MaxPerRequest numeric user ids
+// (each must pass xconfig.ValidUserID; nothing is sent otherwise) and
+// returns the profiles X sent for the ids asked for, by id, and the asked
+// ids it did not return (suspended, deleted, or simply absent: they come
+// back in "errors" or not at all). Request-level errors are those of
+// Lookup (ErrRateLimited for 429, never retried).
+func (c *Client) ProfilesByID(ctx context.Context, ids []string) (map[string]Profile, []string, error) {
+	if len(ids) == 0 || len(ids) > MaxPerRequest {
+		return nil, nil, fmt.Errorf("%w: %d ids (1..%d a request)", ErrUpstream, len(ids), MaxPerRequest)
+	}
+	for _, id := range ids {
+		if !xconfig.ValidUserID(id) {
+			return nil, nil, fmt.Errorf("invalid X user id %q", id)
+		}
+	}
+	if !c.Configured() {
+		return nil, nil, ErrNotConfigured
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	rctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	v := url.Values{}
+	v.Set("ids", strings.Join(ids, ","))
+	v.Set("user.fields", ProfileFields)
+	hdr := http.Header{}
+	hdr.Set("Authorization", "Bearer "+c.token)
+	hdr.Set("Accept", "application/json")
+	resp, err := c.http.Get(rctx, c.base+IDPath+"?"+v.Encode(), httpc.GetOptions{Header: hdr, Accept: func(int) bool { return true }})
+	if err != nil {
+		if perr := ctx.Err(); perr != nil {
+			return nil, nil, perr
+		}
+		if errors.Is(err, context.DeadlineExceeded) || rctx.Err() != nil {
+			return nil, nil, fmt.Errorf("%w: no answer within %s", ErrUpstream, c.timeout)
+		}
+		return nil, nil, fmt.Errorf("%w: %s", ErrUpstream, transportReason(err))
+	}
+	switch {
+	case resp.Status == http.StatusTooManyRequests:
+		return nil, nil, ErrRateLimited
+	case resp.Status == http.StatusUnauthorized || resp.Status == http.StatusForbidden:
+		return nil, nil, ErrAuth
+	case resp.Status != http.StatusOK:
+		return nil, nil, fmt.Errorf("%w: HTTP %d", ErrUpstream, resp.Status)
+	}
+	var r struct {
+		Data []struct {
+			ID              string `json:"id"`
+			Username        string `json:"username"`
+			Name            string `json:"name"`
+			ProfileImageURL string `json:"profile_image_url"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(resp.Body, &r); err != nil {
+		return nil, nil, fmt.Errorf("%w: response is not the expected JSON", ErrUpstream)
+	}
+	want := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		want[id] = true
+	}
+	out := map[string]Profile{}
+	for _, u := range r.Data {
+		if !want[u.ID] {
+			continue // not asked for (or not a valid id): ignored
+		}
+		out[u.ID] = Profile{ID: u.ID, Handle: u.Username, Name: u.Name, ProfileImageURL: u.ProfileImageURL}
+	}
+	var missing []string
+	for _, id := range ids {
+		if _, ok := out[id]; !ok {
+			missing = append(missing, id)
+		}
+	}
+	return out, missing, nil
 }

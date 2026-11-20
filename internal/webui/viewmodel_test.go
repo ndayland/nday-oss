@@ -260,7 +260,8 @@ func TestHotFiltersLinks(t *testing.T) {
 	if hv.Pager == nil || hv.Pager.Next != "/?since=30d&min_stage=poc&include_rejected=1&cursor=NEXT" {
 		t.Errorf("next %+v", hv.Pager)
 	}
-	if hv.Pager.First != "/?since=30d&min_stage=poc&include_rejected=1" || hv.Pager.Prev != "/?since=30d&min_stage=poc&include_rejected=1&before=PREV" {
+	if len(hv.Pager.Items) == 0 || hv.Pager.Items[0].Href != "/?since=30d&min_stage=poc&include_rejected=1" ||
+		hv.Pager.Prev != "/?since=30d&min_stage=poc&include_rejected=1&before=PREV" {
 		t.Errorf("first/prev %+v", hv.Pager)
 	}
 	// Filter links keep the other filters and drop the cursor.
@@ -327,17 +328,6 @@ func TestHotRowGrouping(t *testing.T) {
 		if got := ChangeText(en, code); got != want {
 			t.Errorf("ChangeText(%s) = %q, want %q", code, got, want)
 		}
-	}
-	// /discussed reuses the row; a CVE without lifecycle state has no change.
-	d := BuildDiscussedRow(en, site.DiscussedRow{CVEID: "CVE-2026-2"})
-	if d.Change != "—" || d.ChangeText != "" {
-		t.Errorf("discussed row without state: %q %q", d.Change, d.ChangeText)
-	}
-	st, code := "exploited_in_wild", "ITW"
-	d = BuildDiscussedRow(en, site.DiscussedRow{CVEID: "CVE-2026-3", Stage: &st, StageCode: &code,
-		Transition: &site.Transition{Type: st, Code: code, At: d1, Precision: "day"}})
-	if d.Change != "+ITW" || d.ChangeText != "exploited in the wild" {
-		t.Errorf("discussed row: %q %q", d.Change, d.ChangeText)
 	}
 }
 

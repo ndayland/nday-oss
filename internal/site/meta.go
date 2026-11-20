@@ -10,7 +10,7 @@ import (
 
 // SourceNames are the public collectors, in display order (SourceNames plus
 // NonPublicSources must match internal/registry; checked by a test).
-var SourceNames = []string{"cvelist", "kev", "ghsa", "exploitdb", "metasploit", "nuclei", "nvd"}
+var SourceNames = []string{"cvelist", "kev", "ghsa", "exploitdb", "metasploit", "nuclei", "osssec", "zerowire", "nvd"}
 
 // CollectorStatus is one collector's health.
 type CollectorStatus struct {

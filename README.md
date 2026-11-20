@@ -46,7 +46,7 @@ Two rules keep the timeline honest:
 
 ## What's here
 
-- **Collectors** for eight sources: `cvelist`, `nvd`, `ghsa`, `kev`, `exploitdb`, `metasploit`, `nuclei`, `xposts`. Each one fetches, stores the raw record first, then normalizes it. Runs are idempotent, so you can re-run one without duplicating anything.
+- **Collectors** for ten sources: `cvelist`, `nvd`, `ghsa`, `kev`, `exploitdb`, `metasploit`, `nuclei`, `osssec` (the oss-security mailing list), `zerowire` (Cloudflare Radar's Zero Wire advisories), `xposts`. Each one fetches, stores the raw record first, then normalizes it. Runs are idempotent, so you can re-run one without duplicating anything.
 - **The website**, in seven languages (English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français): what moved to a new stage recently, what researchers are discussing, a filterable catalogue of every CVE, and a page per vulnerability with its timeline, patches, PoCs and tags.
 - **Accounts and community**: sign-in with Google, GitHub, Apple or X, or with a passkey; discussions under each vulnerability; a form for readers to report a wrong or missing fact; following vendors and products.
 - **A read-only JSON API** for signed-in users: make a personal access token on your account page and send it as `Authorization: Bearer`. The Atom feed has a private address per account.

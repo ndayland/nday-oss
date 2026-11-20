@@ -119,10 +119,11 @@ func (a adminLinks) numbered(l *i18n.Locale, w admin.Window, param, region strin
 
 // keyset is the pager of a newest-first keyset list in region: older and
 // newer are its position parameters (the next and the previous page), idx
-// the display-only page number; prev and next the encoded positions the
-// service returned ("" none); total the length of the list (counted with
-// the list's filters; < 0 = not known). A page without a previous one is
-// the first.
+// its page number; prev and next the encoded positions the service
+// returned ("" none); total the length of the list (counted with the
+// list's filters; < 0 = not known). A page without a previous one is the
+// first. The arrows and the current page's neighbours link by position,
+// the other numbers by page number alone (keysetJump).
 func (a adminLinks) keyset(l *i18n.Locale, region, older, newer, idx, prev, next string, total int) *Pager {
 	cur := 1
 	if prev != "" {
@@ -132,20 +133,37 @@ func (a adminLinks) keyset(l *i18n.Locale, region, older, newer, idx, prev, next
 	if prev != "" {
 		a.set(idx, pageStr(cur)) // the links built from here on carry the clamped number
 	}
-	var first, prevHref, nextHref string
+	page := func(n int) string { return a.href(region, older, "", newer, "", idx, pageStr(n)) }
+	var prevHref, nextHref string
 	if prev != "" {
-		first = a.href(region, older, "", newer, "", idx, "")
 		prevHref = a.href(region, older, "", newer, prev, idx, pageStr(prevIndex(cur)))
-		if prevIndex(cur) == 0 && cur == 2 {
-			prevHref = first // page 2 goes back to the first page
+		if cur == 2 {
+			prevHref = page(1) // page 2 goes back to the first page
 		}
 	}
 	if next != "" {
 		nextHref = a.href(region, newer, "", older, next, idx, pageStr(nextIndex(cur)))
 	}
-	pg := newPager(first, prevHref, nextHref)
+	pg := newPager(prevHref, nextHref)
 	pg.position(l, cur, pages, 0, 0, -1)
+	pg.numbers(l, cur, pages, page)
 	return pg
+}
+
+// keysetJump reads the page number n (?<idx>=, 0 = none) of a keyset list
+// of total rows that has no position: one of the first or last pages
+// (jumpTo) sets pos to it; it returns the page shown, 0 for the first page
+// (also for a number out of reach, which a crafted link alone can give).
+func keysetJump[C any](pos *admin.Keyset[C], n, total int) int {
+	if pos.Older != nil || pos.Newer != nil || n < 2 {
+		return 0
+	}
+	j, ok := jumpTo(n, int64(total), admin.ListPage)
+	if !ok || j.Page <= 1 {
+		return 0
+	}
+	pos.Skip, pos.Take, pos.FromEnd = j.Offset, j.Limit, j.FromEnd
+	return j.Page
 }
 
 // memPage is one page of a list the page holds whole.

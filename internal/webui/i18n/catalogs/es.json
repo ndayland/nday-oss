@@ -105,6 +105,7 @@
     "cat.year": "Año del CVE",
     "cat.year.other": "otros años",
     "cat.year.go": "Ver",
+    "cat.cvss": "Puntuación CVSS",
     "cat.empty": "Ninguna vulnerabilidad cumple estos filtros.",
     "cat.clear": "Quitar filtros",
     "cat.browse": "ver todo",
@@ -144,7 +145,6 @@
     "js.copy_failed": "no se copió",
     "js.copied_id": "copiado {id}",
     "pager.label": "Paginación",
-    "pager.first": "primera",
     "pager.prev": "anterior",
     "pager.next": "siguiente",
     "pager.page": "página {n}",
@@ -394,6 +394,7 @@
     "ev.nuclei.no_time": "La fuente no indica cuándo se publicó la plantilla.",
     "ev.github.repo": "Repositorio de PoC en GitHub: {repo}.",
     "ev.github.created": "La fecha es el día de creación del repositorio.",
+    "ev.osssec.post": {"post": "Publicado en la lista de correo oss-security: «{subject}».", "reply": "Respuesta en la lista de correo oss-security: «{subject}».", "none": "Publicado en la lista de correo oss-security."},
     "ev.generic": {
       "DIS": "{source} notificó una divulgación.",
       "PAT": "{source} notificó un parche.",
@@ -440,6 +441,8 @@
     "src.metasploit.produces": "{poc} PoC pública (la fuente no indica cuándo se publicó el módulo)",
     "src.nuclei.what": "Plantillas de detección de CVE del repositorio nuclei-templates de ProjectDiscovery.",
     "src.nuclei.produces": "{poc} PoC pública (plantilla de detección; la fuente no indica cuándo se publicó)",
+    "src.osssec.what": "Mensajes de la lista de correo oss-security, tomados del archivo de seclists.org: asunto, nombre del autor y hora de cada mensaje que menciona un ID de CVE o GHSA. No se guarda el texto del mensaje.",
+    "src.osssec.produces": "{ana} análisis técnico (uno por cada mensaje que menciona el ID; la hora es la del mensaje)",
     "src.backfill.h2": "Carga histórica",
     "src.backfill.p1": {
       "one": "KEV, GHSA y las tres fuentes de PoC citan a menudo CVE antiguos. La primera vez que nday ve uno de esos identificadores, crea un registro vacío (sin título ni fecha de divulgación); después, el recolector de cvelist descarga por lotes los registros CVE oficiales en las ejecuciones siguientes. Queda {n} identificador pendiente de carga.",
@@ -548,6 +551,8 @@
     "rsch.nojs": "Para leer las publicaciones hace falta JavaScript.",
     "rsch.more": {"one": "mostrar {n} más", "other": "mostrar {n} más"},
     "rsch.view_on_x": "ver en X",
+    "rsch.expand": "ver más",
+    "rsch.collapse": "ver menos",
     "rsch.res.h2": "Recursos relacionados",
     "rsch.res.poc": "PoC / código de explotación",
     "rsch.res.patch": "Parches",
@@ -559,13 +564,16 @@
     "rsch.res.unreviewed": "Repositorios sin revisar ({n})",
     "veil.comments": {"one": "Inicia sesión para leer {n} comentario.", "other": "Inicia sesión para leer {n} comentarios."},
     "veil.more_replies": {"one": "{n} respuesta más", "other": "{n} respuestas más"},
-    "veil.more_threads": "Hay más comentarios después de estos.",
     "veil.comment": "Un comentario. Inicia sesión para leerlo.",
     "discussed.title": "Debate de investigadores · nday",
     "discussed.description": "CVE sobre los que publicaron en X los investigadores de la lista de nday en los últimos 7 días, primero los que más investigadores mencionaron.",
     "discussed.h1": "Debate de investigadores",
     "discussed.lede": "CVE mencionados en X por investigadores de la lista de nday en los últimos 7 días, por número de investigadores.",
     "discussed.note": "Una publicación nunca cambia la etapa del ciclo de vida; para leerlas en la página de la vulnerabilidad hay que iniciar sesión.",
-    "discussed.empty": "Ningún investigador de la lista ha publicado sobre un CVE en los últimos 7 días."
+    "discussed.empty": "Ningún investigador de la lista ha publicado sobre un CVE en los últimos 7 días.",
+    "discussed.unit": {"one": "investigador", "other": "investigadores"},
+    "discussed.flag.new": "nuevo",
+    "discussed.flag.bare": "debatido, sin PoC ni parche",
+    "discussed.trend": {"up": "tendencia de 7 días: al alza", "flat": "tendencia de 7 días: estable", "down": "tendencia de 7 días: a la baja"}
 }
 }

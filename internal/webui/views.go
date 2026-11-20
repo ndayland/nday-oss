@@ -108,6 +108,10 @@ var sourceInfos = map[string]struct {
 		Link{Text: "github.com/rapid7/metasploit-framework", Href: "https://github.com/rapid7/metasploit-framework", External: true}},
 	"nuclei": {"src.nuclei.what", "src.nuclei.produces",
 		Link{Text: "github.com/projectdiscovery/nuclei-templates", Href: "https://github.com/projectdiscovery/nuclei-templates", External: true}},
+	"osssec": {"src.osssec.what", "src.osssec.produces",
+		Link{Text: "seclists.org/oss-sec", Href: "https://seclists.org/oss-sec/", External: true}},
+	"zerowire": {"src.zerowire.what", "src.zerowire.produces",
+		Link{Text: "radar.cloudflare.com/zero-wire", Href: "https://radar.cloudflare.com/zero-wire", External: true}},
 	"nvd": {"src.nvd.what", "src.nvd.produces",
 		Link{Text: "nvd.nist.gov/vuln/data-feeds", Href: "https://nvd.nist.gov/vuln/data-feeds", External: true}},
 }
@@ -124,7 +128,7 @@ func BuildCollectors(l *i18n.Locale, s *site.SourcesReport) []CollectorView {
 		if si, ok := sourceInfos[c.Name]; ok {
 			cv.Info = SourceInfo{What: l.HTML(si.what), Upstream: si.up,
 				Produces: l.HTML(si.produces, "dis", stageCodeHTML("DIS"), "pat", stageCodeHTML("PAT"),
-					"poc", stageCodeHTML("POC"), "itw", stageCodeHTML("ITW"), "kev", stageCodeHTML("KEV"))}
+					"ana", stageCodeHTML("ANA"), "poc", stageCodeHTML("POC"), "itw", stageCodeHTML("ITW"), "kev", stageCodeHTML("KEV"))}
 		}
 		if c.Status != nil {
 			cv.Status = *c.Status
@@ -181,6 +185,8 @@ type SearchView struct {
 	// link to the vocabulary.
 	Chips    []TagChip
 	TagsHref string
+	// CVSS is the score filter row (catalogue.go cvssOpts).
+	CVSS []FilterOpt
 }
 
 // BuildSearchView converts a search result.

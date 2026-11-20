@@ -589,3 +589,118 @@ func TestPipelineGHSA(t *testing.T) {
 		t.Errorf("%d alias rows", n)
 	}
 }
+
+// TestPipelineXUser: the author object's name and profile_image_url fill
+// x_user (cleaned and validated), dated by when the record was fetched; a
+// record without them (stored before the request asked for them) still
+// gives its event and leaves the profile alone; a later fetch with another
+// picture moves avatar_url and keeps the stored image until internal/xavatar
+// fetches the new one; a renormalize never rolls a profile back to an
+// older fetch.
+func TestPipelineXUser(t *testing.T) {
+	t.Parallel()
+	d := testutil.NewMigratedDB(t)
+	ctx := context.Background()
+	for _, a := range accounts {
+		if _, err := xconfig.UpsertAccount(ctx, d.Conn, a.UserID, a.Handle, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	quiet := func() *slog.Logger { return slog.New(slog.NewTextHandler(&logBuf{}, nil)) }
+	run := func(at time.Time, steps ...step) *pipeline.Stats {
+		t.Helper()
+		c, err := xposts.New(xposts.Options{Transport: script(t, steps...), Env: env(map[string]string{xposts.TokenEnv: token}),
+			Clock: func() time.Time { return at }, Logger: quiet()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		st, err := pipeline.RunCollector(ctx, d.Conn, c, pipeline.Options{Now: func() time.Time { return at }, Logger: quiet()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return st
+	}
+	type urow struct {
+		name, avatar *string
+		seen         time.Time
+		hash         *string
+	}
+	get := func(id string) *urow {
+		t.Helper()
+		var r urow
+		err := d.Conn.QueryRow(ctx, `SELECT name, avatar_url, seen_at, avatar_hash FROM x_user WHERE user_id = $1`, id).Scan(&r.name, &r.avatar, &r.seen, &r.hash)
+		if err == pgx.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		return &r
+	}
+	str := func(p *string) string {
+		if p == nil {
+			return "<nil>"
+		}
+		return *p
+	}
+	oldURL := "https://pbs.twimg.com/profile_images/1790000000000000001/aBc_normal.jpg"
+	newURL := "https://pbs.twimg.com/profile_images/1790000000000000002/new_normal.png"
+
+	run(NOW, step{status: 200, file: "search_page1.json"}, step{status: 200, file: "search_page2.json"})
+	alice, bob := get("1001"), get("1002")
+	if alice == nil || str(alice.name) != "Alice" || str(alice.avatar) != oldURL || !alice.seen.Equal(NOW) {
+		t.Fatalf("alice: %+v", alice)
+	}
+	// Bob: both responses of the run are one fetch; the later record (by
+	// key) has the cleaned name, the other an empty one; neither avatar URL
+	// is acceptable (http, another host)
+	if bob == nil || str(bob.name) != "Bob the builder" || bob.avatar != nil || !bob.seen.Equal(NOW) {
+		t.Fatalf("bob: %+v", bob)
+	}
+	if get("9999") != nil {
+		t.Fatal("a dropped (not allow-listed) author got a profile")
+	}
+	// pretend the avatar was fetched
+	if _, err := d.Conn.Exec(ctx, `UPDATE x_user SET avatar_status = 'ok', avatar_type = 'image/png', avatar_image = '\x89'::bytea,
+        avatar_hash = '0123456789abcdef', avatar_src = avatar_url, avatar_tried = avatar_url WHERE user_id = '1001'`); err != nil {
+		t.Fatal(err)
+	}
+
+	// an old-style record: stored and normalized, profile untouched
+	if st := run(NOW.Add(time.Hour), step{status: 200, file: "search_oldprofile.json"}); st.RawNew != 1 || st.EventInserted != 1 {
+		t.Fatalf("old record: %+v", st)
+	}
+	if a := get("1001"); str(a.name) != "Alice" || str(a.avatar) != oldURL || str(a.hash) != "0123456789abcdef" || !a.seen.Equal(NOW) {
+		t.Fatalf("alice after an old-style record: %+v", a)
+	}
+
+	// a later fetch with a new picture: name cleaned, avatar_url moves, the
+	// stored image stays (served until the new one is fetched)
+	later := NOW.Add(2 * time.Hour)
+	run(later, step{status: 200, file: "search_newavatar.json"})
+	a := get("1001")
+	if str(a.name) != "Alice R" || str(a.avatar) != newURL || str(a.hash) != "0123456789abcdef" || !a.seen.Equal(later) {
+		t.Fatalf("alice after a new picture: %+v name=%q", a, str(a.name))
+	}
+
+	// renormalize: every record again, each dated by its stored fetch time,
+	// so page1's older profile of Alice does not win over the newer one
+	if _, err := pipeline.Renormalize(ctx, d.Conn, mustNew(t), pipeline.RenormalizeOptions{Now: func() time.Time { return later.Add(time.Hour) },
+		Logger: quiet(), SkipStateRefresh: true}); err != nil {
+		t.Fatal(err)
+	}
+	if a := get("1001"); str(a.avatar) != newURL || !a.seen.Equal(later) {
+		t.Fatalf("alice after renormalize: %+v", a)
+	}
+}
+
+// mustNew is a collector for Renormalize (no network).
+func mustNew(t *testing.T) *xposts.Collector {
+	t.Helper()
+	c, err := xposts.New(xposts.Options{Env: env(map[string]string{xposts.TokenEnv: token}), Clock: func() time.Time { return NOW },
+		Logger: slog.New(slog.NewTextHandler(&logBuf{}, nil))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
+}

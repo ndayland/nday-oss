@@ -49,7 +49,9 @@ type SearchRow struct {
 type SearchResult struct {
 	Query     string      `json:"query"` // normalised query
 	Kind      string      `json:"kind"`
-	Tags      []string    `json:"tags"` // the tag filter (AND)
+	Tags      []string    `json:"tags"`     // the tag filter (AND)
+	CVSSMin   *float64    `json:"cvss_min"` // the score filter's bounds (cvss.go); nil when not set
+	CVSSMax   *float64    `json:"cvss_max"`
 	Rows      []SearchRow `json:"rows"`
 	Truncated bool        `json:"truncated"` // more matches than returned
 }
@@ -215,19 +217,39 @@ func (s *Store) Search(ctx context.Context, q string, limit int) (*SearchResult,
 	return s.SearchTagged(ctx, q, nil, limit)
 }
 
-// SearchTagged finds up to limit vulnerabilities (default 20, max 50): a query
+// SearchFilter narrows a search: Tags as SearchTagged's tagSlugs, and the
+// displayed CVSS score within CVSSMin..CVSSMax (cvss.go; "" = no bound).
+type SearchFilter struct {
+	Tags             []string
+	CVSSMin, CVSSMax string
+}
+
+// SearchTagged is SearchFiltered with a tag filter only.
+func (s *Store) SearchTagged(ctx context.Context, q string, tagSlugs []string, limit int) (*SearchResult, error) {
+	return s.SearchFiltered(ctx, q, SearchFilter{Tags: tagSlugs}, limit)
+}
+
+// SearchFiltered finds up to limit vulnerabilities (default 20, max 50): a query
 // that looks like a CVE id (with or without "CVE-", any case) is an exact
 // or prefix match on the id; a GHSA id matches the vulnerability keyed by it
 // and the CVEs that have it as an alias; anything else is a
 // case-insensitive substring match on title, title_zh, vendor and product.
-// tagSlugs (validated by NormalizeTags) restrict every kind to CVEs with all
+// f.Tags (validated by NormalizeTags) restrict every kind to CVEs with all
 // the tags; a blank query with tags lists every CVE with them (kind "tags").
-func (s *Store) SearchTagged(ctx context.Context, q string, tagSlugs []string, limit int) (*SearchResult, error) {
+// The CVSS bounds (NormalizeCVSS) restrict every kind the same way; a blank
+// query with only a score filter searches nothing (kind "empty": the
+// catalogue lists by score).
+func (s *Store) SearchFiltered(ctx context.Context, q string, f SearchFilter, limit int) (*SearchResult, error) {
 	q, err := NormalizeQuery(q)
 	if err != nil {
 		return nil, err
 	}
+	tagSlugs := f.Tags
 	if tagSlugs, err = NormalizeTags(tagSlugs); err != nil {
+		return nil, err
+	}
+	cvssMin, cvssMax, err := NormalizeCVSS(f.CVSSMin, f.CVSSMax)
+	if err != nil {
 		return nil, err
 	}
 	if tagSlugs == nil {
@@ -239,7 +261,7 @@ func (s *Store) SearchTagged(ctx context.Context, q string, tagSlugs []string, l
 	if limit < 1 || limit > MaxSearchLimit {
 		return nil, &InputError{Param: "limit", Msg: fmt.Sprintf("must be 1..%d", MaxSearchLimit)}
 	}
-	res := &SearchResult{Query: q, Tags: tagSlugs, Rows: []SearchRow{}}
+	res := &SearchResult{Query: q, Tags: tagSlugs, Rows: []SearchRow{}, CVSSMin: cvssBound(cvssMin), CVSSMax: cvssBound(cvssMax)}
 	var sql string
 	var args []any
 	var col string // CVE id column the tag filter applies to
@@ -270,6 +292,9 @@ func (s *Store) SearchTagged(ctx context.Context, q string, tagSlugs []string, l
 		sql, args, col = searchTextSQL, []any{"%" + EscapeLike(q) + "%", limit + 1}, "m.cve_id"
 	}
 	tf, targs := tagFilterSQL(col, tagSlugs, len(args)+1)
+	if c := cvssFilterSQL(col, cvssMin, cvssMax); c != "" {
+		tf += "\n        AND " + c
+	}
 	sql = fmt.Sprintf(sql, tf)
 	args = append(args, targs...)
 	err = s.db.WithConn(ctx, func(conn *pgx.Conn) error {

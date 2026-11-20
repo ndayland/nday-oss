@@ -43,6 +43,23 @@ var tagIconSymbols = func() map[string]bool {
 	return ids
 }()
 
+// tagIconPaths maps each symbol id of the sprite to its path data, read
+// once: the share card draws the same mark as its watermark (ogcard.Card.
+// Mark), so the sprite stays the only copy of the paths. tools/tagicons
+// writes every symbol in exactly this shape.
+var tagIconPaths = func() map[string]string {
+	b, err := staticFS.ReadFile("static/tagicons.svg")
+	if err != nil {
+		panic("webui: no tag icon sprite: " + err.Error())
+	}
+	paths := map[string]string{}
+	re := regexp.MustCompile(`<symbol id="([a-z0-9]+)" viewBox="0 0 24 24"><path d="([^"]*)"/></symbol>`)
+	for _, m := range re.FindAllSubmatch(b, -1) {
+		paths[string(m[1])] = string(m[2])
+	}
+	return paths
+}()
+
 // tagIcon returns the symbol id of slug's icon, "" when it has none (or the
 // sprite lacks it, which TestTagIconsMatchSprite rules out).
 func tagIcon(slug string) string {

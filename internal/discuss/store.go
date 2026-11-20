@@ -224,6 +224,9 @@ type Page struct {
 	Replies map[string][]*Row // by parent id, oldest first
 	Next    *Cursor           // nil: no more top-level comments
 	Visible int               // visible comments of the vulnerability (all pages)
+	// PageNum only: the page's number, the number of pages and the number of
+	// top-level comments shown in all.
+	Num, Pages, Total int
 }
 
 // Page loads up to limit top-level comments after cursor (nil = from the
@@ -1010,4 +1013,62 @@ func (s *Store) Recent(ctx context.Context, viewer *string, after *Cursor, limit
 		next = &Cursor{At: last.CreatedAt, ID: last.ID}
 	}
 	return out, next, nil
+}
+
+// shownTop is the condition on a top-level row c that the comment stream
+// shows: not deleted, or deleted but with a live reply (the same for every
+// viewer: it is also what Page, Thread and Locate select).
+const shownTop = `c.parent_id IS NULL AND (c.status <> 'deleted'
+	OR EXISTS (SELECT 1 FROM comments x WHERE x.parent_id = c.id AND x.status <> 'deleted'))`
+
+// PageNum loads page number page (1-based; clamped to 1..pages) of cve's
+// top-level comments, per to a page, oldest first (the order of Page), with
+// the non-deleted replies of each: a thread is never split between pages.
+// Page.Num, Pages and Total say which page it is, how many there are and how
+// many top-level comments are shown in all; they count what Page shows, the
+// same for every viewer. Anonymous pages (viewer nil) are read from ReadDB.
+func (s *Store) PageNum(ctx context.Context, viewer *string, cve string, page, per int) (*Page, error) {
+	if per <= 0 || per > PageMax {
+		per = PageDefault
+	}
+	p := &Page{Replies: map[string][]*Row{}}
+	err := s.readFor(viewer).WithConn(ctx, func(c *pgx.Conn) error {
+		if err := c.QueryRow(ctx, `SELECT count(*) FROM comments c WHERE c.cve_id = $1 AND `+shownTop, cve).Scan(&p.Total); err != nil {
+			return err
+		}
+		p.Pages = max(1, (p.Total+per-1)/per)
+		p.Num = min(max(page, 1), p.Pages)
+		rows, err := c.Query(ctx, `SELECT `+rowCols+rowFrom+`WHERE c.cve_id = $2 AND `+shownTop+`
+			ORDER BY c.created_at, c.id LIMIT $3 OFFSET $4`, viewer, cve, per, (p.Num-1)*per)
+		if err != nil {
+			return err
+		}
+		if p.Top, err = collectRows(rows); err != nil {
+			return err
+		}
+		ids := make([]string, len(p.Top))
+		for i, t := range p.Top {
+			ids[i] = t.ID
+		}
+		if len(ids) > 0 {
+			// at most MaxReplies replies per thread (all statuses)
+			rows, err = c.Query(ctx, `SELECT `+rowCols+rowFrom+`WHERE c.parent_id = ANY($2::uuid[]) AND c.status <> 'deleted'
+				ORDER BY c.parent_id, c.created_at, c.id LIMIT $3`, viewer, ids, per*MaxReplies)
+			if err != nil {
+				return err
+			}
+			reps, err := collectRows(rows)
+			if err != nil {
+				return err
+			}
+			for _, r := range reps {
+				p.Replies[*r.ParentID] = append(p.Replies[*r.ParentID], r)
+			}
+		}
+		return c.QueryRow(ctx, `SELECT count(*) FROM comments WHERE cve_id = $1 AND status = 'visible'`, cve).Scan(&p.Visible)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }

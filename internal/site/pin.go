@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"nday.land/nday/internal/researchsql"
 )
 
 // Pinned rows of the hot list: CVEs that researchers on the allowlist are
@@ -20,8 +22,10 @@ import (
 //  1. its public researcher count (researchers_7d: distinct ENABLED
 //     allow-listed authors, last ResearcherWindow; public.go) is at least
 //     MinResearchers;
-//  2. its most recent researcher post is at most Recent old;
-//  3. its current wave started at most Wave ago. The wave is the most
+//  2. its most recent researcher post is on or after 00:00 UTC Recent
+//     before today, Recent rounded up to whole days (pinDays);
+//  3. its current wave started on or after 00:00 UTC Wave days before
+//     today. The wave is the most
 //     recent run of its researcher posts in which no two consecutive posts
 //     are more than Wave apart; it starts at the run's earliest post. So a
 //     CVE discussed again after a silence longer than Wave can be pinned
@@ -29,6 +33,12 @@ import (
 //     after its run began;
 //  4. it is in the list the request asks for anyway (same window, minimum
 //     stage, rejected switch and tags).
+//
+// Rules 1 to 3 work on UTC days only (researcherWindow, pinDays, and a
+// wave gap of more than Wave days between the UTC dates of neighbouring
+// posts), never on the request instant or a post's time of day, so a pin
+// appears or goes only at 00:00 UTC or when a post arrives (since
+// 2026-11-21).
 //
 // These are ordered by researchers_7d desc, then the most recent post desc,
 // then CVE id, and cut at Max.
@@ -143,15 +153,16 @@ type pinBox = atomic.Pointer[PinConfig]
 
 // pinSQL selects the pinned CVE ids in pin order, each with whether it is
 // a fill row. $1 researcher window start, $2 now (the bounds of
-// researcherAggSQL), $3 posts lookback start, $4 wave length (seconds), $5
+// researcherAggSQL), $3 posts lookback start, $4 wave length (whole days, pinDays), $5
 // minimum researchers, $6 oldest last post, $7 oldest wave start, $8
 // transition window start, $9 stage types, $10 include rejected, $11 max
 // rows; %[3]s: the tag filter on m.cve_id (parameters from $12; used in
 // both steps).
 //
-// The lookback is max(2*Wave, ResearcherWindow): a run start found within
-// it but after now-Wave is genuine (the Wave before it lies inside the
-// lookback); one before now-Wave fails rule 3 whatever came earlier.
+// The lookback is max(2*Wave, ResearcherDays) days before 00:00 UTC
+// today: a run start found within it on or after the rule 3 cutoff is
+// genuine (the Wave days before it lie inside the lookback); one before
+// the cutoff fails rule 3 whatever came earlier.
 //
 // Cost: pin_rule reads the researcher posts of the lookback (14 days by
 // default) once, with a window function per CVE; pin_fill reads the
@@ -171,7 +182,8 @@ WITH rp AS (
   SELECT rp.cve_id,
          count(DISTINCT rp.author) FILTER (WHERE rp.at >= $1)::int AS researchers,
          max(rp.at) AS last_at,
-         max(rp.at) FILTER (WHERE rp.prev IS NULL OR rp.at > rp.prev + make_interval(secs => $4)) AS wave_start
+         max(rp.at) FILTER (WHERE rp.prev IS NULL
+                            OR (rp.at AT TIME ZONE 'UTC')::date - (rp.prev AT TIME ZONE 'UTC')::date > $4) AS wave_start
   FROM rp GROUP BY rp.cve_id
 ), pin_rule AS (
   SELECT c.cve_id, c.researchers, c.last_at
@@ -198,6 +210,19 @@ FROM (SELECT cve_id, researchers, last_at, false AS fill FROM pin_rule
       SELECT cve_id, researchers, last_at, true FROM pin_fill) u
 ORDER BY u.fill, u.researchers DESC, u.last_at DESC, u.cve_id`
 
+// pinDays is the rule's Recent and Wave in whole UTC days, each rounded up
+// (Recent 72h is 3 days, 36h is 2, 1h is 1): the cutoffs are 00:00 UTC
+// that many days before today, and the wave gap compares UTC dates, so
+// whether a CVE is pinned never tells on which side of some time of day a
+// post fell.
+func pinDays(cfg PinConfig) (recent, wave int) {
+	return researchsql.CeilDays(cfg.Recent), researchsql.CeilDays(cfg.Wave)
+}
+
+// Days is the rule's Recent and Wave in whole UTC days, as the rule
+// applies them (rounded up; pinDays).
+func (c PinConfig) Days() (recent, wave int) { return pinDays(c) }
+
 // pinnedID is one pinned CVE and why (PinRule or PinDiscussed).
 type pinnedID struct {
 	ID, Reason string
@@ -210,13 +235,12 @@ func pinnedIDs(ctx context.Context, conn *pgx.Conn, cfg PinConfig, now, start ti
 	if cfg.Max <= 0 {
 		return nil, nil
 	}
-	look := 2 * cfg.Wave
-	if look < ResearcherWindow {
-		look = ResearcherWindow
-	}
+	recentDays, waveDays := pinDays(cfg)
+	look := max(2*waveDays, ResearcherDays)
 	rstart, rend := researcherWindow(now)
-	args := []any{rstart, rend, now.Add(-look), cfg.Wave.Seconds(), cfg.MinResearchers, now.Add(-cfg.Recent),
-		now.Add(-cfg.Wave), start, types, includeRejected, cfg.Max}
+	day := utcDayStart(now)
+	args := []any{rstart, rend, day.AddDate(0, 0, -look), waveDays, cfg.MinResearchers, day.AddDate(0, 0, -recentDays),
+		day.AddDate(0, 0, -waveDays), start, types, includeRejected, cfg.Max}
 	tf, targs := tagFilterSQL("m.cve_id", tags, len(args)+1)
 	sql := fmt.Sprintf(pinSQL, researcherPostFrom, researcherPostWhere, tf, researcherAggSQL(""))
 	rows, err := conn.Query(ctx, sql, append(args, targs...)...)

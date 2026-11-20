@@ -33,7 +33,10 @@ import (
 //	year               vuln_state_mat_year_idx          (year, at, rank, cve)
 //	stage + year       vuln_state_mat_stage_year_idx    (rank, year, at, cve)
 //
-// each walked backwards. Tags are EXISTS filters as on the hot list.
+// each walked backwards. Tags are EXISTS filters as on the hot list; so is
+// the CVSS score range (cvss.go: a probe of vuln_score_mat's unique index
+// per walked row, or, for a narrow range, the planner may drive the page
+// from vuln_score_mat_score_idx instead).
 
 // Catalogue limits.
 const (
@@ -41,6 +44,9 @@ const (
 	MaxCatalogueLimit     = 200
 	// MinCatalogueYear is the first CVE id year.
 	MinCatalogueYear = 1999
+	// MaxCatalogueOffset bounds Offset: two pages of the largest size, so
+	// a page reached by offset costs at most three pages of rows.
+	MaxCatalogueOffset = 2 * MaxCatalogueLimit
 )
 
 // CatalogueParams select a catalogue page. The zero value is the first page
@@ -56,6 +62,10 @@ type CatalogueParams struct {
 	Year int
 	// Tags: only CVEs that have every one of these tags (as HotParams.Tags).
 	Tags []string
+	// CVSSMin/CVSSMax: only vulnerabilities whose displayed CVSS base score
+	// is within these inclusive bounds (cvss.go); "" = no bound. A
+	// vulnerability without a score is left out whenever either is set.
+	CVSSMin, CVSSMax string
 	// IncludeRejected also lists CVEs whose CVE record is REJECTED.
 	IncludeRejected bool
 	// Limit rows per page (default 50, max 200).
@@ -68,6 +78,14 @@ type CatalogueParams struct {
 	// before those, the page is the first page exactly as without Before.
 	// Not combined with Cursor.
 	Before string
+	// Offset skips rows from the start of the list (0..MaxCatalogueOffset;
+	// the web pager's first pages, not in the API), or with FromEnd from
+	// its end: the page is then the Limit rows just before the last Offset
+	// ones (the pager's last pages); when no row comes before those, it is
+	// the first page, as for Before. Neither is combined with Cursor or
+	// Before.
+	Offset  int
+	FromEnd bool
 }
 
 // CataloguePage is one catalogue page. Rows are hot-list rows (Pinned is
@@ -80,7 +98,9 @@ type CataloguePage struct {
 	StageCode *string `json:"stage_code"`
 	// Year: the CVE id year filter; nil when not filtering by year.
 	Year            *int     `json:"year"`
-	Tags            []string `json:"tags"` // the tag filter (AND), canonical
+	Tags            []string `json:"tags"`     // the tag filter (AND), canonical
+	CVSSMin         *float64 `json:"cvss_min"` // the score filter's bounds; nil when not set
+	CVSSMax         *float64 `json:"cvss_max"`
 	IncludeRejected bool     `json:"include_rejected"`
 	Limit           int      `json:"limit"`
 	Rows            []HotRow `json:"rows"`
@@ -109,6 +129,10 @@ func (p CatalogueParams) Normalize() (CatalogueParams, error) {
 	if p.Year != 0 && (p.Year < MinCatalogueYear || p.Year > MaxCatalogueYear()) {
 		return p, &InputError{Param: "year", Msg: fmt.Sprintf("must be %d..%d", MinCatalogueYear, MaxCatalogueYear())}
 	}
+	var err error
+	if p.CVSSMin, p.CVSSMax, err = NormalizeCVSS(p.CVSSMin, p.CVSSMax); err != nil {
+		return p, err
+	}
 	if p.Limit == 0 {
 		p.Limit = DefaultCatalogueLimit
 	}
@@ -128,7 +152,12 @@ func (p CatalogueParams) Normalize() (CatalogueParams, error) {
 			return p, &InputError{Param: "before", Msg: "invalid cursor"}
 		}
 	}
-	var err error
+	if p.Offset < 0 || p.Offset > MaxCatalogueOffset {
+		return p, &InputError{Param: "offset", Msg: fmt.Sprintf("must be 0..%d", MaxCatalogueOffset)}
+	}
+	if (p.Offset > 0 || p.FromEnd) && (p.Cursor != "" || p.Before != "") {
+		return p, &InputError{Param: "offset", Msg: "not combined with a cursor"}
+	}
 	if p.Tags, err = NormalizeTags(p.Tags); err != nil {
 		return p, err
 	}
@@ -144,6 +173,12 @@ func (p CatalogueParams) CacheKey() string {
 		strings.Join(p.Tags, ","))
 	if p.Before != "" {
 		k += "|before=" + p.Before
+	}
+	if p.CVSSMin != "" || p.CVSSMax != "" {
+		k += "|cvss=" + p.CVSSMin + "-" + p.CVSSMax
+	}
+	if p.Offset > 0 || p.FromEnd {
+		k += fmt.Sprintf("|off=%d|end=%t", p.Offset, p.FromEnd)
 	}
 	return k
 }
@@ -232,10 +267,10 @@ const (
 // For p.Before it yields the at most LIMIT+1 rows nearest before that
 // position (catalogueRowsBefore).
 func catalogueRows(p CatalogueParams) (string, []any) {
-	if p.Before != "" {
+	if p.Before != "" || p.FromEnd {
 		return catalogueRowsBefore(p)
 	}
-	args := []any{p.Limit + 1}
+	args := []any{p.Offset + p.Limit + 1}
 	arg := func(v any) string {
 		args = append(args, v)
 		return fmt.Sprintf("$%d", len(args))
@@ -291,14 +326,22 @@ func catalogueRows(p CatalogueParams) (string, []any) {
 	if includeUndated {
 		parts = append(parts, fmt.Sprintf(catalogueBranch, where(undated), catDown))
 	}
+	var inner string
 	switch len(parts) {
 	case 0:
 		// a stage filter below the rank of an undated cursor: nothing follows
 		return "SELECT m.* FROM vuln_state_mat m WHERE false LIMIT $1", args[:1]
 	case 1:
-		return parts[0], args
+		inner = parts[0]
+	default:
+		inner = strings.Join(parts, "\nUNION ALL\n") + "\nLIMIT $1"
 	}
-	return strings.Join(parts, "\nUNION ALL\n") + "\nLIMIT $1", args
+	if p.Offset > 0 {
+		// the first pages by number: the walk reads Offset more rows and
+		// drops them (at most MaxCatalogueOffset)
+		inner = "SELECT * FROM (" + inner + ") k\nORDER BY k.last_transition_at DESC NULLS LAST, k.stage_rank DESC, k.cve_id DESC\nOFFSET " + arg(p.Offset)
+	}
+	return inner, args
 }
 
 // catalogueRowsBefore is catalogueRows for p.Before: the rows before the
@@ -306,18 +349,26 @@ func catalogueRows(p CatalogueParams) (string, []any) {
 // when it lies in the tail, then the dated part upwards from its oldest
 // row (or from the position when it is dated). Each part is a forward walk
 // of the same index; the outer query puts the rows back in list order.
+// p.FromEnd is the same walk from the end of the list (after the last
+// row), skipping p.Offset rows.
 func catalogueRowsBefore(p CatalogueParams) (string, []any) {
-	args := []any{p.Limit + 1}
+	args := []any{p.Offset + p.Limit + 1}
 	arg := func(v any) string {
 		args = append(args, v)
 		return fmt.Sprintf("$%d", len(args))
 	}
 	common, stageRank := catalogueCommon(p)
-	c, _ := decodeCatCursor(p.Before) // validated by Normalize
+	var c catCursor
+	if !p.FromEnd {
+		c, _ = decodeCatCursor(p.Before) // validated by Normalize
+	}
 	dated := []string{"m.last_transition_at IS NOT NULL"}
 	undated := []string{"m.last_transition_at IS NULL"}
 	includeUndated := c.at == nil
-	if c.at != nil {
+	switch {
+	case p.FromEnd:
+		// after the last row: every undated row, then every dated one
+	case c.at != nil:
 		// before a dated row: dated rows only, the mirror of catalogueRows
 		switch {
 		case stageRank == 0:
@@ -330,7 +381,7 @@ func catalogueRowsBefore(p CatalogueParams) (string, []any) {
 		default:
 			dated = append(dated, "m.last_transition_at >= "+arg(*c.at))
 		}
-	} else {
+	default:
 		// before an undated row: the tail rows above it, then every dated row
 		switch {
 		case stageRank == 0:
@@ -346,11 +397,15 @@ func catalogueRowsBefore(p CatalogueParams) (string, []any) {
 	where := func(own []string) string {
 		return strings.Join(append(append([]string{}, own...), common...), "\n        AND ") + tf
 	}
-	d := fmt.Sprintf(catalogueBranch, where(dated), catUp)
-	if !includeUndated {
-		return d, args
+	inner := fmt.Sprintf(catalogueBranch, where(dated), catUp)
+	if includeUndated {
+		inner = fmt.Sprintf(catalogueBranch, where(undated), catUp) + "\nUNION ALL\n" + inner + "\nLIMIT $1"
 	}
-	return fmt.Sprintf(catalogueBranch, where(undated), catUp) + "\nUNION ALL\n" + d + "\nLIMIT $1", args
+	if p.Offset > 0 {
+		// the rows nearest the end are skipped (list order backwards)
+		inner = "SELECT * FROM (" + inner + ") k\nORDER BY k.last_transition_at NULLS FIRST, k.stage_rank, k.cve_id\nOFFSET " + arg(p.Offset)
+	}
+	return inner, args
 }
 
 // catalogueCommon is the filter conditions of p that both parts share, and
@@ -368,6 +423,9 @@ func catalogueCommon(p CatalogueParams) (common []string, stageRank int) {
 	if !p.IncludeRejected {
 		common = append(common, "NOT m.is_rejected")
 	}
+	if c := cvssFilterSQL("m.cve_id", p.CVSSMin, p.CVSSMax); c != "" {
+		common = append(common, c)
+	}
 	return common, stageRank
 }
 
@@ -384,7 +442,7 @@ func (s *Store) Catalogue(ctx context.Context, p CatalogueParams) (*CataloguePag
 	}
 	page, atStart, err := s.catalogue(ctx, p)
 	if err == nil && atStart {
-		p.Before = ""
+		p.Before, p.FromEnd, p.Offset = "", false, 0
 		page, _, err = s.catalogue(ctx, p)
 	}
 	return page, err
@@ -394,7 +452,8 @@ func (s *Store) Catalogue(ctx context.Context, p CatalogueParams) (*CataloguePag
 // that reached the start of the list.
 func (s *Store) catalogue(ctx context.Context, p CatalogueParams) (page *CataloguePage, atStart bool, err error) {
 	now := s.clock()
-	page = &CataloguePage{IncludeRejected: p.IncludeRejected, Limit: p.Limit, Tags: p.Tags, Rows: []HotRow{}, GeneratedAt: now}
+	page = &CataloguePage{IncludeRejected: p.IncludeRejected, Limit: p.Limit, Tags: p.Tags, Rows: []HotRow{}, GeneratedAt: now,
+		CVSSMin: cvssBound(p.CVSSMin), CVSSMax: cvssBound(p.CVSSMax)}
 	if p.Stage != "" {
 		st, code := p.Stage, StageCode(p.Stage)
 		page.Stage, page.StageCode = &st, &code
@@ -414,7 +473,7 @@ func (s *Store) catalogue(ctx context.Context, p CatalogueParams) (page *Catalog
 			return err
 		}
 		switch {
-		case p.Before != "":
+		case p.Before != "" || p.FromEnd:
 			// in list order; the extra row, if any, is the farthest from
 			// the position (the first). Without it nothing precedes these
 			// rows: the caller shows the first page instead.
@@ -424,14 +483,18 @@ func (s *Store) catalogue(ctx context.Context, p CatalogueParams) (page *Catalog
 			}
 			page.Rows = page.Rows[1:]
 			prev, next := catRowCursor(page.Rows[0]), catRowCursor(page.Rows[len(page.Rows)-1])
-			page.PrevCursor, page.NextCursor = &prev, &next
+			page.PrevCursor = &prev
+			if !p.FromEnd || p.Offset > 0 {
+				// from the end, rows follow only when some were skipped
+				page.NextCursor = &next
+			}
 		default:
 			if len(page.Rows) > p.Limit {
 				page.Rows = page.Rows[:p.Limit]
 				c := catRowCursor(page.Rows[p.Limit-1])
 				page.NextCursor = &c
 			}
-			if p.Cursor != "" && len(page.Rows) > 0 {
+			if (p.Cursor != "" || p.Offset > 0) && len(page.Rows) > 0 {
 				c := catRowCursor(page.Rows[0])
 				page.PrevCursor = &c
 			}

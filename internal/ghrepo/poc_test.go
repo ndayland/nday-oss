@@ -274,7 +274,7 @@ func TestPoCBackfill(t *testing.T) {
 		t.Fatalf("%+v %v", r, err)
 	}
 	applied, err := db.Migrate(ctx, d.Conn, migrations.FS)
-	if err != nil || strings.Join(applied, ",") != "0032_github_poc,0033_github_poc_gap,0034_xdraft_form,0035_job_run,0036_github_trusted_owner" {
+	if err != nil || strings.Join(applied, ",") != "0032_github_poc,0033_github_poc_gap,0034_xdraft_form,0035_job_run,0036_github_trusted_owner,0037_vuln_score,0038_x_user,0039_osssec_no_transition" {
 		t.Fatalf("%v %v", applied, err)
 	}
 	day, at := created[:10], created[:10]+" "+created[11:16]

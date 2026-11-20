@@ -112,8 +112,11 @@ func (s *Store) SearchUsersFrom(ctx context.Context, q string, cur *UserCursor, 
 		q = string([]rune(q)[:64])
 	}
 	at := UserCursor{CreatedAt: time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), ID: "ffffffff-ffff-ffff-ffff-ffffffffffff"}
-	if cur != nil {
+	switch {
+	case cur != nil:
 		at = *cur
+	case back:
+		at = UserCursor{ID: "00000000-0000-0000-0000-000000000000"} // from the oldest
 	}
 	cmp, ord := "<", "DESC"
 	if back {

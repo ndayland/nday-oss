@@ -53,11 +53,25 @@ var pngSig = []byte("\x89PNG\r\n\x1a\n")
 // wide and high, 1..MaxBytes bytes. Everything else, SVG and HTML
 // included, is refused with an error wrapping ErrInvalid.
 func Validate(b []byte) (contentType string, err error) {
+	return ValidateImage(b, Limits{MaxBytes: MaxBytes, MaxDim: MaxDim, ICO: true})
+}
+
+// Limits are the bounds of ValidateImage.
+type Limits struct {
+	MaxBytes int  // largest accepted size in bytes
+	MaxDim   int  // largest accepted width or height in pixels
+	ICO      bool // accept ICO too (only icons need it)
+}
+
+// ValidateImage is Validate with other bounds (X avatars use it with a
+// bigger size cap and no ICO): the same magic-byte sniffing plus header
+// decode, never trusting a Content-Type header.
+func ValidateImage(b []byte, l Limits) (contentType string, err error) {
 	if len(b) == 0 {
 		return "", invalid("empty")
 	}
-	if len(b) > MaxBytes {
-		return "", invalid("%d bytes, over %d", len(b), MaxBytes)
+	if len(b) > l.MaxBytes {
+		return "", invalid("%d bytes, over %d", len(b), l.MaxBytes)
 	}
 	var decode func(io.Reader) (image.Config, error)
 	switch {
@@ -69,7 +83,7 @@ func Validate(b []byte) (contentType string, err error) {
 		contentType, decode = TypeJPEG, jpeg.DecodeConfig
 	case len(b) >= 12 && string(b[0:4]) == "RIFF" && string(b[8:12]) == "WEBP":
 		contentType, decode = TypeWebP, webp.DecodeConfig
-	case len(b) >= 6 && binary.LittleEndian.Uint16(b[0:]) == 0 && binary.LittleEndian.Uint16(b[2:]) == 1:
+	case l.ICO && len(b) >= 6 && binary.LittleEndian.Uint16(b[0:]) == 0 && binary.LittleEndian.Uint16(b[2:]) == 1:
 		if err := validateICO(b); err != nil {
 			return "", err
 		}
@@ -77,14 +91,14 @@ func Validate(b []byte) (contentType string, err error) {
 	default:
 		return "", invalid("unknown format")
 	}
-	if err := checkConfig(b, decode); err != nil {
+	if err := checkConfig(b, decode, l.MaxDim); err != nil {
 		return "", err
 	}
 	return contentType, nil
 }
 
 // checkConfig decodes the image header of b and checks its dimensions.
-func checkConfig(b []byte, decode func(io.Reader) (image.Config, error)) (err error) {
+func checkConfig(b []byte, decode func(io.Reader) (image.Config, error), maxDim int) (err error) {
 	defer func() { // a decoder must never take the job down
 		if r := recover(); r != nil {
 			err = invalid("decoder panic")
@@ -94,11 +108,11 @@ func checkConfig(b []byte, decode func(io.Reader) (image.Config, error)) (err er
 	if err != nil {
 		return invalid("header: %v", err)
 	}
-	return checkDims(cfg.Width, cfg.Height)
+	return checkDims(cfg.Width, cfg.Height, maxDim)
 }
 
-func checkDims(w, h int) error {
-	if w < 1 || h < 1 || w > MaxDim || h > MaxDim {
+func checkDims(w, h, maxDim int) error {
+	if w < 1 || h < 1 || w > maxDim || h > maxDim {
 		return invalid("%dx%d pixels", w, h)
 	}
 	return nil
@@ -128,7 +142,7 @@ func validateICO(b []byte) error {
 		img := b[off : off+size]
 		switch {
 		case bytes.HasPrefix(img, pngSig):
-			if err := checkConfig(img, png.DecodeConfig); err != nil {
+			if err := checkConfig(img, png.DecodeConfig, MaxDim); err != nil {
 				return err
 			}
 		case len(img) >= 40 && binary.LittleEndian.Uint32(img) == 40:

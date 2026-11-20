@@ -90,9 +90,11 @@ func TestHotPinRule(t *testing.T) {
 	post("CVE-2026-1002", "a1", 1*h)
 	post("CVE-2026-1002", "off", 1*h)
 	post("CVE-2026-1002", "off", 2*h)
-	// not pinned: two researchers, but the latest post is 73h old
+	// not pinned: two researchers, but the latest post (74h ago, 2026-11-09
+	// 23:00) is more than 72h before 00:00 UTC today (Recent counts from
+	// the day start, not the request instant)
 	post("CVE-2026-1003", "a1", 4*day)
-	post("CVE-2026-1003", "a2", 73*h)
+	post("CVE-2026-1003", "a2", 74*h)
 	// not pinned: discussed without a break longer than 7 days since 9 days
 	// ago (gaps of 6 days and about 3 days): the wave is too old
 	post("CVE-2026-1007", "a1", 9*day)
@@ -117,7 +119,7 @@ func TestHotPinRule(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The rule pins 1009, 1001, 1008; the rest of the 10 comes from the
-	// discussed ranking (1007: 2 researchers, 1h; 1003: 2, 73h; 1002: 1).
+	// discussed ranking (1007: 2 researchers, 1h; 1003: 2, 74h; 1002: 1).
 	if got, rule := pinnedOf(t, page), pinnedBy(page, site.PinRule); rule != "1009,1001,1008" || got != "1009,1001,1008,1007,1003,1002" {
 		t.Errorf("pinned %q rule %q", got, rule)
 	}

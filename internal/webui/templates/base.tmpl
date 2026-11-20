@@ -72,6 +72,9 @@
 {{- range .SearchTags}}
 <input type="hidden" name="tag" value="{{.}}"/>
 {{- end}}
+{{- range .SearchCVSS}}
+<input type="hidden" name="{{.Name}}" value="{{.Value}}"/>
+{{- end}}
 </form>
 {{- end}}
 <div class="toplinks">

@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"nday.land/nday/internal/xavatar"
 )
 
 // NOT PUBLIC. MemberPosts returns the content of researcher posts (text,
@@ -19,6 +21,8 @@ type MemberPost struct {
 	PostID       string
 	AuthorID     string
 	AuthorHandle string // as stored with the post ("" when unknown)
+	AuthorName   string // X display name (x_user.name, cleaned), "" when unknown
+	AuthorAvatar string // same-origin avatar path (xavatar.Path), "" when none
 	Text         string
 	Lang         string
 	URL          string // event url ("" when none)
@@ -47,8 +51,8 @@ func (s *Store) MemberPosts(ctx context.Context, cve string) ([]MemberPost, erro
 	err := s.db.WithConn(ctx, func(conn *pgx.Conn) error {
 		rows, err := conn.Query(ctx, `SELECT COALESCE(p.detail->>'post_id', p.dedupe_key, ''), COALESCE(p.detail->>'author_id', ''),
        COALESCE(p.detail->>'author_handle', ''), COALESCE(p.detail->>'text', ''), COALESCE(p.detail->>'lang', ''),
-       COALESCE(p.url, ''), p.occurred_at
-FROM `+researcherPostFrom+`
+       COALESCE(p.url, ''), p.occurred_at, COALESCE(xu.name, ''), COALESCE(xu.avatar_hash, '')
+FROM `+researcherPostFrom+` LEFT JOIN x_user xu ON xu.user_id = xa.user_id
 WHERE `+researcherPostWhere+` AND p.cve_id = $1 AND p.occurred_at <= $2
 ORDER BY p.occurred_at DESC, p.id DESC
 LIMIT $3`, cve, now, MaxMemberPosts)
@@ -58,9 +62,11 @@ LIMIT $3`, cve, now, MaxMemberPosts)
 		defer rows.Close()
 		for rows.Next() {
 			var m MemberPost
-			if err := rows.Scan(&m.PostID, &m.AuthorID, &m.AuthorHandle, &m.Text, &m.Lang, &m.URL, &m.PostedAt); err != nil {
+			var hash string
+			if err := rows.Scan(&m.PostID, &m.AuthorID, &m.AuthorHandle, &m.Text, &m.Lang, &m.URL, &m.PostedAt, &m.AuthorName, &hash); err != nil {
 				return err
 			}
+			m.AuthorAvatar = xavatar.Path(hash)
 			m.PostedAt = m.PostedAt.UTC()
 			m.Links = []MemberLink{}
 			out = append(out, m)

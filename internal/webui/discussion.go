@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"nday.land/nday/internal/discuss"
@@ -39,6 +40,10 @@ import (
 // Discussions is what the pages use of discuss.Service.
 type Discussions interface {
 	Outline(ctx context.Context, cve string) (*discuss.Outline, error)
+	// OutlinePage is the outline of numbered page page (clamped); Locate
+	// says where a visible comment is (Position.Index): ?c= picks the page.
+	OutlinePage(ctx context.Context, cve string, page, per int) (*discuss.Outline, error)
+	Locate(ctx context.Context, cve, id string) (*discuss.Position, error)
 	Version(ctx context.Context, cve string) (string, error)
 	// GuestRead: signed-out visitors may read the comments (the API gives
 	// them the comments, not only the outline).
@@ -97,7 +102,7 @@ var discKeys = []string{"disc.busy", "disc.delete_confirm", "disc.hidden_reason"
 var discPurposes = discuss.Purposes
 
 // rschKeys are the messages discuss.js needs for the researcher section.
-var rschKeys = []string{"rsch.more", "rsch.view_on_x", "rsch.failed", "rsch.empty"}
+var rschKeys = []string{"rsch.more", "rsch.view_on_x", "rsch.failed", "rsch.empty", "rsch.expand", "rsch.collapse"}
 
 // DiscView is the discussion section of a vulnerability page.
 type DiscView struct {
@@ -106,8 +111,10 @@ type DiscView struct {
 	Count   int    // visible comments of the vulnerability (all pages)
 	Failed  bool   // the outline could not be loaded
 	Threads []DiscShape
-	More    bool // threads beyond the outline exist
-	Write   bool // accounts are on: sign-in call, compose shell, templates, discuss.js
+	More    bool   // threads beyond the outline exist
+	Page    int    // number of the page shown (discuss.js loads the same one)
+	Pager   *Pager // nil: one page
+	Write   bool   // accounts are on: sign-in call, compose shell, templates, discuss.js
 	// Guest: signed-out visitors may read the comments (discuss.js loads
 	// them for everyone; the outline is only a placeholder). Same for every
 	// visitor: a site setting, not a property of the request.
@@ -173,28 +180,51 @@ func (u *UI) discVersion(ctx context.Context, cve string, fresh bool) (string, e
 
 // discussion builds the section of a vulnerability page (nil when
 // discussions are off). A failure leaves the rest of the page intact. The
-// query is not read (the page is the same whatever ?c=, ?cursor= … say;
-// discuss.js reads them), except ?fresh= for the cache.
+// query is read for the page of threads (?cmp=, or the page of the comment
+// ?c= names) and ?fresh= for the cache; the URL is the page's whole cache
+// key, so the HTML is the same for every visitor of one URL.
 func (u *UI) discussion(r *http.Request, loc *i18n.Locale, cve string) *DiscView {
 	if u.opts.Discussions == nil {
 		return nil
 	}
 	base := loc.Path("/vuln/" + cve)
+	q := r.URL.Query()
+	// the page: ?cmp=, else the page that holds the comment ?c= names
+	page := 1
+	if s := q.Get(DiscPageParam); s != "" {
+		page = pocPage(s)
+	} else if c := strings.ToLower(q.Get(discComment1)); discuss.ValidID(c) {
+		if pos, err := u.opts.Discussions.Locate(r.Context(), cve, c); err == nil {
+			page = pos.Index/DiscPageSize + 1
+		}
+	}
 	var o *discuss.Outline
-	ver, err := u.discVersion(r.Context(), cve, r.URL.Query().Has(discFreshParam))
+	ver, err := u.discVersion(r.Context(), cve, q.Has(discFreshParam))
 	if err == nil {
-		var v any
-		v, err = u.cached(r.Context(), "disc|o|"+cve+"|"+ver, func(ctx context.Context) (any, error) {
-			return u.opts.Discussions.Outline(ctx, cve)
-		})
-		if err == nil {
-			o = v.(*discuss.Outline)
+		// page 1 first: it says how many pages there are, so the cache holds
+		// no entry for a page that does not exist
+		get := func(n int) (*discuss.Outline, error) {
+			v, err := u.cached(r.Context(), "disc|o|"+cve+"|"+ver+"|"+strconv.Itoa(n), func(ctx context.Context) (any, error) {
+				return u.opts.Discussions.OutlinePage(ctx, cve, n, DiscPageSize)
+			})
+			if err != nil {
+				return nil, err
+			}
+			return v.(*discuss.Outline), nil
+		}
+		o, err = get(1)
+		if err == nil && page > 1 && o.Pages > 1 {
+			o, err = get(min(page, o.Pages))
 		}
 	}
 	if err != nil {
 		u.srv.Log.Warn("discussion unavailable", "cve", cve, "err", err)
 	}
 	dv := BuildDiscView(loc, cve, o)
+	if o != nil {
+		dv.Page = o.Page
+		dv.Pager = numberedPager(loc, o.Page, o.Pages, discHref(loc, cve, q))
+	}
 	if u.opts.Accounts != nil {
 		dv.Write = true
 		dv.Login = loc.Path("/login") + "?return=" + url.QueryEscape(base+"?discussion")
@@ -220,8 +250,11 @@ func (u *UI) discussion(r *http.Request, loc *i18n.Locale, cve string) *DiscView
 // GET /api/posts/{cve} for signed-in visitors.
 type ResearchView struct {
 	CVE         string
-	Researchers int // distinct researchers, last 7 days
-	Entries     []ResearchShape
+	Researchers int             // distinct researchers, last 7 days
+	Entries     []ResearchShape // the page shown (Page); Total counts all
+	Total       int             // all posts of the outline
+	Offset      int             // index of Entries[0] among all (discuss.js shows the same posts)
+	Pager       *Pager          // nil: the outline fits one page
 	Failed      bool
 	Accounts    bool   // sign-in exists: call to sign in, discuss.js loads the posts
 	Login       string // localized /login?return=<page>?research
@@ -233,8 +266,20 @@ type ResearchView struct {
 type ResearchShape struct {
 	Author    string // @username, "" = not a valid handle (a neutral name is shown)
 	AuthorURL string // https://x.com/<Author>, "" with Author
+	Name      string // X display name (cleaned upstream text), "" = show only @Author
+	Avatar    string // same-origin avatar path (/avatar/<hash>), "" = the monogram
+	Initial   string // monogram: first letter of Author, upper case ("" without one)
 	Day       string // YYYY-MM-DD (UTC)
 	Size      string // s | m | l
+}
+
+// monogram is the letter of the avatar fallback: the handle's first
+// character, upper case (handles are ASCII letters, digits and "_").
+func monogram(handle string) string {
+	if handle == "" {
+		return ""
+	}
+	return strings.ToUpper(handle[:1])
 }
 
 // BuildResearchView turns the public outline into the section's view.
@@ -246,12 +291,14 @@ func BuildResearchView(cve string, o *site.ResearcherOutline) *ResearchView {
 	}
 	v.Researchers = o.Researchers
 	for _, e := range o.Entries {
-		r := ResearchShape{Author: e.Author, Day: e.Day, Size: e.Size}
+		r := ResearchShape{Author: e.Author, Day: e.Day, Size: e.Size, Name: e.AuthorName, Avatar: e.AuthorAvatar,
+			Initial: monogram(e.Author)}
 		if e.AuthorURL != nil && e.Author != "" {
 			r.AuthorURL = *e.AuthorURL
 		}
 		v.Entries = append(v.Entries, r)
 	}
+	v.Total = len(v.Entries)
 	return v
 }
 

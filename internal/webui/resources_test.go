@@ -111,10 +111,67 @@ func TestDiscussLinkParts(t *testing.T) {
 		t.Errorf("linkParts:\n got %s\nwant %s", g, w)
 	}
 	// rendering: text nodes and elements only, the link rel of posts
-	for _, s := range []string{"tx.appendChild(d.createTextNode(x.t));", "xlink(a, x.href);", "a.textContent = x.t;",
+	for _, s := range []string{"textWithIDs(tx, x.t);", "parent.appendChild(d.createTextNode(x.t));", "c.textContent = x.t;",
+		"xlink(a, x.href);", "a.textContent = x.t;",
 		"(u.protocol !== 'http:' && u.protocol !== 'https:')"} {
 		if !strings.Contains(src, s) {
 			t.Errorf("discuss.js: missing %q", s)
 		}
+	}
+}
+
+// TestDiscussCVEParts runs cveParts of static/discuss.js in node: CVE ids
+// (any case, 4+ digit sequence) come out as their own pieces, the text
+// around them unchanged, so the pieces join back to the input.
+func TestDiscussCVEParts(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node not installed")
+	}
+	b, err := os.ReadFile("static/discuss.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	i, j := strings.Index(src, "// cveParts-begin"), strings.Index(src, "// cveParts-end")
+	if i < 0 || j < i {
+		t.Fatal("no cveParts markers in discuss.js")
+	}
+	cases := []string{"PoC for CVE-2026-1234 and cve-2025-123456.", "CVE-2026-123 is not one", "", "CVE-2026-0001CVE-2026-0002",
+		"\u202eCVE-2026-55555"}
+	in, _ := json.Marshal(cases)
+	script := src[i:j] + "\nconst cases = " + string(in) + ";\nprocess.stdout.write(JSON.stringify(cases.map((c) => cveParts(c))));\n"
+	out, err := exec.Command(node, "-e", script).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node: %v\n%s", err, out)
+	}
+	type part struct {
+		T   string `json:"t"`
+		CVE bool   `json:"cve,omitempty"`
+	}
+	var got [][]part
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	want := [][]part{
+		{{"PoC for ", false}, {"CVE-2026-1234", true}, {" and ", false}, {"cve-2025-123456", true}, {".", false}},
+		{{"CVE-2026-123 is not one", false}},
+		{{"", false}},
+		{{"CVE-2026-0001", true}, {"CVE-2026-0002", true}},
+		{{"\u202e", false}, {"CVE-2026-55555", true}},
+	}
+	g, _ := json.Marshal(got)
+	w, _ := json.Marshal(want)
+	if string(g) != string(w) {
+		t.Errorf("cveParts:\n got %s\nwant %s", g, w)
+	}
+	// the ids are text in a span, never markup
+	for _, s := range []string{"const c = el('span', 'rp-cve');", "c.textContent = x.t;"} {
+		if !strings.Contains(src, s) {
+			t.Errorf("discuss.js: missing %q", s)
+		}
+	}
+	if strings.Contains(src, "innerHTML") {
+		t.Error("discuss.js uses innerHTML")
 	}
 }

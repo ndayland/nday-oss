@@ -22,7 +22,15 @@
         "url": "https://x.com/bob_sec/status/2120788687057846272"
       }
     ],
-    "vulns": []
+    "vulns": [],
+    "x_users": [
+      {
+        "avatar_url": null,
+        "name": null,
+        "seen_at": "2026-11-12T08:00:00.000000Z",
+        "user_id": "1002"
+      }
+    ]
   },
   "2120818886046646272": {
     "affected": [],
@@ -39,7 +47,15 @@
         "url": "https://x.com/bob_sec/status/2120818886046646272"
       }
     ],
-    "vulns": []
+    "vulns": [],
+    "x_users": [
+      {
+        "avatar_url": null,
+        "name": "Bob the builder",
+        "seen_at": "2026-11-12T10:00:00.000000Z",
+        "user_id": "1002"
+      }
+    ]
   },
   "2120833985541046272": {
     "affected": [],
@@ -84,6 +100,14 @@
         "url": "https://x.com/alice_sec/status/2120833985541046272"
       }
     ],
-    "vulns": []
+    "vulns": [],
+    "x_users": [
+      {
+        "avatar_url": "https://pbs.twimg.com/profile_images/1790000000000000001/aBc_normal.jpg",
+        "name": "Alice",
+        "seen_at": "2026-11-12T11:00:00.000000Z",
+        "user_id": "1001"
+      }
+    ]
   }
 }

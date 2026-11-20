@@ -291,12 +291,21 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) search(w http.ResponseWriter, r *http.Request) {
-	q, err := queryParams(r, "q", "limit", "tag")
+	q, err := queryParams(r, "q", "limit", "tag", "cvss_min", "cvss_max")
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
 	tagSlugs, err := site.NormalizeTags(q["tag"])
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if err = emptyCVSSParam(q); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	cvssMin, cvssMax, err := site.NormalizeCVSS(q.Get("cvss_min"), q.Get("cvss_max"))
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -313,8 +322,8 @@ func (s *Server) search(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	s.serveCached(w, r, "search|"+strconv.Itoa(limit)+"|"+strings.Join(tagSlugs, ",")+"|"+text, CacheList, func(ctx context.Context) (cached, error) {
-		v, err := s.Store.SearchTagged(ctx, text, tagSlugs, limit)
+	s.serveCached(w, r, "search|"+strconv.Itoa(limit)+"|"+strings.Join(tagSlugs, ",")+"|"+cvssMin+"-"+cvssMax+"|"+text, CacheList, func(ctx context.Context) (cached, error) {
+		v, err := s.Store.SearchFiltered(ctx, text, site.SearchFilter{Tags: tagSlugs, CVSSMin: cvssMin, CVSSMax: cvssMax}, limit)
 		if err != nil {
 			return cached{}, err
 		}

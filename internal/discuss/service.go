@@ -225,6 +225,34 @@ func buildPage(p *Page, v *Viewer, link LinkFunc) ([]Comment, *Cursor) {
 	return out, p.Next
 }
 
+// buildPaged renders a numbered page (Store.PageNum): every top-level
+// comment of the page, whole threads while they fit PageMaxHTMLBytes; a
+// thread that does not fit comes with the replies that fit (possibly none)
+// and the cursor to continue it (RepliesTruncated), as in buildPage.
+func buildPaged(p *Page, v *Viewer, link LinkFunc) []Comment {
+	out := make([]Comment, 0, len(p.Top))
+	used := 0
+	for _, t := range p.Top {
+		c := view(t, v, link, false)
+		reps := p.Replies[t.ID]
+		rendered := make([]Comment, len(reps))
+		size := cost(&c)
+		for k, r := range reps {
+			rendered[k] = view(r, v, link, false)
+			size += cost(&rendered[k])
+		}
+		if used+size <= PageMaxHTMLBytes {
+			c.Replies = append(c.Replies, rendered...)
+			used += size
+		} else {
+			cutReplies(&c, reps, rendered, used+cost(&c), 0)
+			used = PageMaxHTMLBytes
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
 // ---- cursors ----
 
 func encodeCursor(c *Cursor) string {
@@ -547,6 +575,12 @@ type streamResponse struct {
 	// Cursor: with ?c=, the page cursor of the page returned ("" = the
 	// first page); absent otherwise.
 	Cursor *string `json:"cursor,omitempty"`
+	// With ?page=: the number of the page returned (clamped to 1..pages),
+	// the number of pages and of top-level comments shown in all (the same
+	// for every viewer); absent otherwise.
+	Page    *int `json:"page,omitempty"`
+	Pages   *int `json:"pages,omitempty"`
+	Threads *int `json:"threads,omitempty"`
 	// Outline: with guest reading off (Limits.GuestRead), signed-out
 	// callers get only the shape of the first page (Comments is then
 	// empty; docs/discuss.md §4.1).
@@ -577,6 +611,19 @@ func (s *Service) read(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		limit = n
+	}
+	pageNum := 0 // ?page=N: numbered pages of limit top-level comments
+	if v := q.Get("page"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 1000000 {
+			web.WriteError(w, http.StatusBadRequest, "bad_request", "page must be a positive number", "page")
+			return
+		}
+		if q.Get("cursor") != "" || q.Get("thread") != "" {
+			web.WriteError(w, http.StatusBadRequest, "bad_request", "page cannot be combined with cursor or thread", "page")
+			return
+		}
+		pageNum = n
 	}
 	loc := s.locale(q.Get("locale"))
 	if loc == "" {
@@ -625,7 +672,15 @@ func (s *Service) read(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, resp)
 		return
 	}
-	if c := strings.ToLower(q.Get("c")); c != "" && q.Get("thread") == "" && q.Get("cursor") == "" && ValidID(c) {
+	if pageNum > 0 {
+		p, err := s.store.PageNum(r.Context(), v.idPtr(), cve, pageNum, limit)
+		if err != nil {
+			s.fail(w, "read", err)
+			return
+		}
+		resp.Count, resp.Comments = p.Visible, buildPaged(p, v, s.link(loc))
+		resp.Page, resp.Pages, resp.Threads = &p.Num, &p.Pages, &p.Total
+	} else if c := strings.ToLower(q.Get("c")); c != "" && q.Get("thread") == "" && q.Get("cursor") == "" && ValidID(c) {
 		// the page that holds visible comment c: the first page when its
 		// thread is there, else the page that begins with its thread (a reply
 		// cut off a long thread: the script follows replies_next_cursor)

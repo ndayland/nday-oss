@@ -34,8 +34,8 @@ func fillPosts(t *testing.T, post func(cve, author string, ago time.Duration)) {
 		post("CVE-2026-1002", "off", time.Duration(i+1)*h)
 	}
 	post("CVE-2026-1003", "a3", 4*day)
-	post("CVE-2026-1005", "a1", 3*day+h)
-	post("CVE-2026-1005", "a2", 3*day+h)
+	post("CVE-2026-1005", "a1", 3*day+2*h) // before 00:00 UTC today - 72h: too old for the rule
+	post("CVE-2026-1005", "a2", 3*day+2*h)
 	for _, a := range []string{"a1", "a2", "a3", "a4"} {
 		post("CVE-2026-1010", a, 1*h)
 	}

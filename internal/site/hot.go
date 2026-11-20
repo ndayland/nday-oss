@@ -39,6 +39,11 @@ type HotParams struct {
 	// those, the page is the first page exactly as without Before (pinned
 	// rows included). Not combined with Cursor; Offset is ignored.
 	Before string
+	// FromEnd counts Offset from the end of the list: the page is the
+	// Limit ordinary rows just before the last Offset ones (the web pager's
+	// last pages; not in the API). When no row comes before those, the page
+	// is the first page, as for Before. Not combined with Cursor or Before.
+	FromEnd bool
 	// Tags: only CVEs that have every one of these tags (vocabulary slugs,
 	// at most tags.MaxFilterTags; see NormalizeTags).
 	Tags []string
@@ -166,6 +171,9 @@ func (p HotParams) Normalize() (HotParams, error) {
 		}
 		p.Offset = 0
 	}
+	if p.FromEnd && (p.Cursor != "" || p.Before != "") {
+		return p, &InputError{Param: "offset", Msg: "from the end is not combined with a position"}
+	}
 	if p.Tags, err = NormalizeTags(p.Tags); err != nil {
 		return p, err
 	}
@@ -181,6 +189,9 @@ func (p HotParams) CacheKey() string {
 		strings.Join(p.Tags, ","), p.NoPins)
 	if p.Before != "" {
 		k += "|before=" + p.Before
+	}
+	if p.FromEnd {
+		k += "|end"
 	}
 	return k
 }
@@ -292,7 +303,8 @@ const productsLateral = `
 // With p.Before, the page is the p.Limit ordinary rows just before that
 // position; when no ordinary row precedes them, it is the first page
 // itself (computed afresh, pinned rows included), so paging back always
-// ends on exactly the page a first visit shows.
+// ends on exactly the page a first visit shows. p.FromEnd is the same walk
+// from the end of the list, skipping p.Offset rows.
 func (s *Store) Hot(ctx context.Context, p HotParams) (*HotPage, error) {
 	p, err := p.Normalize()
 	if err != nil {
@@ -300,7 +312,7 @@ func (s *Store) Hot(ctx context.Context, p HotParams) (*HotPage, error) {
 	}
 	page, atStart, err := s.hot(ctx, p)
 	if err == nil && atStart {
-		p.Before = ""
+		p.Before, p.FromEnd, p.Offset = "", false, 0
 		page, _, err = s.hot(ctx, p)
 	}
 	return page, err
@@ -320,7 +332,7 @@ func (s *Store) hot(ctx context.Context, p HotParams) (page *HotPage, atStart bo
 	if p.NoPins {
 		pcfg.Max = 0
 	}
-	back := p.Before != ""
+	back := p.Before != "" || p.FromEnd
 	first := p.Cursor == "" && p.Offset == 0 && !back
 	err = s.db.WithConn(ctx, func(conn *pgx.Conn) error {
 		var pinned []HotRow
@@ -346,6 +358,10 @@ func (s *Store) hot(ctx context.Context, p HotParams) (page *HotPage, atStart bo
 			c, _ := decodeCursor(p.Cursor)
 			extra = "AND (m.last_transition_at, m.stage_rank, m.cve_id) < ($6, $7, $8)"
 			args = append(args, c.at, c.rank, c.cve)
+		case p.FromEnd:
+			// the rows nearest the end of the list: walk up from the window
+			// start (the oldest row), skipping Offset of them
+			order = hotUp
 		case back:
 			// the rows nearest before the position: walk up from it
 			c, _ := decodeCursor(p.Before)
@@ -375,7 +391,11 @@ func (s *Store) hot(ctx context.Context, p HotParams) (page *HotPage, atStart bo
 			}
 			page.Rows = page.Rows[1:]
 			prev, next := hotCursor(page.Rows[0]), hotCursor(page.Rows[len(page.Rows)-1])
-			page.PrevCursor, page.NextCursor = &prev, &next
+			page.PrevCursor = &prev
+			if !p.FromEnd || p.Offset > 0 {
+				// from the end, rows follow only when some were skipped
+				page.NextCursor = &next
+			}
 		}
 		if first && len(pins) > 0 {
 			// The pinned rows themselves, in pin order.

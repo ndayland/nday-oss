@@ -47,11 +47,11 @@ const (
 	goneAuthor  = "4444444444444444"
 	evilAuthor  = "4545454545454545"
 	postID1     = "1999000000000000001" // GPU, A, 1 h ago
-	postID2     = "1999000000000000002" // postCVE, A, exactly 7 days ago (counts)
+	postID2     = "1999000000000000002" // postCVE, A, at the window's first instant, 00:00 UTC 6 days ago (counts)
 	postID3     = "1999000000000000003" // GPU, B, 2 days ago
 	postID4     = "1999000000000000004" // GPU, disabled account, 1 h ago (never shown or counted)
 	postID5     = "1999000000000000005" // GPU, A, 8 days ago (shown to members, not counted)
-	postID6     = "1999000000000000006" // postCVE, B, 7 days + 1 s ago (not counted)
+	postID6     = "1999000000000000006" // postCVE, B, 1 s before that (not counted)
 	postID7     = "1999000000000000007" // CVE-2026-1001, B, 30 min ago
 	postID8     = "1999000000000000008" // stub 8881, B, 40 min ago
 	postID9     = "1999000000000000009" // stub 8882, B, 40 min ago
@@ -127,11 +127,13 @@ func seedPosts(t *testing.T, conn *pgx.Conn) {
 	}
 	now := sitetest.Now
 	post(sitetest.GPU, postID1, postAuthor, postHandle, postText1, now.Add(-time.Hour), "")
-	post(postCVE, postID2, postAuthor, postHandle, postText2, now.Add(-site.ResearcherWindow), "")
+	// the researcher window: today and the 6 UTC days before (site.researcherWindow)
+	winStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, -6)
+	post(postCVE, postID2, postAuthor, postHandle, postText2, winStart, "")
 	post(sitetest.GPU, postID3, post2Author, post2Handle, "QZMARKER-THREE "+strings.Repeat("long ", 50), now.Add(-48*time.Hour), "")
 	post(sitetest.GPU, postID4, goneAuthor, goneHandle, goneText, now.Add(-time.Hour), "")
 	post(sitetest.GPU, postID5, postAuthor, postHandle, "QZMARKER-FIVE old", now.Add(-8*24*time.Hour), "")
-	post(postCVE, postID6, post2Author, post2Handle, "QZMARKER-SIX just outside", now.Add(-site.ResearcherWindow-time.Second), "")
+	post(postCVE, postID6, post2Author, post2Handle, "QZMARKER-SIX just outside", winStart.Add(-time.Second), "")
 	post("CVE-2026-1001", postID7, post2Author, post2Handle, "QZMARKER-SEVEN", now.Add(-30*time.Minute), "")
 	post(stubA, postID8, post2Author, post2Handle, "QZMARKER-EIGHT short one", now.Add(-40*time.Minute), "")
 	post(stubB, postID9, post2Author, post2Handle, "QZMARKER-NINE different!", now.Add(-40*time.Minute), "")
@@ -959,10 +961,10 @@ func TestPostsNotPublic(t *testing.T) {
 	resp, body = e.fetch(t, wwwHost, "/api/posts/"+sitetest.GPU, nil)
 	t.Logf("signed-out GET /api/posts/%s: %s", sitetest.GPU, body)
 	want := `{"cve":"` + sitetest.GPU + `","signed_in":false,"researchers_7d":3,"count":4,"posts":[],"outline":[` +
-		`{"author":"` + postHandle + `","author_url":"https://x.com/` + postHandle + `","size":"s","day":"2026-11-13"},` +
-		`{"author":"","author_url":null,"size":"s","day":"2026-11-12"},` +
-		`{"author":"` + post2Handle + `","author_url":"https://x.com/` + post2Handle + `","size":"l","day":"2026-11-11"},` +
-		`{"author":"` + postHandle + `","author_url":"https://x.com/` + postHandle + `","size":"s","day":"2026-11-05"}]}`
+		`{"author":"` + postHandle + `","author_url":"https://x.com/` + postHandle + `","author_name":"","author_avatar":"","size":"s","day":"2026-11-13"},` +
+		`{"author":"","author_url":null,"author_name":"","author_avatar":"","size":"s","day":"2026-11-12"},` +
+		`{"author":"` + post2Handle + `","author_url":"https://x.com/` + post2Handle + `","author_name":"","author_avatar":"","size":"l","day":"2026-11-11"},` +
+		`{"author":"` + postHandle + `","author_url":"https://x.com/` + postHandle + `","author_name":"","author_avatar":"","size":"s","day":"2026-11-05"}]}`
 	if strings.TrimSpace(body) != want || resp.Header.Get("Cache-Control") != posts.CacheControl ||
 		!strings.Contains(strings.Join(resp.Header.Values("Vary"), ","), "Cookie") {
 		t.Errorf("signed-out posts:\n got %s\nwant %s\n%v", body, want, resp.Header)
@@ -982,6 +984,55 @@ func TestPostsNotPublic(t *testing.T) {
 	if strings.ReplaceAll(sa, stubA, "X") != strings.ReplaceAll(sb, stubB, "X") || !strings.Contains(sa, "@"+post2Handle) {
 		t.Errorf("placeholder sections differ:\n%s\n%s", sa, sb)
 	}
+	// /discussed, the heat ranking (owner's decision of 2026-11-21,
+	// site/public.go): the same bytes signed in and out, and per row
+	// nothing but the rank, the public count (with its bar), the effective
+	// title, the stage, one flag, the per-day post counts (the sparkline)
+	// and the faces of authors the CVE's outline lists (no avatar stored
+	// here, so the empty placeholder). The crawl above checked every marker
+	// on it in every locale; this pins the row down to those parts.
+	_, dOut := e.fetch(t, wwwHost, "/discussed", nil)
+	_, dIn := e.fetch(t, wwwHost, "/discussed", cookies)
+	if dOut != dIn {
+		t.Error("/discussed differs for a signed-in visitor")
+	}
+	titleRe := regexp.MustCompile(`<span class="dz-t(?: missing)?">[^<]*</span>`)
+	heatRow := func(id string) string {
+		m := regexp.MustCompile(`(?s)<li class="dzr" data-row="" data-id="` + id + `".*?</li>`).FindString(dOut)
+		return titleRe.ReplaceAllString(m, `<span class="dz-t">T</span>`)
+	}
+	rowWant := func(id, rank, n, unit, bar, l2, spark, points string) string {
+		return `<li class="dzr" data-row="" data-id="` + id + `" data-href="/vuln/` + id + `">` + "\n" +
+			`<span class="cur" aria-hidden="true"></span>` + "\n" + `<span class="dz-rk">` + rank + `</span>` + "\n" +
+			`<div class="dz-heat"><span class="dz-n" aria-hidden="true">` + n + `</span><span class="dz-u" aria-hidden="true">` + unit +
+			`</span><span class="sr">` + n + ` ` + unit + ` mentioned this in the last 7 days</span><svg class="dz-bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true" focusable="false">` +
+			`<rect class="dz-bt" width="100" height="4"/><rect class="dz-bf" width="` + bar + `" height="4"/></svg></div>` + "\n" +
+			`<div class="dz-m">` + "\n" + `<div class="dz-l1"><a class="dz-a" href="/vuln/` + id + `"><span class="dz-id">` + id + `</span> <span class="dz-t">T</span></a></div>` + "\n" +
+			`<div class="dz-l2">` + l2 + `</div>` + "\n" + `</div>` + "\n" +
+			`<svg class="dz-sp dz-` + spark + `" viewBox="0 0 60 20" role="img" aria-label="7-day trend: ` + map[string]string{"up": "rising", "flat": "steady", "down": "falling"}[spark] +
+			`" focusable="false"><polyline points="` + points + `"/></svg>` + "\n" + `</li>`
+	}
+	face := `<span class="dz-fa dz-fx"></span>`
+	for id, want := range map[string]string{
+		// three enabled authors in the window (the disabled one and the
+		// 8-day-old post are not counted), posts on days 4, 5 and 6
+		sitetest.GPU: rowWant(sitetest.GPU, "1", "3", "researchers", "100",
+			`<span class="dz-st st-kev" title="added to KEV"><span aria-hidden="true">KEV</span><span class="sr">added to KEV</span></span><span class="dz-fc" aria-hidden="true">`+face+face+face+`</span>`,
+			"up", "2.0,18.0 11.3,18.0 20.7,18.0 30.0,18.0 39.3,2.0 48.7,2.0 58.0,2.0"),
+		// the post at 00:00 UTC 6 days ago counts, on the sparkline's first
+		// day; known only from posts: no stage, no PoC or patch
+		postCVE: rowWant(postCVE, "5", "1", "researcher", "33",
+			`<span class="dz-flag dz-bare">discussed, no PoC or patch yet</span><span class="dz-fc" aria-hidden="true">`+face+`</span>`,
+			"down", "2.0,2.0 11.3,18.0 20.7,18.0 30.0,18.0 39.3,18.0 48.7,18.0 58.0,18.0"),
+	} {
+		if got := heatRow(id); got != want {
+			t.Errorf("/discussed row %s:\n got %s\nwant %s", id, got, want)
+		}
+	}
+	if strings.Contains(dOut, "<img") || strings.Contains(dOut, `class="tr"`) {
+		t.Error("/discussed: an image without a stored avatar, or a hot-list row")
+	}
+
 	// the auth-class endpoint stays on the public host
 	if r, _ := e.fetch(t, apiHost, "/api/posts/"+sitetest.GPU, cookies); r.StatusCode != 404 {
 		t.Errorf("/api/posts on the API host: %d", r.StatusCode)
@@ -1078,7 +1129,7 @@ func TestResearcherCounts(t *testing.T) {
 		got = append(got, r.CVE+"="+strconv.Itoa(r.N))
 	}
 	// GPU: A, B and the hostile account (the disabled one and the 8-day-old
-	// post do not count); postCVE: A exactly 7 days ago (B one second
+	// post do not count); postCVE: A at the window's first instant (B one second
 	// earlier does not count); ties by latest post, then CVE id
 	want := sitetest.GPU + "=3,CVE-2026-1001=1," + stubA + "=1," + stubB + "=1," + postCVE + "=1"
 	if strings.Join(got, ",") != want || page.NextOffset != nil {

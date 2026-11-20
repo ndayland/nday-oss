@@ -16,27 +16,29 @@ import (
 	"nday.land/nday/internal/site/sitetest"
 )
 
-// The shared pager (parts.tmpl "pager") on the public lists: the position
-// on the left, then first / previous / next, each a link or a disabled span
-// in its place; previous pages backwards by keyset (?before=) and lands on
-// the first page exactly as a fresh visit; every link keeps the filters;
-// ?p= only labels the page.
+// The shared pager (parts.tmpl "pager") on the public lists: the row range
+// on the left, then ‹ 1 2 … 6 7 8 … 19 20 ›, each arrow a link or a
+// disabled span in its place; previous pages backwards by keyset
+// (?before=), and page 2 goes back to the first page; every link keeps the
+// filters; next to a position ?p= only labels the page, alone it picks one
+// of the first or last pages.
 
 var (
 	pagerRe    = regexp.MustCompile(`(?s)<nav class="pager" aria-label="[^"]+">.*?</nav>`)
-	pagerPosRe = regexp.MustCompile(`<p class="pg-pos">(.*?)</p>`)
+	pagerPosRe = regexp.MustCompile(`<p class="pg-pos[^"]*">(.*?)</p>`)
 	prevRe     = regexp.MustCompile(`<a href="([^"]+)" rel="prev"`)
-	firstRe    = regexp.MustCompile(`<a href="([^"]+)" class="pg"><span class="pg-g" aria-hidden="true">«</span>first</a>`)
+	firstRe    = regexp.MustCompile(`<a href="([^"]+)" class="pg[^"]*"><span aria-hidden="true">1</span>`)
+	numberRe   = regexp.MustCompile(`<a href="([^"]+)" class="pg[^"]*"><span aria-hidden="true">([0-9]+)</span><span class="sr">([^<]*)</span></a>`)
+	currentRe  = regexp.MustCompile(`<span class="pg pg-cur[^"]*" aria-current="page"><span aria-hidden="true">([0-9]+)</span>`)
 )
 
 const (
-	offFirst = `<span class="pg" aria-disabled="true"><span class="pg-g" aria-hidden="true">«</span>first</span>`
-	offPrev  = `<span class="pg" aria-disabled="true"><span class="pg-g" aria-hidden="true">‹</span>previous</span>`
-	offNext  = `<span class="pg" aria-disabled="true">next<span class="pg-g" aria-hidden="true">›</span></span>`
+	offPrev = `<span class="pg pg-a" aria-disabled="true"><span aria-hidden="true">‹</span><span class="sr">previous</span></span>`
+	offNext = `<span class="pg pg-a" aria-disabled="true"><span aria-hidden="true">›</span><span class="sr">next</span></span>`
 )
 
 var (
-	firstSpanRe = regexp.MustCompile(`^<span>([^<]*)</span>`)
+	firstSpanRe = regexp.MustCompile(`^<span class="sr">([^<]*)</span>`)
 	digitsRe    = regexp.MustCompile(`[0-9][0-9,.]*`)
 )
 
@@ -97,14 +99,14 @@ func TestCataloguePager(t *testing.T) {
 			t.Fatalf("%s: precondition: %d rows, total %d", c.path, len(want), c.total)
 		}
 		n := strconv.Itoa(len(want))
-		// page 1: first and previous disabled, next carries the page number
+		// page 1: previous disabled, next carries the page number
 		resp, first := e.get(t, c.path)
 		if resp.StatusCode != 200 {
 			t.Fatalf("%s: %d", c.path, resp.StatusCode)
 		}
 		pg := pagerOf(first)
-		if posOf(first) != "<span>page 1 of 2</span><span>1–50 of "+n+"</span>" || !strings.Contains(pg, offFirst) || !strings.Contains(pg, offPrev) ||
-			strings.Contains(pg, offNext) {
+		if posOf(first) != `<span class="sr">page 1 of 2</span><span>1–50 of `+n+"</span>" || !strings.Contains(pg, offPrev) ||
+			strings.Contains(pg, offNext) || currentOf(first) != 1 {
 			t.Errorf("%s page 1 pager:\n%s", c.path, pg)
 		}
 		next := linkOf(catNextRe, first)
@@ -115,21 +117,21 @@ func TestCataloguePager(t *testing.T) {
 		if !strings.HasPrefix(next, "/vuln?"+q+"cursor=") || !strings.HasSuffix(next, "&p=2") {
 			t.Errorf("%s next %q", c.path, next)
 		}
-		// page 2 (the last): first and previous links, next disabled
+		// page 2 (the last): previous and page 1 link to the first page, next disabled
 		_, second := e.get(t, next)
 		if got := rowIDs(second); joinIDs(got) != joinIDs(want[50:]) {
 			t.Errorf("%s page 2 rows %v", c.path, got)
 		}
 		pg = pagerOf(second)
-		if posOf(second) != "<span>page 2 of 2</span><span>51–"+n+" of "+n+"</span>" || !strings.Contains(pg, offNext) ||
-			strings.Contains(pg, offFirst) || strings.Contains(pg, offPrev) {
+		if posOf(second) != `<span class="sr">page 2 of 2</span><span>51–`+n+" of "+n+"</span>" || !strings.Contains(pg, offNext) ||
+			strings.Contains(pg, offPrev) || currentOf(second) != 2 {
 			t.Errorf("%s page 2 pager:\n%s", c.path, pg)
 		}
 		if f := linkOf(firstRe, second); f != c.path {
-			t.Errorf("%s first link %q", c.path, f)
+			t.Errorf("%s page 1 link %q", c.path, f)
 		}
 		prev := linkOf(prevRe, second)
-		if !strings.HasPrefix(prev, "/vuln?"+q+"before=") || strings.Contains(prev, "p=") {
+		if prev != c.path {
 			t.Errorf("%s prev %q", c.path, prev)
 		}
 		// previous: the first page exactly as a fresh visit
@@ -137,11 +139,12 @@ func TestCataloguePager(t *testing.T) {
 		if resp.StatusCode != 200 || joinIDs(rowIDs(back)) != joinIDs(rowIDs(first)) || pagerOf(back) != pagerOf(first) {
 			t.Errorf("%s back to the first page:\n%s\nwant\n%s", c.path, pagerOf(back), pagerOf(first))
 		}
-		// ?p= only labels the page: past the last page it is the last page
-		// (the rows are page 2's either way); out of range it is not shown
+		// next to a cursor ?p= only labels the page: past the last page it
+		// is the last page (the rows are page 2's either way); out of range
+		// it is not shown
 		bare := strings.TrimSuffix(next, "&p=2")
-		for p, pos := range map[string]string{"&p=9": "<span>page 2 of 2</span><span>51–" + n + " of " + n, "&p=1": "", "&p=x": "",
-			"&p=999999999": ""} {
+		for p, pos := range map[string]string{"&p=9": `<span class="sr">page 2 of 2</span><span>51–` + n + " of " + n, "&p=1": "", "&p=x": "",
+			"&p=999999999": `<span class="sr">page 2 of 2</span>`, "&p=99999999999999999999999": ""} {
 			_, b := e.get(t, bare+p)
 			if joinIDs(rowIDs(b)) != joinIDs(want[50:]) {
 				t.Errorf("%s%s: rows depend on p", bare, p)
@@ -167,7 +170,7 @@ func TestCataloguePager(t *testing.T) {
 	}
 	// the localized page keeps its prefix and words
 	_, zh := e.get(t, "/zh-hans/vuln?browse=1")
-	if !strings.Contains(posOf(zh), "<span>第 1 页，共 2 页</span>") || !strings.Contains(linkOf(catNextRe, zh), "/zh-hans/vuln?cursor=") {
+	if !strings.Contains(posOf(zh), `<span class="sr">第 1 页，共 2 页</span>`) || !strings.Contains(linkOf(catNextRe, zh), "/zh-hans/vuln?cursor=") {
 		t.Errorf("zh-hans pager:\n%s", pagerOf(zh))
 	}
 }
@@ -222,7 +225,7 @@ func TestHotPager(t *testing.T) {
 		}
 		hotTotal := func(string) string { return strconv.FormatInt(ht.Rows+int64(ht.Pins), 10) }
 		pg := pagerOf(first)
-		if posOf(first) != "<span>page 1 of 2</span><span>1–52 of "+hotTotal(path)+"</span>" || !strings.Contains(pg, offFirst) || !strings.Contains(pg, offPrev) {
+		if posOf(first) != `<span class="sr">page 1 of 2</span><span>1–52 of `+hotTotal(path)+"</span>" || !strings.Contains(pg, offPrev) || currentOf(first) != 1 {
 			t.Errorf("%s page 1 pager:\n%s", path, pg)
 		}
 		next := linkOf(catNextRe, first)
@@ -243,17 +246,18 @@ func TestHotPager(t *testing.T) {
 			}
 			seen[id] = true
 		}
-		if want := "<span>page 2 of 2</span><span>53–" + strconv.Itoa(52+len(rows2)) + " of " + hotTotal(path) + "</span>"; posOf(second) != want ||
+		if want := `<span class="sr">page 2 of 2</span><span>53–` + strconv.Itoa(52+len(rows2)) + " of " + hotTotal(path) + "</span>"; posOf(second) != want ||
 			52+len(rows2) != len(seen) || strconv.Itoa(len(seen)) != hotTotal(path) {
 			t.Errorf("%s page 2 position %q, want %q", path, posOf(second), want)
 		}
 		if f := linkOf(firstRe, second); f != path {
-			t.Errorf("%s first %q", path, f)
+			t.Errorf("%s page 1 link %q", path, f)
 		}
 		prev := linkOf(prevRe, second)
-		if !strings.HasPrefix(prev, "/?"+q+"before=") {
+		if prev != path {
 			t.Errorf("%s prev %q", path, prev)
 		}
+
 		// back: the first page as a fresh visit, pinned rows included
 		_, back := e.get(t, prev)
 		if joinIDs(rowIDs(back)) != joinIDs(rows1) || pagerOf(back) != pagerOf(first) {
@@ -295,13 +299,32 @@ func TestHotPagerBroadTag(t *testing.T) {
 		return string(b)
 	}
 	first := raw("/?tag=network")
-	if got := posOf(first); got != "<span>page 1</span><span>1–52</span>" {
+	if got := posOf(first); got != `<span class="sr">page 1</span><span>1–52</span>` {
 		t.Errorf("page 1 position %q:\n%s", got, pagerOf(first))
 	}
+	// not counted: the first pages and the arrows, no last pages
+	if got := numbersOf(first); got != "[1] 2 …" {
+		t.Errorf("page 1 numbers %q:\n%s", got, pagerOf(first))
+	}
 	second := raw(linkOf(catNextRe, first))
-	if got := posOf(second); !strings.HasPrefix(got, "<span>page 2</span><span>53–") || strings.Contains(got, " of ") ||
-		!strings.Contains(pagerOf(second), offNext) {
+	if got := posOf(second); !strings.HasPrefix(got, `<span class="sr">page 2</span><span>53–`) || strings.Contains(got, " of ") ||
+		!strings.Contains(pagerOf(second), offNext) || numbersOf(second) != "1 [2]" {
 		t.Errorf("page 2 position %q:\n%s", got, pagerOf(second))
+	}
+	// ?p=2 alone is page 2 (from the start); past the first pages of an
+	// uncounted list nothing is in reach: 404, no query
+	if jumped := raw("/?tag=network&p=2"); joinIDs(rowIDs(jumped)) != joinIDs(rowIDs(second)) || currentOf(jumped) != 2 {
+		t.Errorf("?p=2 rows %v, want %v", rowIDs(jumped), rowIDs(second))
+	}
+	for _, p := range []string{"/?tag=network&p=3", "/?tag=network&p=4", "/?tag=network&p=999999"} {
+		resp, err := http.Get(e.ts.URL + p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != 404 {
+			t.Errorf("%s: %d", p, resp.StatusCode)
+		}
 	}
 	if _, ok, err := e.store.HotCount(context.Background(), site.HotParams{Since: 7 * 24 * time.Hour, Tags: []string{"network"}}); ok || err != nil {
 		t.Errorf("a broad tag counted: %v %v", ok, err)
@@ -318,8 +341,37 @@ func TestDiscussedPager(t *testing.T) {
 	// page), so the empty page is the last of 2
 	_, later := e.get(t, "/discussed?offset=50")
 	pg := pagerOf(later)
-	if posOf(later) != "<span>page 2 of 2</span>" || !strings.Contains(pg, `<a href="/discussed" rel="prev" class="pg">`) ||
+	if posOf(later) != `<span class="sr">page 2 of 2</span>` || !strings.Contains(pg, `<a href="/discussed" rel="prev" class="pg pg-a">`) ||
 		linkOf(firstRe, later) != "/discussed" || !strings.Contains(pg, offNext) {
 		t.Errorf("offset 50 pager:\n%s", pg)
 	}
+}
+
+// currentOf is the page number the pager marks current (0 = none).
+func currentOf(body string) int {
+	m := currentRe.FindStringSubmatch(pagerOf(body))
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(m[1])
+	return n
+}
+
+// numbersOf writes the pager's numbers as "1 2 … [7] 8 …" (the current
+// page in brackets; the gaps narrow screens add left out).
+func numbersOf(body string) string {
+	pg := pagerOf(body)
+	item := regexp.MustCompile(`<span class="pg-gap( [a-z-]+)?" aria-hidden="true">…</span>|<span class="pg pg-cur[^"]*" aria-current="page"><span aria-hidden="true">([0-9]+)</span>|<a href="[^"]+" class="pg[^"]*"><span aria-hidden="true">([0-9]+)</span>`)
+	var out []string
+	for _, m := range item.FindAllStringSubmatch(pg, -1) {
+		switch {
+		case m[2] != "":
+			out = append(out, "["+m[2]+"]")
+		case m[3] != "":
+			out = append(out, m[3])
+		case m[1] != " pg-n":
+			out = append(out, "…")
+		}
+	}
+	return strings.Join(out, " ")
 }

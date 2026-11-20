@@ -317,15 +317,15 @@ func TestGitHubReviewSort(t *testing.T) {
 
 	// the pager links carry every list's order and page
 	r := region(t, body, u.region)
-	for _, label := range []string{"first", "previous", "next"} {
+	for _, label := range []string{"page 1", "previous", "next"} {
 		q := query(t, link(r, label))
 		if q.Get("us") != "-stars" || q.Get("ts") != "flags" || q.Get("tp") != "2" || q.Get("rjs") != "-found" {
 			t.Errorf("unverified %s link: %s", label, link(r, label))
 		}
 	}
 	tr := region(t, body, "r-gh-trusted")
-	if q := query(t, link(tr, "first")); q.Get("us") != "-stars" || q.Get("up") != "2" || q.Get("ts") != "flags" || q.Has("tp") || q.Get("rjs") != "-found" {
-		t.Errorf("trusted first link: %s", link(tr, "first"))
+	if q := query(t, link(tr, "page 1")); q.Get("us") != "-stars" || q.Get("up") != "2" || q.Get("ts") != "flags" || q.Has("tp") || q.Get("rjs") != "-found" {
+		t.Errorf("trusted first link: %s", link(tr, "page 1"))
 	}
 	// a sorted list's second page is the rest of that order, the trusted
 	// list (sorted, page 2) open

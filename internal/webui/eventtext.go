@@ -90,6 +90,22 @@ func EventMessages(e site.Event) []Msg {
 	case e.Source == "github" && e.Type == "poc_published" && str(d, "title") != "":
 		// a trusted repository (migration 0032): its name and why the date is a day
 		return []Msg{msg("ev.github.repo", "repo", str(d, "title")), msg("ev.github.created")}
+	case e.Source == "osssec" && e.Type == "analysis_published":
+		// a post on the oss-security list; the post itself is the source link
+		kind := "post"
+		if r, ok := d["is_reply"].(bool); ok && r {
+			kind = "reply"
+		}
+		if s := str(d, "subject"); s != "" {
+			return []Msg{msg("ev.osssec.post", "kind", kind, "subject", i18n.Upstream(s))}
+		}
+		return []Msg{msg("ev.osssec.post", "kind", "none")}
+	case e.Source == "zerowire" && e.Type == "analysis_published":
+		// a Cloudflare Zero Wire advisory; the advisory itself is the source link
+		if s := str(d, "title"); s != "" {
+			return []Msg{msg("ev.zerowire.advisory", "kind", "advisory", "title", i18n.Upstream(s))}
+		}
+		return []Msg{msg("ev.zerowire.advisory", "kind", "none")}
 	}
 	stage := e.Code
 	if !knownStage(stage) {

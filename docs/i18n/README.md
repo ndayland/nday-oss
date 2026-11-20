@@ -243,19 +243,22 @@ list is ordered and pinned (prefix `about.hot.`), the source line under an
 untranslated summary (a single key) and the exploit conditions block of
 vulnerability pages (prefix `vuln.cvss.`) and, since 2026-11-16, the three
 sentences for a withdrawn GitHub advisory that has no CVE (its banner, with
-and without a date, and its status sentence; single keys); those locales stay
+and without a date, and its status sentence; single keys) and, since
+2026-11-20, the three single keys of the Zero Wire source (its row on the
+sources page and its event sentence, see `docs/zerowire.md`); those locales stay
 enabled and show the English text for these keys (marked `lang="en"`). Every
 other key stays mandatory, and an `acct.` key you do add is checked like any
 other. When your catalog has all of them, remove your tag from the entry in
 `pending.json` (`TestPendingNotStale` tells you); an entry is either a
 `prefix` (ending in `.`) or a single `key`. `en` and `zh-Hans` are
-complete. The pending keys (771; their `where`/`intent` are in `keys.json`,
+complete. The pending keys (775; their `where`/`intent` are in `keys.json`,
 groups `account`, `welcome`, `discuss`, `corrections`, `rules`, `admin`, `tags` and `credits`, except the single keys above:
-the status-bar note is in group `chrome`, the two NVD source keys in group `src`,
+the status-bar note is in group `chrome`, the two NVD and two Zero Wire source keys in group `src`, the Zero Wire event sentence in group `events`,
 the NVD notice and the `about.hot.` keys in group `about`, the two `hot.` keys in
 group `hot`, the `vuln.` keys in group `vuln` and the withdrawn-advisory status sentence in group `status`):
 
 - `src.nvd.what`, `src.nvd.produces`
+- `src.zerowire.what`, `src.zerowire.produces`, `ev.zerowire.advisory`
 - `about.nvd_notice`
 - `hot.change`, `hot.rules_link`
 - `about.hot.h2`, `about.hot.order`, `about.hot.repeat`, `about.hot.window`, `about.hot.pin`, `about.hot.pin_count`, `about.hot.pin_recent`, `about.hot.pin_wave`, `about.hot.pin_filter`, `about.hot.pin_order`, `about.hot.pin_settings`, `about.hot.pin_off`
@@ -332,7 +335,7 @@ group `hot`, the `vuln.` keys in group `vuln` and the withdrawn-advisory status 
 - `admin.set.lede`, `admin.set.unavailable`, `admin.set.warnings`, `admin.set.group_h2`, `admin.set.group_note`, `admin.set.empty_note`, `admin.set.desc`, `admin.set.jump_label`, `admin.set.name`, `admin.set.effect`, `admin.set.source`, `admin.set.restart`, `admin.set.not_stored`, `admin.set.save`, `admin.set.secrets_h3`, `admin.set.secrets_note`, `admin.set.no_key`, `admin.set.secret_state`, `admin.set.secret_set_hint`, `admin.set.secret_save`, `admin.set.secret_clear`, `admin.set.clear_on_save`, `admin.set.saved`, `admin.set.saved_restart`, `admin.set.unchanged`, `admin.set.secret_empty`, `admin.set.field_err`
 - `admin.msg.done`, `admin.msg.reason_needed`
 - `admin.row.more`, `admin.bulk.select_all`, `admin.bulk.selected`, `admin.bulk.clear`, `admin.bulk.result`, `admin.bulk.result_failed`
-- `admin.err.reauth_required`, `admin.err.self`, `admin.err.protected`, `admin.err.no_change`, `admin.err.not_found`, `admin.err.forbidden`, `admin.err.bad_reason`, `admin.err.bad_duration`, `admin.err.bad_role`, `admin.err.rate_limited`, `admin.err.csrf`, `admin.err.cross_site`, `admin.err.not_signed_in`, `admin.err.wrong_status`, `admin.err.suspended`, `admin.err.network`, `admin.err.generic`, `admin.err.exists`, `admin.err.no_handle`, `admin.err.too_many`, `admin.err.duplicate`, `admin.err.bad_user_id`, `admin.err.bad_handle`, `admin.err.bad_note`, `admin.err.bad_setting`, `admin.err.bad_import`, `admin.err.too_large`, `admin.err.stale_version`, `admin.err.too_long`, `admin.err.bad_body`, `admin.err.bad_title`, `admin.err.bad_post_url`, `admin.err.bad_form`, `admin.err.link_too_long`, `admin.err.x_lookup_off`, `admin.err.x_not_found`, `admin.err.bad_login`, `admin.err.no_owner`, `admin.err.x_not_listed`, `admin.err.owner_exists`, `admin.err.github_not_found`, `admin.err.x_unavailable`, `admin.err.x_rate_limited`, `admin.err.x_auth`, `admin.err.x_upstream`, `admin.err.settings_off`, `admin.err.no_master_key`, `admin.err.unknown_setting`, `admin.err.secret_setting`, `admin.err.not_secret`, `admin.err.bad_secret`, `admin.err.invalid_config`, `admin.err.sign_in_off`, `admin.err.not_applied`
+- `admin.err.reauth_required`, `admin.err.self`, `admin.err.protected`, `admin.err.no_change`, `admin.err.not_found`, `admin.err.forbidden`, `admin.err.bad_reason`, `admin.err.bad_duration`, `admin.err.bad_role`, `admin.err.rate_limited`, `admin.err.csrf`, `admin.err.cross_site`, `admin.err.not_signed_in`, `admin.err.wrong_status`, `admin.err.suspended`, `admin.err.network`, `admin.err.generic`, `admin.err.exists`, `admin.err.no_handle`, `admin.err.own_account`, `admin.err.too_many`, `admin.err.duplicate`, `admin.err.bad_user_id`, `admin.err.bad_handle`, `admin.err.bad_note`, `admin.err.bad_setting`, `admin.err.bad_import`, `admin.err.too_large`, `admin.err.stale_version`, `admin.err.too_long`, `admin.err.bad_body`, `admin.err.bad_title`, `admin.err.bad_post_url`, `admin.err.bad_form`, `admin.err.link_too_long`, `admin.err.x_lookup_off`, `admin.err.x_not_found`, `admin.err.bad_login`, `admin.err.no_owner`, `admin.err.x_not_listed`, `admin.err.owner_exists`, `admin.err.github_not_found`, `admin.err.x_unavailable`, `admin.err.x_rate_limited`, `admin.err.x_auth`, `admin.err.x_upstream`, `admin.err.settings_off`, `admin.err.no_master_key`, `admin.err.unknown_setting`, `admin.err.secret_setting`, `admin.err.not_secret`, `admin.err.bad_secret`, `admin.err.invalid_config`, `admin.err.sign_in_off`, `admin.err.not_applied`
 - `admin.corr.h2`, `admin.corr.lede`, `admin.corr.filter_label`, `admin.corr.pending`, `admin.corr.decided`, `admin.corr.evidence`, `admin.corr.decided_by`, `admin.corr.public_note`, `admin.corr.internal_note`, `admin.corr.accept_label`, `admin.corr.accept_note`, `admin.corr.accept`, `admin.corr.reject_label`, `admin.corr.reject`, `admin.corr.empty_pending`, `admin.corr.empty_decided`, `admin.corr.note_needed`
 
 ### Shortened on purpose, to revisit at language review

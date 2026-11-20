@@ -469,14 +469,18 @@ func (u *UI) tagPage(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 
 // ------------------------------------------------------------- /vuln
 
-// searchHref is the locale-neutral search URL for q and tag filters.
-func searchHref(q string, ts []string) string {
+// searchHref is the locale-neutral search URL for q, tag filters and the
+// score filter (cvss: cvssQuery's parameters, "" for none).
+func searchHref(q string, ts []string, cvss string) string {
 	var parts []string
 	if q != "" {
 		parts = append(parts, "q="+url.QueryEscape(q))
 	}
 	if len(ts) > 0 {
 		parts = append(parts, tagQuery(ts))
+	}
+	if cvss != "" {
+		parts = append(parts, cvss)
 	}
 	if len(parts) == 0 {
 		return "/vuln"
@@ -485,20 +489,23 @@ func searchHref(q string, ts []string) string {
 }
 
 // addSearchTags adds the tag filter to the search page: active chips, row
-// chips (each adds its tag to the filter, keeping the query).
-func addSearchTags(l *i18n.Locale, sv *SearchView, q string, ts []string, res *site.SearchResult, api API) {
+// chips (each adds its tag to the filter, keeping the query and the score
+// filter), and the score filter row (each keeping the query and the tags).
+func addSearchTags(l *i18n.Locale, sv *SearchView, q string, ts []string, cvssMin, cvssMax string, res *site.SearchResult, api API) {
 	sv.TagsHref = l.Path("/tags")
+	cq := cvssQuery(cvssMin, cvssMax)
 	for _, s := range ts {
 		c := chip(s, l.Path(tagPath(s)))
-		c.Remove = l.Path(searchHref(q, withoutTag(ts, s)))
+		c.Remove = l.Path(searchHref(q, withoutTag(ts, s), cq))
 		sv.Chips = append(sv.Chips, c)
 	}
+	sv.CVSS = cvssOpts(l, cvssMin, cvssMax, func(min, max string) string { return l.Path(searchHref(q, ts, cvssQuery(min, max))) })
 	if res == nil {
 		return
 	}
 	for i := range sv.Rows {
 		if i < len(res.Rows) {
-			sv.Rows[i].Tags = RowChips(res.Rows[i].Tags, func(s string) string { return l.Path(searchHref(q, withTag(ts, s))) })
+			sv.Rows[i].Tags = RowChips(res.Rows[i].Tags, func(s string) string { return l.Path(searchHref(q, withTag(ts, s), cq)) })
 		}
 	}
 }

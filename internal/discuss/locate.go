@@ -14,6 +14,9 @@ import (
 type Position struct {
 	ThreadID string // the top-level comment of its thread (the comment itself for a top-level one)
 	Reply    bool
+	// Index is the number of top-level comments shown before its thread:
+	// the thread is on page Index/per+1 of the numbered pages (PageNum).
+	Index int
 	// PageCursor is the StreamPage cursor of a page that begins with the
 	// thread ("" when it is the first thread of the vulnerability).
 	PageCursor string
@@ -38,6 +41,7 @@ func (s *Store) Locate(ctx context.Context, cve, id string) (*Position, error) {
 		p                     Position
 		parent, top, pID, rID *string
 		pAt, rAt              *time.Time
+		index                 int
 	)
 	err := s.read().WithConn(ctx, func(c *pgx.Conn) error {
 		// t: the thread's top-level row (shown while visible/hidden, or
@@ -59,8 +63,11 @@ func (s *Store) Locate(ctx context.Context, cve, id string) (*Position, error) {
 				(SELECT r.created_at FROM comments r WHERE me.parent_id IS NOT NULL AND r.parent_id = me.parent_id AND r.status <> 'deleted'
 					AND (r.created_at, r.id) < (me.created_at, me.id) ORDER BY r.created_at DESC, r.id DESC LIMIT 1),
 				(SELECT r.id::text FROM comments r WHERE me.parent_id IS NOT NULL AND r.parent_id = me.parent_id AND r.status <> 'deleted'
-					AND (r.created_at, r.id) < (me.created_at, me.id) ORDER BY r.created_at DESC, r.id DESC LIMIT 1)
-			FROM me JOIN t ON true`, cve, id).Scan(&parent, &top, &pAt, &pID, &rAt, &rID)
+					AND (r.created_at, r.id) < (me.created_at, me.id) ORDER BY r.created_at DESC, r.id DESC LIMIT 1),
+				(SELECT count(*) FROM comments p WHERE p.cve_id = $1 AND p.parent_id IS NULL
+					AND (p.status <> 'deleted' OR EXISTS (SELECT 1 FROM comments x WHERE x.parent_id = p.id AND x.status <> 'deleted'))
+					AND (p.created_at, p.id) < (t.created_at, t.id))
+			FROM me JOIN t ON true`, cve, id).Scan(&parent, &top, &pAt, &pID, &rAt, &rID, &index)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -70,6 +77,7 @@ func (s *Store) Locate(ctx context.Context, cve, id string) (*Position, error) {
 	}
 	p.ThreadID = *top
 	p.Reply = parent != nil
+	p.Index = index
 	if pAt != nil && pID != nil {
 		p.PageCursor = encodeCursor(&Cursor{At: pAt.UTC(), ID: *pID})
 	}

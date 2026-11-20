@@ -206,8 +206,9 @@ func New(srv *web.Server, opts Options) (*UI, error) {
 	get("/sitemap.xml", u.sitemapIndex)    // sitemap.go
 	get("/sitemap/{file}", u.sitemapShard) // locale-independent like robots.txt
 	get("/favicon.ico", u.favicon)
-	get("/og/vuln/{file}", u.ogVuln)     // share cards: locale-independent (ogcard.go)
-	get(iconPrefix+"{host}", u.siteIcon) // site icons of outbound links: locale-independent (siteicons.go)
+	get("/og/vuln/{file}", u.ogVuln)      // share cards: locale-independent (ogcard.go)
+	get(iconPrefix+"{host}", u.siteIcon)  // site icons of outbound links: locale-independent (siteicons.go)
+	get(avatarPrefix+"{hash}", u.xAvatar) // X avatars of researcher posts: locale-independent (xavatars.go)
 	srv.Handle("/static/", web.GetOnly(assets))
 	if opts.I18nDebug {
 		get("/__i18n/{$}", u.i18nIndex)
@@ -433,9 +434,7 @@ func parseHotFilters(q url.Values) (HotFilters, error) {
 		}
 	}
 	f.Cursor, f.Before = q.Get("cursor"), q.Get("before")
-	if f.Cursor != "" || f.Before != "" {
-		f.Page = pageIndex(q.Get("p"))
-	}
+	f.Page = pageIndex(q.Get("p"))
 	f.Tags, _ = tags.ParseFilter(q["tag"]) // unknown slugs are ignored and dropped from links
 	return f, nil
 }
@@ -467,22 +466,6 @@ func (u *UI) hotList(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, f
 		u.fail(w, r, loc, err)
 		return
 	}
-	v, err := u.cached(r.Context(), "hot|"+u.srv.Store.HotCacheKey(p), func(ctx context.Context) (any, error) { return u.srv.Store.Hot(ctx, p) })
-	if err != nil {
-		u.fail(w, r, loc, err)
-		return
-	}
-	page := v.(*site.HotPage)
-	src, err := u.sourcesReport(r.Context())
-	if err != nil {
-		u.fail(w, r, loc, err)
-		return
-	}
-	st, err := u.statsReport(r.Context())
-	if err != nil {
-		u.fail(w, r, loc, err)
-		return
-	}
 	// the list's length, per filter combination (not per position); nil
 	// when not counted (a broad tag, site.TagCountMax)
 	n, err := u.cached(r.Context(), u.srv.Store.HotCountKey(p), func(ctx context.Context) (any, error) {
@@ -496,7 +479,50 @@ func (u *UI) hotList(w http.ResponseWriter, r *http.Request, loc *i18n.Locale, f
 		u.fail(w, r, loc, err)
 		return
 	}
-	hv := BuildHotView(loc, f, page, n.(*site.HotTotal), u.api)
+	total := n.(*site.HotTotal)
+	if f.Cursor == "" && f.Before == "" && f.Page > 1 {
+		// a page number without a position: one of the first or last pages
+		// (jumpTo), counted in ordinary rows (page 1 also holds the pins)
+		rows := int64(-1)
+		if total != nil {
+			rows = total.Rows
+		}
+		j, ok := jumpTo(f.Page, rows, hotPageSize)
+		if !ok {
+			u.notFound(w, r, loc)
+			return
+		}
+		f.Page, p.Offset, p.Limit, p.FromEnd = j.Page, j.Offset, j.Limit, j.FromEnd
+		if f.Page <= 1 {
+			f.Page = 0
+		}
+		if p, err = p.Normalize(); err != nil {
+			u.fail(w, r, loc, err)
+			return
+		}
+	}
+	v, err := u.cached(r.Context(), "hot|"+u.srv.Store.HotCacheKey(p), func(ctx context.Context) (any, error) { return u.srv.Store.Hot(ctx, p) })
+	if err != nil {
+		u.fail(w, r, loc, err)
+		return
+	}
+	page := v.(*site.HotPage)
+	if p.Offset > 0 && len(page.Rows) == 0 {
+		// one of the first pages of a list that is shorter (not counted)
+		u.notFound(w, r, loc)
+		return
+	}
+	src, err := u.sourcesReport(r.Context())
+	if err != nil {
+		u.fail(w, r, loc, err)
+		return
+	}
+	st, err := u.statsReport(r.Context())
+	if err != nil {
+		u.fail(w, r, loc, err)
+		return
+	}
+	hv := BuildHotView(loc, f, page, total, u.api)
 	hv.Tag = head
 	data := HomeData{Hot: hv, Bars: StageBars(loc, st.ByStage, true), Collectors: BuildCollectors(loc, src),
 		Backlog: loc.Int(src.CvelistBackfillBacklog), BacklogN: src.CvelistBackfillBacklog}
@@ -582,6 +608,10 @@ func (u *UI) vuln(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 	vv.Resources.PagePoC(loc, pocPage(q.Get(PoCPageParam)), pocHref(loc, id, q))
 	vv.Resources.PageUnreviewed(loc, pocPage(q.Get(UnreviewedPageParam)), q.Has(UnreviewedPageParam), unreviewedHref(loc, id, q))
 	vv.Corrections = u.corrections(r, loc, id)
+	// last: everything above is built from all events, the log and the
+	// researcher outline show one page each (?evp=, ?rp=)
+	vv.PageEvents(loc, pocPage(q.Get(EventPageParam)), eventHref(loc, id, q))
+	vv.Research.Page(loc, pocPage(q.Get(ResearchPageParam)), researchHref(loc, id, q))
 	desc := loc.Text("page.vuln.description", "id", id, "title", i18n.Upstream(vv.Title), "sentence", vv.Sentence)
 	title := loc.Text("page.vuln.title", "id", id, "title", i18n.Upstream(truncRunes(vv.Title, 60)))
 	if vv.TitleMissing {
@@ -648,11 +678,16 @@ func (u *UI) search(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 		return
 	}
 	ts, _ := tags.ParseFilter(r.URL.Query()["tag"]) // unknown slugs are ignored
+	cvssMin, cvssMax, err := parseCVSSFilter(r.URL.Query())
+	if err != nil {
+		u.fail(w, r, loc, err)
+		return
+	}
 	const limit = 50
 	var res *site.SearchResult
 	if q != "" || len(ts) > 0 {
-		v, err := u.cached(r.Context(), "search|"+strings.Join(ts, ",")+"|"+q, func(ctx context.Context) (any, error) {
-			return u.srv.Store.SearchTagged(ctx, q, ts, limit)
+		v, err := u.cached(r.Context(), "search|"+strings.Join(ts, ",")+"|"+cvssMin+"-"+cvssMax+"|"+q, func(ctx context.Context) (any, error) {
+			return u.srv.Store.SearchFiltered(ctx, q, site.SearchFilter{Tags: ts, CVSSMin: cvssMin, CVSSMax: cvssMax}, limit)
 		})
 		if err != nil {
 			u.fail(w, r, loc, err)
@@ -667,7 +702,7 @@ func (u *UI) search(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 		}
 	}
 	sv := BuildSearchView(loc, q, res, limit, u.api)
-	addSearchTags(loc, &sv, q, ts, res, u.api)
+	addSearchTags(loc, &sv, q, ts, cvssMin, cvssMax, res, u.api)
 	pos := "0/0"
 	if n := len(sv.Rows); n > 0 {
 		pos = "1/" + strconv.Itoa(n)
@@ -675,7 +710,7 @@ func (u *UI) search(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {
 	title := loc.Text("page.search.title_query", "query", q) // vulnIndex: q is never empty here
 	p := &Page{Title: title, Description: loc.Text("page.search.description"),
 		Nav: "vuln", Path: "~/vuln", Pos: pos, PosID: true, Hints: helpHints(loc), Query: q, AutoSelect: true,
-		Canonical: "/vuln", Data: sv, SearchTags: ts}
+		Canonical: "/vuln", Data: sv, SearchTags: ts, SearchCVSS: cvssHidden(cvssMin, cvssMax)}
 	u.page(w, r, loc, http.StatusOK, "search", p)
 }
 
@@ -736,15 +771,16 @@ type HotRules struct {
 	PinMax         int
 	PinResearchers int
 	PinWindow      string // researcher count window, e.g. "7d"
-	PinHours       int    // the latest post at most this many hours old
-	PinDays        int    // wave length in days
+	PinRecentDays  int    // the latest post from today or this many UTC days before
+	PinDays        int    // wave length in whole UTC days
 }
 
 // BuildHotRules fills HotRules from the pinning numbers in force.
 func BuildHotRules(c site.PinConfig) HotRules {
+	recent, wave := c.Days()
 	return HotRules{Window: formatSince(defaultSince), Stage: site.StageCode(defaultMinStage),
 		PinMax: c.Max, PinResearchers: c.MinResearchers, PinWindow: formatSince(site.ResearcherWindow),
-		PinHours: int(c.Recent / time.Hour), PinDays: int(c.Wave / (24 * time.Hour))}
+		PinRecentDays: recent, PinDays: wave}
 }
 
 func (u *UI) about(w http.ResponseWriter, r *http.Request, loc *i18n.Locale) {

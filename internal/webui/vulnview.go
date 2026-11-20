@@ -104,8 +104,9 @@ type VulnView struct {
 	OrigText      []TextBlock   // Description split the same way
 	SummarySrc    template.HTML // under an upstream summary: its record (summarySource)
 	CVSS          *CVSSView     // exploit conditions (cvssview.go); nil = no vector
-	Events        []EventItem
-	EventCount    int
+	Events        []EventItem   // the page of the event log shown (PageEvents); the totals use EventCount
+	EventPager    *Pager        // nil: the log fits one page
+	EventCount    int           // all events
 	Packages      []PkgRow
 	HasPatch      bool
 	FixCommits    []Link
@@ -283,8 +284,7 @@ func buildFacts(l *i18n.Locale, v *site.VulnDetail) []Fact {
 		}
 		f = append(f, fact)
 	}
-	if v.CVSS != nil && v.CVSS.Score != nil {
-		val := strconv.FormatFloat(*v.CVSS.Score, 'f', 1, 64)
+	if val, ok := cvssScore(v); ok {
 		if v.CVSS.Severity != nil {
 			val += " " + strings.ToUpper(*v.CVSS.Severity)
 		}
@@ -306,6 +306,15 @@ func buildFacts(l *i18n.Locale, v *site.VulnDetail) []Fact {
 		f = append(f, due)
 	}
 	return f
+}
+
+// cvssScore is the base score as the page shows it ("9.1"), for the fact
+// list and the share card; false when the record gives none.
+func cvssScore(v *site.VulnDetail) (string, bool) {
+	if v.CVSS == nil || v.CVSS.Score == nil {
+		return "", false
+	}
+	return strconv.FormatFloat(*v.CVSS.Score, 'f', 1, 64), true
 }
 
 // BuildChart lays out the lifecycle chart: rows are the six stages, x is

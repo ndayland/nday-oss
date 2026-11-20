@@ -94,6 +94,15 @@ func NormalizedValue(n *model.Normalized) any {
 		}
 		out["candidate_refs"] = refs
 	}
+	if len(n.XUsers) > 0 {
+		users := []any{}
+		for _, u := range n.XUsers {
+			users = append(users, map[string]any{
+				"user_id": u.UserID, "name": gStr(u.Name), "avatar_url": gStr(u.AvatarURL), "seen_at": gTime(&u.SeenAt),
+			})
+		}
+		out["x_users"] = users
+	}
 	return out
 }
 

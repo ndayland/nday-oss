@@ -64,11 +64,13 @@ func List(ctx context.Context, db ConnSource, f Filter, before int64, limit int)
 }
 
 // Span is the part of the log Query reads: ids below Before (0 = no
-// bound) newest first, or with After > 0 the ids above After oldest first;
-// Offset rows of that order are skipped.
+// bound) newest first, or with After > 0 the ids above After oldest first
+// (with Oldest, every id oldest first); Offset rows of that order are
+// skipped.
 type Span struct {
 	Before, After int64
 	Offset        int
+	Oldest        bool
 }
 
 // Query returns at most limit (1..MaxPage+1) entries matching f in span.
@@ -87,6 +89,8 @@ func Query(ctx context.Context, db ConnSource, f Filter, span Span, limit int) (
 		order = "ASC"
 	} else if span.Before > 0 {
 		add("id < $?", span.Before)
+	} else if span.Oldest {
+		order = "ASC"
 	}
 	q := `SELECT id, at, actor_id::text, actor_handle, actor_role, action, target_type, target_id, target_label, reason,
 		details, source, client_addr, cf_ray FROM admin_audit`

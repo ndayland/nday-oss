@@ -337,7 +337,8 @@ func (t task) path() string {
 //     link first, one request per distinct key not already asked in 1;
 //  3. at most RefreshLimit refreshes, oldest fetch first: 'ok' rows last
 //     fetched more than RefreshAfter ago (except rows found by search that
-//     nobody decided about: search refreshes those), 'ok' identities that
+//     nobody decided about: Discover's review refresh, refreshUnverified,
+//     brings those up to date every run), 'ok' identities that
 //     hold no name (another repository answered for theirs: they learn
 //     their current name, or that they are gone; at most MaxTotalAttempts
 //     failures in a row), and 'gone' rows queued less than GoneRetryWindow
@@ -420,27 +421,7 @@ func FetchPending(ctx context.Context, db DB, o Options) (Result, error) {
 	}
 	now := o.Now().UTC()
 	asked := map[string]bool{} // name keys already in the plan
-	scan := func(r pgx.CollectableRow) (task, error) {
-		var t task
-		var gh *int64
-		var etag *string
-		var queued string
-		if err := r.Scan(&t.id, &gh, &queued, &etag, &t.state, &t.attempts, &t.keyless); err != nil {
-			return t, err
-		}
-		if gh != nil {
-			t.githubID = *gh
-			// a keyless identity is asked unconditionally: only a 200
-			// tells its current name and gives it the key back (and the
-			// owner id of a trusted account's candidate row)
-			if etag != nil && t.state == StateOK && !t.keyless {
-				t.etag = *etag
-			}
-		} else {
-			t.key = queued
-		}
-		return t, nil
-	}
+	scan := scanTask
 	var todo []task
 	add := func(ts []task) {
 		for _, t := range ts {
@@ -489,7 +470,10 @@ func FetchPending(ctx context.Context, db DB, o Options) (Result, error) {
 		res.LinkChecks = len(todo) - before
 	}
 	if n := min(o.RefreshLimit, o.Limit-len(todo)); n > 0 {
-		// the last column asks unconditionally: a keyless identity, and a
+		// search-found rows nobody decided about are left out here: they're
+		// waiting for review, and every discovery run refreshes those
+		// (refreshUnverified in refresh.go), so they'd only take slots here.
+		// The last column asks unconditionally: a keyless identity, and a
 		// row whose owner id is missing while its login names a trusted
 		// account (ownerRefetchSQL: only a 200 carries owner.id)
 		rows, err := db.Query(ctx, `SELECT g.id, g.github_id, g.queued_name, g.etag, g.state, g.attempts,
@@ -598,6 +582,30 @@ func FetchPending(ctx context.Context, db DB, o Options) (Result, error) {
 		}
 	}
 	return res, nil
+}
+
+// scanTask reads one task from a row of (id, github_id, queued_name, etag,
+// state, attempts, unconditional).
+func scanTask(r pgx.CollectableRow) (task, error) {
+	var t task
+	var gh *int64
+	var etag *string
+	var queued string
+	if err := r.Scan(&t.id, &gh, &queued, &etag, &t.state, &t.attempts, &t.keyless); err != nil {
+		return t, err
+	}
+	if gh != nil {
+		t.githubID = *gh
+		// a keyless identity is asked unconditionally: only a 200
+		// tells its current name and gives it the key back (and the
+		// owner id of a trusted account's candidate row)
+		if etag != nil && t.state == StateOK && !t.keyless {
+			t.etag = *etag
+		}
+	} else {
+		t.key = queued
+	}
+	return t, nil
 }
 
 type outKind int

@@ -182,17 +182,32 @@ type CandidateRef struct {
 	PostedAt   time.Time
 }
 
+// XUser is the X profile of a stored post's author (collector xposts, Go
+// only; table x_user, migrations/0038_x_user.sql): the display name
+// (cleaned, nil when absent or empty) and the avatar URL (validated, nil
+// when absent or refused), as of SeenAt: the collector sets the post's
+// created_at, and the pipeline replaces it with the time the raw record
+// was fetched from X (the profile is X's at that moment). Only raw records
+// whose author object carries name or profile_image_url give one.
+type XUser struct {
+	UserID    string
+	Name      *string
+	AvatarURL *string
+	SeenAt    time.Time
+}
+
 // Normalized is everything derived from one RawRecord.
 type Normalized struct {
 	Vulns    []VulnUpsert
 	Aliases  []Alias
 	Affected []Affected
 	Events   []Event
-	// PostsNoCVE, PostLinks, CandidateRefs: Go only (xposts); always empty
-	// for the Python ports.
+	// PostsNoCVE, PostLinks, CandidateRefs, XUsers: Go only (xposts);
+	// always empty for the Python ports.
 	PostsNoCVE    []PostNoCVE
 	PostLinks     []PostLink
 	CandidateRefs []CandidateRef
+	XUsers        []XUser
 }
 
 // Validate applies the checks Python performs in the dataclass constructors

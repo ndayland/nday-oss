@@ -44,6 +44,24 @@
       "since": "2026-11-14"
     },
     {
+      "key": "src.zerowire.what",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "sources page row of the Zero Wire source: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-20"
+    },
+    {
+      "key": "src.zerowire.produces",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "sources page row of the Zero Wire source: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-20"
+    },
+    {
+      "key": "ev.zerowire.advisory",
+      "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
+      "why": "event sentence for a Cloudflare Zero Wire advisory: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",
+      "since": "2026-11-20"
+    },
+    {
       "key": "about.nvd_notice",
       "locales": ["zh-Hant", "ja", "ko", "es", "fr"],
       "why": "NVD attribution notice on the about page: en and zh-Hans are written; translation of the other locales is on hold by the owner's decision",

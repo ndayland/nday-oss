@@ -224,8 +224,11 @@ func (s *Service) RecentComments(ctx context.Context, status string, pos Keyset[
 			cmp, ord = ">", "ASC"
 		}
 		at, id := time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC), "ffffffff-ffff-ffff-ffff-ffffffffffff"
-		if cur != nil {
+		switch {
+		case cur != nil:
 			at, id = cur.At, cur.ID
+		case back:
+			at, id = time.Time{}, "00000000-0000-0000-0000-000000000000" // from the oldest
 		}
 		return s.comments(ctx, `WHERE (c.created_at, c.id) `+cmp+` ($1, $2::uuid) AND ($3 = '' OR c.status = $3)
 			ORDER BY c.created_at `+ord+`, c.id `+ord+` LIMIT $4`, at, id, status, n)

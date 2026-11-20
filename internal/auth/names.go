@@ -23,7 +23,7 @@ var ReservedNames = []string{
 	// existing top-level routes (internal/web, internal/webui)
 	"api", "raw", "healthz", "static", "hot", "vuln", "vulns", "src", "stats", "about",
 	"feed", "feeds", "feed.xml", "robots.txt", "favicon.ico", "__i18n", "auth", "account", "welcome",
-	"discussed", "rules", "og", "icon",
+	"discussed", "rules", "og", "icon", "avatar",
 	// the API host's version prefix (api.nday.land/v1/...)
 	"v1",
 	// locale prefixes (internal/webui/i18n/locales.json) and the primary tag

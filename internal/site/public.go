@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 
 	"nday.land/nday/internal/model"
 	"nday.land/nday/internal/pagefetch"
+	"nday.land/nday/internal/researchsql"
+	"nday.land/nday/internal/xavatar"
 	"nday.land/nday/internal/xconfig"
 	"nday.land/nday/internal/xlinks"
 )
@@ -28,11 +31,24 @@ import (
 // helpers below (researcherAggSQL, researcherCounts, ResearcherOutline):
 //
 //   - per CVE, the number of DISTINCT allow-listed authors whose post about
-//     the CVE was posted within the last ResearcherWindow (7 days, both ends
-//     inclusive: now-7d <= occurred_at <= now), as researchers_7d on /hot,
-//     /discussed, the vulnerability page and their JSON;
+//     the CVE was posted within the researcher window (researcherWindow:
+//     the current UTC day and the ResearcherDays-1 UTC days before it,
+//     from 00:00 UTC up to now; since 2026-11-21 calendar days rather
+//     than a rolling 168 h, so nothing public moves at the instant a post
+//     turns 7 days old, only at 00:00 UTC or when a post arrives), as
+//     researchers_7d on /hot, /discussed, the vulnerability page and their
+//     JSON;
 //   - the ranking of CVEs by that count on /discussed (ties: most recent
 //     post time, then CVE id), without the post times themselves;
+//   - on the /discussed page only (owner's decision of 2026-11-21, the heat
+//     ranking; not in its JSON): per CVE the number of posts on each of the
+//     last HeatDays UTC days (researcherHeatSQL, the sparkline), whether
+//     the CVE's first researcher post ever is on today's or yesterday's
+//     UTC date (the "new" flag, discussedSQL: it reveals that UTC day,
+//     like the sparkline, and flips only at 00:00 UTC or when a post
+//     arrives), and the avatars (same /avatar/<hash> paths, no
+//     names, handles or links) of up to MaxFaces window authors whom the
+//     CVE's own outline below lists (facesSQL);
 //   - which CVEs the hot list pins (HotRow.Pinned, pin.go): derived from
 //     the count and the post times (latest post, start of the current
 //     wave), never returning those times; it tells no more than the
@@ -43,11 +59,15 @@ import (
 //     @username as stored with the post (when it passes
 //     xconfig.ValidHandle; otherwise nothing, and pages show a neutral
 //     name) with the link to that X profile, the UTC date it was posted and
-//     a coarse size class (SizeClass of the text length). So which
+//     a coarse size class (SizeClass of the text length); since 2026-11-20
+//     (owner's request) also the author's X display name and avatar as X
+//     publishes them on the profile (x_user; the avatar served from our
+//     own origin under its content hash, never the numeric id). So which
 //     researcher posted about which CVE on which day is public, and with it
 //     the allowlist membership of everyone who posted about a listed CVE.
 //     Names appear only there: the counts and the /discussed and /hot lists
-//     (and their JSON) never carry names;
+//     (and their JSON) never carry names (the /discussed page shows some of
+//     the same avatars, see above);
 //   - the resources of a vulnerability page (owner's decision of
 //     2026-11-15; Store.Resources, ResourcesFor): the links of the CVE's
 //     researcher posts (table x_post_link, status 'ok', kind not media or
@@ -121,14 +141,26 @@ var (
 	// NonPublicEventTypes are event types never shown or counted publicly,
 	// whatever their source, except through the researcher helpers below.
 	NonPublicEventTypes = []string{model.EventSocialPost}
+	// NoTransitionSources are public sources whose events never count as a
+	// transition: shown and counted like any other event (stage included),
+	// but never the vulnerability's last transition, so never what puts it
+	// on the hot list. Today the oss-security mailing list. Must match the
+	// SQL function counts_as_transition (migrations/0039), which the lists
+	// read through vuln_state_mat; checked by TestOsssecPostIsNotATransition.
+	NoTransitionSources = []string{"osssec"}
 )
 
-// ResearcherWindow is the window of the public researcher count.
-const ResearcherWindow = 7 * 24 * time.Hour
+// ResearcherDays is how many UTC days the public researcher window covers
+// (today and the 6 before it; researcherWindow).
+const ResearcherDays = researchsql.WindowDays
+
+// ResearcherWindow is the nominal length of that window, for labels
+// ("7d") and lookbacks; the bounds themselves come from researcherWindow.
+const ResearcherWindow = ResearcherDays * 24 * time.Hour
 
 // MaxMemberPosts caps the researcher section of a vulnerability page (the
 // signed-in list and the signed-out outline alike).
-const MaxMemberPosts = 50
+const MaxMemberPosts = researchsql.MaxOutline
 
 // Size classes of placeholder entries (SizeClass).
 const (
@@ -180,15 +212,16 @@ func publicSourceSQL(col string) string {
 // researcherPostFrom is the FROM clause of every query over researcher
 // posts (alias p): social_post events of the xposts collector whose author
 // is an enabled allow-listed account. $1/$2 in researcherPostWhere are the
-// window bounds when used for counts.
-var researcherPostFrom = "event p JOIN x_accounts xa ON xa.user_id = p.detail->>'author_id' AND xa.enabled"
+// window bounds when used for counts. Shared with internal/xavatar through
+// internal/researchsql (which authors' avatars are public).
+var researcherPostFrom = researchsql.PostFrom
 
 // researcherPostWhere restricts researcherPostFrom to researcher posts.
-// (Constants of this file; no input.)
-var researcherPostWhere = "p.type = '" + model.EventSocialPost + "' AND p.source = '" + researcherSource + "'"
+// (Constants; no input.)
+var researcherPostWhere = researchsql.PostWhere
 
 // researcherSource is the collector of researcher posts.
-const researcherSource = "xposts"
+const researcherSource = researchsql.Source
 
 // researcherAggSQL is the public aggregate: one row per CVE with at least
 // one researcher post in [$1, $2] — cve_id, researchers (distinct authors),
@@ -202,8 +235,94 @@ WHERE ` + researcherPostWhere + ` AND p.occurred_at >= $1 AND p.occurred_at <= $
 GROUP BY p.cve_id`
 }
 
-// researcherWindow returns the window bounds for now.
-func researcherWindow(now time.Time) (time.Time, time.Time) { return now.Add(-ResearcherWindow), now }
+// HeatDays is how many UTC days the /discussed sparkline covers: exactly
+// the researcher window's days.
+const HeatDays = ResearcherDays
+
+// researcherHeatSQL is researcherAggSQL("") plus what the /discussed heat
+// ranking draws (owner's decision of 2026-11-21): days, the post COUNT per
+// UTC day for the HeatDays days up to $2's day, oldest first. Those are
+// exactly the window's days, so the 7 counts add up to the CVE's posts in
+// the window, and each moves only when a post arrives or at 00:00 UTC.
+// The first three columns are exactly researcherAggSQL's, so the
+// ranking doesn't move.
+func researcherHeatSQL() string {
+	days := make([]string, HeatDays)
+	for i := range days {
+		days[i] = "count(*) FILTER (WHERE ($2::timestamptz AT TIME ZONE 'UTC')::date - (p.occurred_at AT TIME ZONE 'UTC')::date = " +
+			strconv.Itoa(HeatDays-1-i) + ")"
+	}
+	return `SELECT p.cve_id, count(DISTINCT p.detail->>'author_id')::int AS researchers, max(p.occurred_at) AS last_at,
+       ARRAY[` + strings.Join(days, ", ") + `]::int[] AS days
+FROM ` + researcherPostFrom + `
+WHERE ` + researcherPostWhere + ` AND p.occurred_at >= $1 AND p.occurred_at <= $2
+GROUP BY p.cve_id`
+}
+
+// MaxFaces caps the avatars a /discussed row shows.
+const MaxFaces = 4
+
+// facesSQL: for each CVE in $3, up to MaxFaces authors who posted about
+// the CVE inside the window [$1, $2] AND whom that CVE's public outline
+// lists (the outline's own query: researcherPostFrom/Where, occurred_at <=
+// now, the MaxMemberPosts newest posts by occurred_at then id; see
+// ResearcherOutline), newest post first, with the stored avatar hash ("" =
+// none). So a /discussed row never shows anyone the vulnerability page
+// would not, and its avatars are exactly the /avatar/<hash> paths that page
+// uses (researchsql.ListedAuthor holds for every one of them). One
+// statement for the page; per CVE it reads that CVE's posts through the
+// (cve_id, occurred_at) index and keeps the MaxMemberPosts newest (a top-N
+// sort, like the outline itself). The author id only orders ties here; it
+// never leaves this query.
+var facesSQL = `SELECT c.cve_id, COALESCE(xu.avatar_hash, '')
+FROM unnest($3::text[]) AS c(cve_id)
+CROSS JOIN LATERAL (
+    SELECT o.author, max(o.occurred_at) AS last_at
+    FROM (SELECT p.detail->>'author_id' AS author, p.occurred_at
+          FROM ` + researcherPostFrom + `
+          WHERE ` + researcherPostWhere + ` AND p.cve_id = c.cve_id AND p.occurred_at <= $2
+          ORDER BY p.occurred_at DESC, p.id DESC
+          LIMIT ` + strconv.Itoa(MaxMemberPosts) + `) o
+    WHERE o.occurred_at >= $1
+    GROUP BY o.author
+    ORDER BY last_at DESC, o.author
+    LIMIT ` + strconv.Itoa(MaxFaces) + `) f
+LEFT JOIN x_user xu ON xu.user_id = f.author
+ORDER BY c.cve_id, f.last_at DESC, f.author`
+
+// researcherFaces returns, per CVE of ids, the avatar paths of the authors
+// facesSQL picks, in order ("" = an author without a stored avatar). One
+// query for all of ids.
+func researcherFaces(ctx context.Context, conn *pgx.Conn, now time.Time, ids []string) (map[string][]string, error) {
+	out := map[string][]string{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	from, to := researcherWindow(now)
+	rows, err := conn.Query(ctx, facesSQL, from, to, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, hash string
+		if err := rows.Scan(&id, &hash); err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], xavatar.Path(hash))
+	}
+	return out, rows.Err()
+}
+
+// researcherWindow returns the bounds of the public researcher window for
+// now: from 00:00 UTC ResearcherDays-1 days before now's UTC day, up to now.
+// Every public count, ranking, pin and avatar list over researcher posts
+// takes its bounds from here, so they can't drift apart.
+// (researchsql.Window, shared with internal/ghrepo's search selection.)
+func researcherWindow(now time.Time) (time.Time, time.Time) { return researchsql.Window(now) }
+
+// utcDayStart is 00:00 UTC of t's UTC day.
+func utcDayStart(t time.Time) time.Time { return researchsql.DayStart(t) }
 
 // researcherCounts is the public researcher count of each of ids (absent =
 // 0), for list rows.
@@ -231,16 +350,25 @@ func researcherCounts(ctx context.Context, conn *pgx.Conn, now time.Time, ids []
 }
 
 // OutlineEntry is one post of the public outline: the author's public
-// name, the UTC date and a coarse size class; never the text, the post id,
-// its URL, the exact time, the language or the author's numeric id.
+// name (handle, display name, avatar), the UTC date and a coarse size
+// class; never the text, the post id, its URL, the exact time, the
+// language or the author's numeric id (the avatar path is keyed by the
+// image's hash, not by the id).
 type OutlineEntry struct {
 	// Author is the @username stored with the post when it passes
 	// xconfig.ValidHandle, else "" (show a neutral name).
 	Author string `json:"author"`
 	// AuthorURL is https://x.com/<Author> (nil when Author is "").
 	AuthorURL *string `json:"author_url"`
-	Size      string  `json:"size"` // SizeShort | SizeMedium | SizeLong
-	Day       string  `json:"day"`  // YYYY-MM-DD (UTC)
+	// AuthorName is the author's X display name (x_user.name, cleaned
+	// upstream text: render as text), "" when unknown. Public since
+	// 2026-11-20 with the avatar (owner's request: the section's cards).
+	AuthorName string `json:"author_name"`
+	// AuthorAvatar is the same-origin path of the author's stored avatar
+	// (/avatar/<hash>, xavatar.Path), "" when none: never an X URL.
+	AuthorAvatar string `json:"author_avatar"`
+	Size         string `json:"size"` // SizeShort | SizeMedium | SizeLong
+	Day          string `json:"day"`  // YYYY-MM-DD (UTC)
 }
 
 // PublicAuthor is the public form of a stored author handle: the handle and
@@ -275,8 +403,9 @@ func (s *Store) ResearcherOutline(ctx context.Context, cve string) (*ResearcherO
 			return err
 		}
 		o.Researchers = c[cve]
-		rows, err := conn.Query(ctx, `SELECT COALESCE(p.detail->>'author_handle', ''), char_length(COALESCE(p.detail->>'text', '')), p.occurred_at
-FROM `+researcherPostFrom+`
+		rows, err := conn.Query(ctx, `SELECT COALESCE(p.detail->>'author_handle', ''), char_length(COALESCE(p.detail->>'text', '')), p.occurred_at,
+       COALESCE(xu.name, ''), COALESCE(xu.avatar_hash, '')
+FROM `+researcherPostFrom+` LEFT JOIN x_user xu ON xu.user_id = xa.user_id
 WHERE `+researcherPostWhere+` AND p.cve_id = $1 AND p.occurred_at <= $2
 ORDER BY p.occurred_at DESC, p.id DESC
 LIMIT $3`, cve, now, MaxMemberPosts)
@@ -285,13 +414,13 @@ LIMIT $3`, cve, now, MaxMemberPosts)
 		}
 		defer rows.Close()
 		for rows.Next() {
-			var h string
+			var h, name, hash string
 			var n int
 			var at time.Time
-			if err := rows.Scan(&h, &n, &at); err != nil {
+			if err := rows.Scan(&h, &n, &at, &name, &hash); err != nil {
 				return err
 			}
-			e := OutlineEntry{Size: PostSizeClass(n), Day: at.UTC().Format(time.DateOnly)}
+			e := OutlineEntry{Size: PostSizeClass(n), Day: at.UTC().Format(time.DateOnly), AuthorName: name, AuthorAvatar: xavatar.Path(hash)}
 			e.Author, e.AuthorURL = PublicAuthor(h)
 			o.Entries = append(o.Entries, e)
 		}

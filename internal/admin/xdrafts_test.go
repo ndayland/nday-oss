@@ -284,13 +284,13 @@ func TestXDraftPage(t *testing.T) {
 	if err != nil || cu.Scheme != "https" || cu.Host != "x.com" || cu.Path != "/intent/tweet" || len(cu.Query()) != 1 {
 		t.Fatalf("compose URL %q", href)
 	}
-	if got := cu.Query().Get("text"); got != hostile+"\n"+origin+"/vuln/CVE-2026-0500" {
+	if got := cu.Query().Get("text"); got != hostile+"\n"+origin+"/vuln/CVE-2026-0500?s=kev" {
 		t.Errorf("compose text %q", got)
 	}
 	if strings.ContainsAny(strings.TrimPrefix(href, "https://x.com/intent/tweet?text="), " \n<>\"'#&+") {
 		t.Errorf("compose URL not fully encoded: %s", href)
 	}
-	if href != xdraft.ComposeURL(hostile, origin+"/vuln/CVE-2026-0500") {
+	if href != xdraft.ComposeURL(hostile, origin+"/vuln/CVE-2026-0500?s=kev") {
 		t.Errorf("compose URL %s", href)
 	}
 	n := xdraft.WeightedLength(hostile) + xdraft.LinkCost
@@ -303,7 +303,7 @@ func TestXDraftPage(t *testing.T) {
 	}
 	// the zh-hans page links the Chinese detail page but still posts the English one
 	_, zb := adm.do("GET", "/zh-hans/admin/x/drafts", "")
-	if !strings.Contains(string(zb), `href="/zh-hans/vuln/CVE-2026-0500"`) || !strings.Contains(string(zb), url.QueryEscape(origin+"/vuln/CVE-2026-0500")) {
+	if !strings.Contains(string(zb), `href="/zh-hans/vuln/CVE-2026-0500"`) || !strings.Contains(string(zb), url.QueryEscape(origin+"/vuln/CVE-2026-0500?s=kev")) {
 		t.Error("zh-hans page links")
 	}
 	// an over-length draft (e.g. stored before a rule change) has no compose
@@ -477,11 +477,11 @@ func TestXDraftForms(t *testing.T) {
 	if m := copyImgRe.FindStringSubmatch(art); m == nil || html.UnescapeString(m[1]) != card {
 		t.Errorf("copy image %v", m)
 	}
-	if m := copyLinkRe.FindStringSubmatch(art); m == nil || m[1] != origin+"/vuln/CVE-2026-0700" {
+	if m := copyLinkRe.FindStringSubmatch(art); m == nil || m[1] != origin+"/vuln/CVE-2026-0700?s=kev" {
 		t.Errorf("copy link %v", m)
 	}
 	// the link form is still the default and unchanged
-	if m := composeRe.FindStringSubmatch(art); m == nil || html.UnescapeString(m[1]) != xdraft.ComposeURL(body, origin+"/vuln/CVE-2026-0700") {
+	if m := composeRe.FindStringSubmatch(art); m == nil || html.UnescapeString(m[1]) != xdraft.ComposeURL(body, origin+"/vuln/CVE-2026-0700?s=kev") {
 		t.Errorf("link compose %v", m)
 	}
 

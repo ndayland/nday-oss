@@ -116,6 +116,7 @@
     "cat.year": "CVE year",
     "cat.year.other": "other years",
     "cat.year.go": "Go",
+    "cat.cvss": "CVSS score",
     "cat.empty": "No vulnerability matches these filters.",
     "cat.clear": "Clear filters",
     "cat.browse": "browse all",
@@ -162,7 +163,6 @@
     "js.copy_failed": "copy failed",
     "js.copied_id": "copied {id}",
     "pager.label": "Pages",
-    "pager.first": "first",
     "pager.prev": "previous",
     "pager.next": "next",
     "pager.page": "page {n}",
@@ -495,6 +495,15 @@
     "ev.nuclei.no_time": "The source gives no release time for the template.",
     "ev.github.repo": "PoC repository on GitHub: {repo}.",
     "ev.github.created": "The date is the repository's creation day.",
+    "ev.osssec.post": {
+      "post": "Posted to the oss-security mailing list: “{subject}”.",
+      "reply": "Reply on the oss-security mailing list: “{subject}”.",
+      "none": "Posted to the oss-security mailing list."
+    },
+    "ev.zerowire.advisory": {
+      "advisory": "Cloudflare Zero Wire advisory: “{title}”.",
+      "none": "Cloudflare Zero Wire advisory."
+    },
     "ev.generic": {
       "DIS": "{source} reported a disclosure.",
       "PAT": "{source} reported a patch.",
@@ -544,6 +553,10 @@
     "src.nuclei.produces": "{poc} public PoC (detection template; the source gives no release time)",
     "src.nvd.what": "NIST's National Vulnerability Database (JSON 2.0 feeds): NVD's own CWE, CVSS vectors and CPE configurations, plus the CNA data it republishes. nday uses it for classification only.",
     "src.nvd.produces": "none: NVD supplies classification data (CWE, CVSS, CPE), not lifecycle events",
+    "src.osssec.what": "Posts to the oss-security mailing list, from the seclists.org archive: subject, author name and time of each post naming a CVE or GHSA ID. The post text is not kept.",
+    "src.osssec.produces": "{ana} analysis (one per post naming the ID; the post's own time)",
+    "src.zerowire.what": "Cloudflare Radar's Zero Wire advisories by Cloudforce One: title, link and date of each advisory naming a CVE or GHSA ID. The advisory text is not kept.",
+    "src.zerowire.produces": "{ana} analysis (one per advisory naming the ID; the advisory's date)",
     "src.backfill.h2": "Backfill",
     "src.backfill.p1": {
       "one": "KEV, GHSA and the three PoC sources often cite old CVEs. The first time nday sees such an ID it creates an empty record (no title, no disclosure time); the cvelist collector then fetches the official CVE records in batches on later runs. {n} ID is waiting to be backfilled.",
@@ -594,7 +607,7 @@
     "about.contact": "Contact: {email}.",
     "about.hot.h2": "Ordering and pinning on the home page",
     "about.hot.order": "The home list ({home}) is ordered by when each vulnerability last reached a new stage, newest first. For each kind of lifecycle event nday takes its earliest known time, and the latest of those times places the vulnerability; on equal times the one at the higher current stage comes first.",
-    "about.hot.repeat": "Once a kind of event has a known time, further events of that kind, such as another advisory with a patch or another PoC, never move the vulnerability up again. Events whose time is unknown (the source gave none and nday did not observe them live) do not count as a change.",
+    "about.hot.repeat": "Once a kind of event has a known time, further events of that kind, such as another advisory with a patch or another PoC, never move the vulnerability up again. Events whose time is unknown (the source gave none and nday did not observe them live) do not count as a change, and neither do posts to the oss-security mailing list.",
     "about.hot.window": "By default the list covers the last {window} and only vulnerabilities whose latest change is to {stage} or a later stage, so a newly published CVE alone does not appear; {since} and {min_stage} change this. CVE records marked REJECTED are left out unless {rejected} is on.",
     "about.hot.pin": {
       "one": "On the first page, nday pins at most one vulnerability that researchers are discussing right now above the list. It is pinned only when all of the following hold.",
@@ -605,12 +618,12 @@
       "other": "At least {n} different researchers on nday's list posted about it on X in the last {window}."
     },
     "about.hot.pin_recent": {
-      "one": "Its latest researcher post is at most one hour old.",
-      "other": "Its latest researcher post is at most {hours} hours old."
+      "one": "Its latest researcher post is from today or the UTC day before.",
+      "other": "Its latest researcher post is from today or the {days} UTC days before."
     },
     "about.hot.pin_wave": {
-      "one": "Its current wave of discussion began at most one day ago. A wave is a run of posts with no gap longer than one day: a vulnerability discussed again after a longer silence can be pinned again, and one discussed without such a break stops being pinned one day after its wave began.",
-      "other": "Its current wave of discussion began at most {days} days ago. A wave is a run of posts with no gap longer than {days} days: a vulnerability discussed again after a longer silence can be pinned again, and one discussed without such a break stops being pinned {days} days after its wave began."
+      "one": "Its current wave of discussion began today or the UTC day before. A wave is a run of posts on UTC days at most one day apart: a vulnerability discussed again after a longer silence can be pinned again, and one discussed without such a break stops being pinned one day after the day its wave began.",
+      "other": "Its current wave of discussion began today or in the {days} UTC days before. A wave is a run of posts on UTC days at most {days} days apart: a vulnerability discussed again after a longer silence can be pinned again, and one discussed without such a break stops being pinned {days} days after the day its wave began."
     },
     "about.hot.pin_filter": "It would be in the list you are viewing anyway: same window, minimum stage, rejected switch and tags.",
     "about.hot.pin_order": "Pinned rows are ordered by the number of researchers, then by the latest post. If fewer qualify than the limit, the rest is filled from the top of the discussed ranking, whatever the window or minimum stage. Pinned rows appear only on the first page and are not repeated among the ordinary rows.",
@@ -1945,7 +1958,7 @@
       "NDAY_AUTH_APPLE_KEY": "Private key for Sign in with Apple: the full PEM text of the .p8 file.",
       "NDAY_HOT_PIN_MAX": "Most CVEs pinned at the top of the hot list. When the rule below pins fewer, the rest is filled from the top of the discussed ranking. 0–20, default 10; 0 switches pinning off, fill included.",
       "NDAY_HOT_PIN_RESEARCHERS": "A CVE is pinned only when at least this many different researchers posted about it in the last 7 days (the @N badge). 1–100, default 2.",
-      "NDAY_HOT_PIN_RECENT_HOURS": "…and its most recent researcher post is at most this many hours old. 1–168, default 72.",
+      "NDAY_HOT_PIN_RECENT_HOURS": "…and its most recent researcher post is at most this many hours old, rounded up to whole UTC days (72: today or the 3 UTC days before). 1–168, default 72.",
       "NDAY_HOT_PIN_WAVE_DAYS": "…and its current wave of posts began at most this many days ago. A wave ends at a silence longer than this many days, so a CVE discussed again later can be pinned again. 1–30, default 7.",
       "NDAY_CORRECTIONS_DAILY": "Most corrections a user may report in 24 hours. 1–100000, default 10.",
       "NDAY_CORRECTIONS_OPEN_PER_VULN": "Most corrections waiting for an editor on one vulnerability, all readers together. 1–100000, default 20.",
@@ -2073,6 +2086,7 @@
     "admin.err.network": "Network error; try again.",
     "admin.err.exists": "This user id is already listed; edit it in the table.",
     "admin.err.no_handle": "No valid handle; add this account with the form instead.",
+    "admin.err.own_account": "This is the site's own X account; it is never collected.",
     "admin.err.too_many": "Too many rows at once; select at most one page.",
     "admin.err.duplicate": "A row was sent twice; reload the page.",
     "admin.err.bad_user_id": "Enter the numeric user id (digits only).",
@@ -2148,6 +2162,8 @@
     "rsch.nojs": "Reading the posts needs JavaScript.",
     "rsch.more": {"one": "show {n} more", "other": "show {n} more"},
     "rsch.view_on_x": "view on X",
+    "rsch.expand": "expand",
+    "rsch.collapse": "collapse",
     "rsch.res.h2": "Resources",
     "rsch.res.poc": "PoC / exploit code",
     "rsch.res.patch": "Patches",
@@ -2159,7 +2175,6 @@
     "rsch.res.unreviewed": "Unreviewed repositories ({n})",
     "veil.comments": {"one": "Sign in to read {n} comment.", "other": "Sign in to read {n} comments."},
     "veil.more_replies": {"one": "{n} more reply", "other": "{n} more replies"},
-    "veil.more_threads": "More comments follow.",
     "veil.comment": "A comment. Sign in to read it.",
     "discussed.title": "Researchers are discussing · nday",
     "discussed.description": "CVEs that researchers on nday's list posted about on X in the last 7 days, most researchers first.",
@@ -2167,6 +2182,10 @@
     "discussed.lede": "CVEs that researchers on nday's list posted about on X in the last 7 days, most researchers first.",
     "discussed.note": "Posts never change a lifecycle stage; sign in to read them on a vulnerability page.",
     "discussed.empty": "No researcher on the list has posted about a CVE in the last 7 days.",
+    "discussed.unit": {"one": "researcher", "other": "researchers"},
+    "discussed.flag.new": "new",
+    "discussed.flag.bare": "discussed, no PoC or patch yet",
+    "discussed.trend": {"up": "7-day trend: rising", "flat": "7-day trend: steady", "down": "7-day trend: falling"},
     "corr.h2": "Report an error",
     "corr.lede": "Something on this page wrong or missing? Tell the editors; if they accept it, this page's revision log says so publicly. Upstream data is not changed.",
     "corr.open": "report an error or omission",

@@ -1,6 +1,8 @@
 // Package ogcard draws the share card (Open Graph / X summary_large_image)
 // of one vulnerability: a 1200x630 PNG with the CVE id, the affected
-// products, the English title, the six-slot lifecycle strip and the brand.
+// products, the English title, the CVSS score, the six-slot lifecycle strip
+// and the brand, over a faint watermark of the product's brand mark when it
+// has one, or else of the product's name (wordmark.go).
 //
 // It is a pure function of Card: no database, no HTTP, no i18n. The text is
 // drawn with the embedded JetBrains Mono TrueType faces (fonts/NOTICE),
@@ -38,7 +40,7 @@ const (
 
 // Version names the drawing; it is part of Key, so changing the layout
 // changes every card URL.
-const Version = "1"
+const Version = "2" // 2: the brand-mark watermark and the CVSS score
 
 // SlotState is how a lifecycle slot is drawn.
 type SlotState uint8
@@ -81,6 +83,20 @@ type Card struct {
 	// link (the image forms of /admin/x/drafts). ASCII. Left out of Key's
 	// JSON when empty, so the keys of the plain cards do not change.
 	Address string `json:",omitempty"`
+	// Mark is the Simple Icons slug of the watermark ("docker"; "" for
+	// none) and MarkPath its 24x24 path data (internal/webui/static/
+	// tagicons.svg). Only the slug goes into Key: the path of a slug only
+	// changes with a regenerated sprite, i.e. a deploy. Path data that
+	// doesn't parse just means no watermark.
+	Mark     string `json:",omitempty"`
+	MarkPath string `json:"-"`
+	// Wordmark is the product name drawn as a big faint text watermark when
+	// the card has no brand mark ("" for none, and ignored when the mark
+	// draws). Left out of Key's JSON when empty.
+	Wordmark string `json:",omitempty"`
+	// Score is the CVSS base score as the page prints it ("9.1"), drawn at
+	// the right end of the id row; "" for none.
+	Score string `json:",omitempty"`
 }
 
 // Key is a short digest of everything that changes the picture (Card and
@@ -96,17 +112,18 @@ func (c Card) Key() string {
 
 // Palette (internal/webui/static/app.css).
 var (
-	cBg      = rgb(0x0D1117)
-	cLine2   = rgb(0x1D2531)
-	cLine    = rgb(0x263040)
-	cStrip   = rgb(0x232D3B)
-	cNone    = rgb(0x2B3646)
-	cSep     = rgb(0x3A475A)
-	cGreen   = rgb(0x7EE787)
-	cFg      = rgb(0xE7ECF2)
-	cFg2     = rgb(0xA3AFBD)
-	cFg3     = rgb(0x8592A2)
-	stageRGB = map[string]color.RGBA{
+	cBg       = rgb(0x0D1117)
+	cLine2    = rgb(0x1D2531)
+	cLine     = rgb(0x263040)
+	cStrip    = rgb(0x232D3B)
+	cNone     = rgb(0x2B3646)
+	cSep      = rgb(0x3A475A)
+	cGreen    = rgb(0x7EE787)
+	cFg       = rgb(0xE7ECF2)
+	cFg2      = rgb(0xA3AFBD)
+	cFg3      = rgb(0x8592A2)
+	cCritical = rgb(0xFF5C6C) // = stageRGB["KEV"], app.css --kev
+	stageRGB  = map[string]color.RGBA{
 		"DIS": rgb(0x9FB0C3), "PAT": rgb(0x5EB1FF), "ANA": rgb(0xB79CFF),
 		"POC": rgb(0xF5B83D), "ITW": rgb(0xFF8A4C), "KEV": rgb(0xFF5C6C),
 	}
@@ -227,11 +244,19 @@ const (
 	haloSide   = 88
 	codeBase   = 566
 	codeSize   = 30
+	scoreSize  = 56 // the CVSS figure
+	scoreLabel = 24 // the "CVSS" in front of it
+	scoreGap   = 12 // between the label and the figure
+	idGap      = 32 // between the id and the score block
 )
 
 type canvas struct {
 	img *image.RGBA
 	f   fonts
+	// ground is a copy of the canvas with only the background and the
+	// watermark on it; nil when the card has no watermark. Hollow markers
+	// show it through instead of punching a plain hole in the mark.
+	ground *image.RGBA
 }
 
 func (c *canvas) face(bold bool, size float64) font.Face {
@@ -254,6 +279,15 @@ func (c *canvas) text(face font.Face, col color.Color, x, y int, s string) int {
 	return d.Dot.X.Ceil()
 }
 
+// scoreColor is the colour of the CVSS figure: the red of the KEV stage
+// for a critical score (9.0 to 10.0), the text colour otherwise.
+func scoreColor(score string) color.RGBA {
+	if f, err := strconv.ParseFloat(score, 64); err == nil && f >= 9 && f <= 10 {
+		return cCritical
+	}
+	return cFg
+}
+
 func (c *canvas) rect(x0, y0, x1, y1 int, col color.Color) {
 	draw.Draw(c.img, image.Rect(x0, y0, x1, y1), image.NewUniform(col), image.Point{}, draw.Src)
 }
@@ -264,7 +298,12 @@ func (c *canvas) box(cx, cy, s, line int, fill, stroke color.Color) {
 	x0, y0 := cx-s/2, cy-s/2
 	if line > 0 {
 		c.rect(x0, y0, x0+s, y0+s, stroke)
-		c.rect(x0+line, y0+line, x0+s-line, y0+s-line, fill)
+		in := image.Rect(x0+line, y0+line, x0+s-line, y0+s-line)
+		if c.ground != nil && fill == color.Color(cBg) {
+			draw.Draw(c.img, in, c.ground, in.Min, draw.Src)
+			return
+		}
+		c.rect(in.Min.X, in.Min.Y, in.Max.X, in.Max.Y, fill)
 		return
 	}
 	c.rect(x0, y0, x0+s, y0+s, fill)
@@ -401,6 +440,37 @@ func productLine(ps []Product, total int) (line, more string) {
 	return strings.Join(groups, " · "), more
 }
 
+// idSizeFor is the id's font size: idSizeMax, or smaller so the id fits in
+// room pixels.
+func idSizeFor(id string, room int) float64 {
+	size := float64(idSizeMax)
+	if n := len([]rune(id)); n > 0 {
+		// JetBrains Mono advances are 0.6em
+		if s := float64(room) / (0.6 * float64(n)); s < size {
+			size = s
+		}
+	}
+	return size
+}
+
+// idRoom is the width left for the id next to a score block scoreW wide
+// (0: no score, the whole content width). The extra pixel covers the
+// rounding up of measured widths.
+func idRoom(scoreW int) int {
+	if scoreW == 0 {
+		return contentW
+	}
+	return contentW - scoreW - idGap - 1
+}
+
+// scoreWidth is the width of the "CVSS 9.1" block, 0 without a score.
+func (c *canvas) scoreWidth(score string) int {
+	if score == "" {
+		return 0
+	}
+	return width(c.face(false, scoreLabel), "CVSS") + scoreGap + width(c.face(true, scoreSize), score)
+}
+
 // Render draws c as a PNG.
 func Render(c Card) ([]byte, error) {
 	f, err := loadFonts()
@@ -409,6 +479,19 @@ func Render(c Card) ([]byte, error) {
 	}
 	cv := &canvas{img: image.NewRGBA(image.Rect(0, 0, Width, Height)), f: f}
 	cv.rect(0, 0, Width, Height, cBg)
+	watermark := false
+	if m, err := markFor(c.Mark, c.MarkPath); err == nil {
+		cv.drawMark(m)
+		watermark = m != nil
+	}
+	if !watermark {
+		watermark = cv.drawWordmark(c.Wordmark)
+	}
+	if watermark {
+		g := *cv.img
+		g.Pix = append([]uint8(nil), cv.img.Pix...)
+		cv.ground = &g
+	}
 
 	// Header: brand left; REJECTED and the latest change right.
 	head := cv.face(true, headSize)
@@ -475,13 +558,11 @@ func Render(c Card) ([]byte, error) {
 		lines = wrap(tf, title, 2, contentW)
 	}
 	id := Clean(c.CVE)
-	idSize := float64(idSizeMax)
-	if n := len([]rune(id)); n > 0 {
-		// JetBrains Mono advances are 0.6em
-		if s := float64(contentW) / (0.6 * float64(n)); s < idSize {
-			idSize = s
-		}
+	score := Clean(c.Score)
+	if !meaningful(score) {
+		score = ""
 	}
+	idSize := idSizeFor(id, idRoom(cv.scoreWidth(score)))
 	y := 228
 	switch len(lines) {
 	case 0:
@@ -490,6 +571,15 @@ func Render(c Card) ([]byte, error) {
 		y += 22
 	}
 	cv.text(cv.face(true, idSize), cFg, marginX, y, id)
+	if score != "" {
+		// "CVSS 9.1", right-aligned on the id's baseline; a critical score
+		// (9.0 and up) is red, anything else plain text colour.
+		fig := cv.face(true, scoreSize)
+		x := Width - marginX - width(fig, score)
+		cv.text(fig, scoreColor(score), x, y, score)
+		lab := cv.face(false, scoreLabel)
+		cv.text(lab, cFg3, x-scoreGap-width(lab, "CVSS"), y, "CVSS")
+	}
 	y += 58
 	if pl, more := productLine(c.Products, c.ProductTotal); pl != "" || more != "" {
 		cv.text(tf, cFg2, marginX, y, fit(tf, pl, more, contentW))

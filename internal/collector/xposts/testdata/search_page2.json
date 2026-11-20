@@ -20,7 +20,7 @@
   "includes": {
     "users": [
       {"id": "9999", "name": "Mallory", "username": "mallory"},
-      {"id": "1002", "name": "Bob", "username": "bob_sec"}
+      {"id": "1002", "name": "\u200f", "username": "bob_sec", "profile_image_url": "https://pbs.twimg.com.evil.tld/profile_images/1/b.jpg"}
     ]
   },
   "meta": {

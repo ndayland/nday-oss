@@ -50,6 +50,20 @@ var (
 	handleRe = regexp.MustCompile(`^[A-Za-z0-9_]{1,15}$`)
 )
 
+// OwnHandle is the site's own X account. The collector never collects it:
+// it cannot be put on the allowlist, it is skipped at collection time and it
+// is never an allowlist candidate. Fixed on purpose (no setting).
+const OwnHandle = "ndayland"
+
+// ErrOwnAccount: the handle is the site's own X account (OwnHandle).
+var ErrOwnAccount = errors.New("xconfig: the site's own X account (@" + OwnHandle + ") is never collected")
+
+// IsOwnHandle reports whether h (with or without a leading '@') is OwnHandle,
+// ASCII case-insensitively.
+func IsOwnHandle(h string) bool {
+	return strings.EqualFold(strings.TrimPrefix(h, "@"), OwnHandle)
+}
+
 // ValidUserID reports whether s is a numeric X user id as stored (decimal,
 // no leading zero, at most 19 digits) — the x_accounts.user_id CHECK.
 func ValidUserID(s string) bool { return userIDRe.MatchString(s) }
@@ -170,6 +184,9 @@ func validateHandleNote(label, handle, note string) error {
 	if !ValidHandle(handle) {
 		return fmt.Errorf("invalid X handle %q (1-15 of A-Z a-z 0-9 _ , without @)", handle)
 	}
+	if IsOwnHandle(handle) { // every allowlist write and import line passes here
+		return ErrOwnAccount
+	}
 	if !utf8.ValidString(note) || utf8.RuneCountInString(note) > MaxNoteLen || strings.ContainsAny(note, "\x00\r\n") {
 		return fmt.Errorf("invalid note for %s: at most %d characters, one line", label, MaxNoteLen)
 	}
@@ -207,6 +224,19 @@ func UpsertAccount(ctx context.Context, db DB, userID, handle, note string) (Ups
 
 // SetAccountEnabled enables or disables an account; ErrNotFound if absent.
 func SetAccountEnabled(ctx context.Context, db DB, userID string, enabled bool) error {
+	if enabled { // a row of the own account (inserted behind our back) cannot be switched on
+		var h string
+		err := db.QueryRow(ctx, `SELECT handle FROM x_accounts WHERE user_id = $1`, userID).Scan(&h)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if IsOwnHandle(h) {
+			return ErrOwnAccount
+		}
+	}
 	tag, err := db.Exec(ctx, `UPDATE x_accounts SET enabled = $2,
             updated_at = CASE WHEN enabled = $2 THEN updated_at ELSE now() END
         WHERE user_id = $1`, userID, enabled)

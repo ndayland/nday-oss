@@ -1083,7 +1083,7 @@ func TestHotChrome(t *testing.T) {
 	for _, want := range []string{
 		`<span class="k">Changed in</span>`, `<span class="k">Reached at least</span>`, `<span class="k">Tags</span>`,
 		`href="/?since=24h">24h</a>`, `href="/?min_stage=poc">PoC</a>`, `<a class="chk" href="/?include_rejected=1"><span class="box" aria-hidden="true"></span>`,
-		`Include rejected IDs</a>`, `<a class="bad" href="/src">collectors 1/7 ok</a>`, `<div class="statusline">`,
+		`Include rejected IDs</a>`, `<a class="bad" href="/src">collectors 1/9 ok</a>`, `<div class="statusline">`,
 		"\n<a class=\"skip\" href=\"#main\">Skip to content</a>\n<header class=\"top\">",
 		`<a href="/" aria-current="page"><span aria-hidden="true">~/</span>hot</a>`, `<span class="mode" id="mode" aria-hidden="true">NORMAL</span>`,
 		`<div class="help" id="help" role="dialog" aria-modal="false" aria-labelledby="help-t" tabindex="-1" hidden="">`,
@@ -1122,7 +1122,7 @@ func TestHotChrome(t *testing.T) {
 	_, body = e.get(t, "/src")
 	strip = section(body, `<div class="statusline">`, `</div>
 </div>`)
-	for _, want := range []string{"collectors 1/7 ok", "vulns ", "events ", "backfill queue ", "updated "} {
+	for _, want := range []string{"collectors 1/9 ok", "vulns ", "events ", "backfill queue ", "updated "} {
 		if !strings.Contains(strip, want) {
 			t.Errorf("sources status line missing %q: %s", want, strip)
 		}

@@ -60,7 +60,7 @@
     'bad_duration', 'bad_role', 'rate_limited', 'csrf', 'cross_site', 'not_signed_in', 'wrong_status', 'suspended', 'network',
     'exists', 'bad_user_id', 'bad_handle', 'bad_note', 'bad_setting', 'bad_import', 'too_large',
     'stale_version', 'too_long', 'bad_body', 'bad_post_url', 'bad_form', 'link_too_long',
-    'x_lookup_off', 'x_not_found', 'x_unavailable', 'x_rate_limited', 'x_auth', 'x_upstream', 'no_handle',
+    'x_lookup_off', 'x_not_found', 'x_unavailable', 'x_rate_limited', 'x_auth', 'x_upstream', 'no_handle', 'own_account',
     'settings_off', 'no_master_key', 'unknown_setting', 'secret_setting', 'not_secret', 'bad_secret', 'sign_in_off',
     'too_many', 'duplicate', 'bad_title', 'bad_login', 'no_owner', 'x_not_listed', 'owner_exists', 'github_not_found']);
   function errKey(e) {

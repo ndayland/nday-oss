@@ -256,15 +256,18 @@
 </form>
 <div class="adm-region" id="r-posts" data-page-region="r-posts">
 {{- if .PostList}}
-<div class="adm-list">
+<div class="xp-list">
 {{- range .PostList}}
-<article class="cm adm-cm">
-<p class="cm-h">{{if .Profile}}<a class="cm-au" href="{{.Profile}}" target="_blank" rel="noopener noreferrer nofollow">@{{.Handle}}</a>{{else}}<bdi class="cm-au">@{{.Handle}}</bdi>{{end}}
-<span class="cm-time">{{.At.HTML}}</span>
-{{- range .CVEs}} {{template "link" .}}{{end}}
-{{- with .URL}} <a href="{{.}}" target="_blank" rel="noopener noreferrer nofollow">{{t "admin.x.on_x"}}</a>{{end}}
-<span class="dim">{{t "admin.x.seen" "time" .Seen.HTML}}</span></p>
+<article class="xp">
+<p class="xp-who">{{if .Profile}}<a class="cm-au" href="{{.Profile}}" target="_blank" rel="noopener noreferrer nofollow">@{{.Handle}}</a>{{else}}<bdi class="cm-au">@{{.Handle}}</bdi>{{end}}
+<span class="cm-time">{{.At.HTML}}</span></p>
+<div class="xp-main">
 <p class="cm-body adm-tweet" dir="auto"{{with .Lang}} lang="{{.}}"{{end}}>{{.Text}}</p>
+<p class="xp-foot">
+{{- range .CVEs}}<span class="xp-cve">{{template "link" .}}</span>{{end}}
+{{- with .URL}}<a href="{{.}}" target="_blank" rel="noopener noreferrer nofollow">{{t "admin.x.on_x"}}</a>{{end}}
+<span class="dim">{{t "admin.x.seen" "time" .Seen.HTML}}</span></p>
+</div>
 </article>
 {{- end}}
 </div>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -69,9 +70,10 @@ func ListCandidates(ctx context.Context, db DB, status string, limit, offset int
         JOIN x_account_candidate_ref r ON r.user_id = c.user_id
         LEFT JOIN x_accounts a ON a.user_id = r.referrer_id
         WHERE c.status = $1 AND NOT EXISTS (SELECT 1 FROM x_accounts x WHERE x.user_id = c.user_id)
+          AND lower(coalesce(c.handle, '')) <> $4
         GROUP BY c.user_id
         ORDER BY referrers DESC, refs DESC, c.last_seen_at DESC, char_length(c.user_id), c.user_id
-        LIMIT $2 OFFSET $3`, status, limit, offset)
+        LIMIT $2 OFFSET $3`, status, limit, offset, strings.ToLower(OwnHandle))
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +103,8 @@ func CountCandidates(ctx context.Context, db DB, status string) (int, error) {
 	var n int
 	err := db.QueryRow(ctx, `SELECT count(*) FROM x_account_candidate c
         WHERE c.status = $1 AND EXISTS (SELECT 1 FROM x_account_candidate_ref r WHERE r.user_id = c.user_id)
-          AND NOT EXISTS (SELECT 1 FROM x_accounts x WHERE x.user_id = c.user_id)`, status).Scan(&n)
+          AND NOT EXISTS (SELECT 1 FROM x_accounts x WHERE x.user_id = c.user_id)
+          AND lower(coalesce(c.handle, '')) <> $2`, status, strings.ToLower(OwnHandle)).Scan(&n)
 	return n, err
 }
 
